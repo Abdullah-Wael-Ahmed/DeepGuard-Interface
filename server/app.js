@@ -14,7 +14,7 @@ server.get("/eve", (req, res) => {
         const file = fs.readFileSync(filepath, "utf8")
         const json = JSON.parse(file)
         // res.type('text/plain')
-        res.send(json)
+        res.json(json)
 
     } catch (error) {
         console.log(error);
