@@ -1,10 +1,24 @@
 const express = require('express')
+const fs = require("fs")
 
 const server = express()
 
 
 server.get("/hello", (req, res) => {
     res.send("Hello Kareem hossam")
+})
+
+server.get("/eve", (req, res) => {
+    try {
+        const filepath = "/var/log/suricata/eve.json"
+        const file = fs.readFileSync(filepath, "utf-8")
+        const json = JSON.parse(file)
+        res.json(json)
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json("Internal Server Error")
+    }
 })
 
 server.listen(5000, () => {
