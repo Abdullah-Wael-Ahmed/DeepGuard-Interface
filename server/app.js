@@ -12,8 +12,9 @@ server.get("/eve", (req, res) => {
     try {
         const filepath = "/var/log/suricata/eve.json"
         const file = fs.readFileSync(filepath, "utf8")
-        const json = JSON.parse(file)
-        res.json(json)
+        // const json = JSON.parse(file)
+        res.type('text/plain')
+        res.send(file)
 
     } catch (error) {
         console.log(error);
