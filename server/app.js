@@ -10,7 +10,7 @@ server.get("/hello", (req, res) => {
 
 server.get("/eve", (req, res) => {
     try {
-        const filepath = "/var/log/suricata/eve.json"
+        const filepath = "/var/log/suricata/fast.log"
         const file = fs.readFileSync(filepath, "utf8")
         // const json = JSON.parse(file)
         res.type('text/plain')
