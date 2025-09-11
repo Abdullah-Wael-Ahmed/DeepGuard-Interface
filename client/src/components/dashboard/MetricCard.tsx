@@ -37,16 +37,16 @@ export function MetricCard({
 
   return (
     <Card className={cn(
-      "p-6 bg-card shadow-card hover:shadow-glow transition-all duration-300",
+      "p-6 bg-[#0A2342] text-white shadow-card hover:shadow-glow transition-all duration-300",
       variantClasses[variant],
       className
     )}>
       <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold text-foreground">{value}</p>
+        <div className="space-y-2">   
+          <p className="text-sm font-medium text-white">{title}</p>
+          <p className="text-3xl font-bold text-white">{value}</p>
           {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-sm text-white">{description}</p>
           )}
         </div>
         {Icon && (
@@ -56,7 +56,7 @@ export function MetricCard({
         )}
       </div>
       {trend && (
-        <div className="mt-4 text-xs text-muted-foreground">
+        <div className="mt-4 text-xs text-white">
           <span className={cn(
             "inline-flex items-center gap-1",
             trend === "up" && "text-success",

@@ -24,22 +24,26 @@ const App = () => (
             <AppSidebar />
             <div className="flex-1 flex flex-col">
               {/* Global header with sidebar trigger */}
-              <header className="h-14 flex items-center border-b border-border bg-card px-4 shadow-card">
-                <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+              <header className="h-16 flex items-center border-b border-[#102A43] bg-[#0A2342] px-3 py-3 shadow-none">
+                <SidebarTrigger className="text-white hover:text-white" />
                 <div className="ml-auto flex items-center gap-4">
-                  <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">DeepGuard</span> • Threat Detection Platform
+                  <div className="text-base text-white font-semibold">
+                    <span className="font-bold text-[]">DeepGuard</span> •
+                    Threat Detection Platform
                   </div>
                 </div>
               </header>
-              
+
               {/* Main content */}
               <main className="flex-1 overflow-auto">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/anomaly-alerts" element={<AnomalyAlerts />} />
                   <Route path="/firewall-config" element={<FirewallConfig />} />
-                  <Route path="/traffic-inspection" element={<TrafficInspection />} />
+                  <Route
+                    path="/traffic-inspection"
+                    element={<TrafficInspection />}
+                  />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
