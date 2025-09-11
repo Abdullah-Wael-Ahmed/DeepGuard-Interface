@@ -47,6 +47,7 @@ server.get("/eve", (req, res) => {
 })
 
 server.post("/filebeat", (req, res) => {
+    console.log('filebeat sent');
     console.log(req);
     res.json("ok")
 })
