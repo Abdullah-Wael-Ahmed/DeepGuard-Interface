@@ -46,6 +46,12 @@ server.get("/eve", (req, res) => {
         });
 })
 
+server.post("/filebeat", (req, res) => {
+    console.log('filebeat sent');
+    console.log(req);
+    res.json("ok")
+})
+
 server.listen(5000, () => {
     console.log("server running on port 5000");
 })
