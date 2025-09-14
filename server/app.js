@@ -21,7 +21,7 @@ db.sync().then(() => {
 //     res.json("ok")
 // })
 
-server.use("logs", logRouter)
+server.use("/logs", logRouter)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");
