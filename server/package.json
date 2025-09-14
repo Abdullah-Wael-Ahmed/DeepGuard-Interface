@@ -13,6 +13,8 @@
     "child_process": "^1.0.2",
     "express": "^5.1.0",
     "ndjson": "^2.0.0",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7"
   }
 }
