@@ -11,7 +11,7 @@ router.post("/filebeat",async (req, res) => {
         console.log(req.headers);
         console.log("Body -----------------------------------");
         console.log(req.body);
-        await Alert.create({
+        Alert.create({
             timestamp: req.body["@timestamp"],
             src_ip: req.body.source.ip,
             src_port: req.body.source.port,
