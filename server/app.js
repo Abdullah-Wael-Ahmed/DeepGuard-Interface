@@ -1,4 +1,5 @@
 const express = require('express');
+require("dotenv").config();
 const db = require('./util/db');
 const logRouter = require("./routes/logRoutes")
 const cors = require('cors')
@@ -6,7 +7,6 @@ const cors = require('cors')
 const server = express()
 
 server.use(express.json())
-
 server.use(cors({
     origin: process.env.REACT_FRONTEND,
     methods: ["GET", "POST", "PUT", "DELETE"],
