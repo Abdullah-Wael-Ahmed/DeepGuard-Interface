@@ -1,5 +1,6 @@
 const express = require("express");
 const Alert = require("../models/Alert");
+const { broadcast } = require("../util/websocket");
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.post("/filebeat",async (req, res) => {
         console.log(req.headers);
         console.log("Body -----------------------------------");
         console.log(req.body);
-        Alert.create({
+        const alert = await Alert.create({
             timestamp: req.body["@timestamp"],
             src_ip: req.body.source.ip,
             src_port: req.body.source.port,
@@ -21,6 +22,7 @@ router.post("/filebeat",async (req, res) => {
             severity: req.body.severity,
             protocol: req.body.protocol
         })
+        broadcast({type: "new_alert", data: alert})
         res.json("ok")
     } catch (error) {
         res.status(500).json("Server Error")

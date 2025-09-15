@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { ToastContainer } from 'react-toastify';
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import Dashboard from "./pages/Dashboard";
 import AnomalyAlerts from "./pages/AnomalyAlerts";
@@ -16,7 +17,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
+      <ToastContainer />
       <Sonner />
       <SidebarProvider>
         <BrowserRouter>

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import axios from "axios"
 import {
   Search,
   RefreshCw,
@@ -14,111 +15,153 @@ import {
   Activity,
   Columns,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function TrafficInspection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCapturing, setIsCapturing] = useState(true);
+  const [trafficData, setTrafficData] = useState([]);
+  const [loader, setLoader] = useState(true)
+  const notify = (alert) => toast.warning( alert.slice(0,35) + "...", { position: "top-right" });
+
+  const getData = async () => {
+    try {
+      const backend = import.meta.env.VITE_BACKEND
+      const res = await await axios.get(backend+"/logs", {
+        withCredentials: true
+      })
+      console.log(backend)
+      console.log(res.data)
+      setTrafficData(res.data)
+      setLoader(false)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useEffect(() => {
+    getData();
+  }, [])
+
+  useEffect(() => {
+    try {
+      
+      const socket = new WebSocket(import.meta.env.VITE_WS)
+      socket.onopen= () => console.log("websocket connected")
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "new_alert") {
+          console.log(message.data)
+          notify(message.data.signature)
+          setTrafficData((prev) => [message.data, ...prev]); // prepend new alert
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+    }, [])
 
   // Mock traffic data
-  const trafficData = [
-    {
-      timestamp: "2024-07-26 14:30:01",
-      sourceIp: "192.168.1.10",
-      sourcePort: "54321",
-      destinationIp: "172.217.160.142",
-      destinationPort: "443",
-      protocol: "TCP",
-      l7App: "HTTPS",
-      payloadPreview: "GET /index.html HTTP/1.1...",
-      sessionId: "SESS-001A",
-    },
-    {
-      timestamp: "2024-07-26 14:30:02",
-      sourceIp: "10.0.0.5",
-      sourcePort: "80",
-      destinationIp: "192.168.1.100",
-      destinationPort: "60000",
-      protocol: "TCP",
-      l7App: "HTTP",
-      payloadPreview: "200 OK Content-Type: text/html...",
-      sessionId: "SESS-001B",
-    },
-    {
-      timestamp: "2024-07-26 14:30:03",
-      sourceIp: "192.168.1.20",
-      sourcePort: "53210",
-      destinationIp: "8.8.8.8",
-      destinationPort: "53",
-      protocol: "UDP",
-      l7App: "DNS",
-      payloadPreview: "Query: example.com A...",
-      sessionId: "SESS-001C",
-    },
-    {
-      timestamp: "2024-07-26 14:30:04",
-      sourceIp: "172.16.0.1",
-      sourcePort: "22",
-      destinationIp: "192.168.1.10",
-      destinationPort: "58901",
-      protocol: "TCP",
-      l7App: "SSH",
-      payloadPreview: "SSH-2.0-OpenSSH_8.9...",
-      sessionId: "SESS-001D",
-    },
-    {
-      timestamp: "2024-07-26 14:30:05",
-      sourceIp: "192.168.1.10",
-      sourcePort: "54322",
-      destinationIp: "172.217.160.142",
-      destinationPort: "443",
-      protocol: "TCP",
-      l7App: "HTTPS",
-      payloadPreview: "POST /api/data HTTP/1.1...",
-      sessionId: "SESS-001E",
-    },
-    {
-      timestamp: "2024-07-26 14:30:06",
-      sourceIp: "10.0.0.6",
-      sourcePort: "8080",
-      destinationIp: "192.168.1.101",
-      destinationPort: "60001",
-      protocol: "TCP",
-      l7App: "HTTP",
-      payloadPreview: "404 Not Found...",
-      sessionId: "SESS-001F",
-    },
-    {
-      timestamp: "2024-07-26 14:30:07",
-      sourceIp: "192.168.1.25",
-      sourcePort: "53211",
-      destinationIp: "8.8.4.4",
-      destinationPort: "53",
-      protocol: "UDP",
-      l7App: "DNS",
-      payloadPreview: "Query: google.com MX...",
-      sessionId: "SESS-001G",
-    },
-    {
-      timestamp: "2024-07-26 14:30:08",
-      sourceIp: "172.16.0.2",
-      sourcePort: "3389",
-      destinationIp: "192.168.1.11",
-      destinationPort: "58902",
-      protocol: "TCP",
-      l7App: "RDP",
-      payloadPreview: "RDP Connection Request...",
-      sessionId: "SESS-001H",
-    },
-  ];
+  // [
+  //   {
+  //     timestamp: "2024-07-26 14:30:01",
+  //     sourceIp: "192.168.1.10",
+  //     sourcePort: "54321",
+  //     destinationIp: "172.217.160.142",
+  //     destinationPort: "443",
+  //     protocol: "TCP",
+  //     l7App: "HTTPS",
+  //     payloadPreview: "GET /index.html HTTP/1.1...",
+  //     sessionId: "SESS-001A",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:02",
+  //     sourceIp: "10.0.0.5",
+  //     sourcePort: "80",
+  //     destinationIp: "192.168.1.100",
+  //     destinationPort: "60000",
+  //     protocol: "TCP",
+  //     l7App: "HTTP",
+  //     payloadPreview: "200 OK Content-Type: text/html...",
+  //     sessionId: "SESS-001B",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:03",
+  //     sourceIp: "192.168.1.20",
+  //     sourcePort: "53210",
+  //     destinationIp: "8.8.8.8",
+  //     destinationPort: "53",
+  //     protocol: "UDP",
+  //     l7App: "DNS",
+  //     payloadPreview: "Query: example.com A...",
+  //     sessionId: "SESS-001C",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:04",
+  //     sourceIp: "172.16.0.1",
+  //     sourcePort: "22",
+  //     destinationIp: "192.168.1.10",
+  //     destinationPort: "58901",
+  //     protocol: "TCP",
+  //     l7App: "SSH",
+  //     payloadPreview: "SSH-2.0-OpenSSH_8.9...",
+  //     sessionId: "SESS-001D",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:05",
+  //     sourceIp: "192.168.1.10",
+  //     sourcePort: "54322",
+  //     destinationIp: "172.217.160.142",
+  //     destinationPort: "443",
+  //     protocol: "TCP",
+  //     l7App: "HTTPS",
+  //     payloadPreview: "POST /api/data HTTP/1.1...",
+  //     sessionId: "SESS-001E",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:06",
+  //     sourceIp: "10.0.0.6",
+  //     sourcePort: "8080",
+  //     destinationIp: "192.168.1.101",
+  //     destinationPort: "60001",
+  //     protocol: "TCP",
+  //     l7App: "HTTP",
+  //     payloadPreview: "404 Not Found...",
+  //     sessionId: "SESS-001F",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:07",
+  //     sourceIp: "192.168.1.25",
+  //     sourcePort: "53211",
+  //     destinationIp: "8.8.4.4",
+  //     destinationPort: "53",
+  //     protocol: "UDP",
+  //     l7App: "DNS",
+  //     payloadPreview: "Query: google.com MX...",
+  //     sessionId: "SESS-001G",
+  //   },
+  //   {
+  //     timestamp: "2024-07-26 14:30:08",
+  //     sourceIp: "172.16.0.2",
+  //     sourcePort: "3389",
+  //     destinationIp: "192.168.1.11",
+  //     destinationPort: "58902",
+  //     protocol: "TCP",
+  //     l7App: "RDP",
+  //     payloadPreview: "RDP Connection Request...",
+  //     sessionId: "SESS-001H",
+  //   },
+  // ];
 
-  const filteredTraffic = trafficData.filter((traffic) => {
-    const matchesSearch =
-      traffic.sourceIp.includes(searchQuery) ||
-      traffic.destinationIp.includes(searchQuery) ||
-      traffic.l7App.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      traffic.protocol.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredTraffic = trafficData
+  // trafficData.filter((traffic) => {
+  //   const matchesSearch =
+  //     traffic.sourceIp.includes(searchQuery) ||
+  //     traffic.destinationIp.includes(searchQuery) ||
+  //     traffic.l7App.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //     traffic.protocol.toLowerCase().includes(searchQuery.toLowerCase());
+  //   return matchesSearch;
+  // });
 
   const exportTrafficData = () => {
     const headers = [
@@ -191,7 +234,9 @@ export default function TrafficInspection() {
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <Button
             variant={isCapturing ? "default" : "outline"}
-            onClick={() => setIsCapturing(!isCapturing)}
+            onClick={() => {
+              notify(trafficData[0].signature)
+              setIsCapturing(!isCapturing)}}
             className="bg-gradient-primary text-white hover:opacity-90"
           >
             {isCapturing ? (
@@ -225,7 +270,7 @@ export default function TrafficInspection() {
                 placeholder="Search traffic..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 text-black"
               />
             </div>
           </div>
@@ -272,14 +317,14 @@ export default function TrafficInspection() {
                   Protocol
                 </th>
                 <th className="text-left p-4 font-medium text-foreground text-white">
-                  L7 App
+                  Severity
                 </th>
                 <th className="text-left p-4 font-medium text-foreground text-white">
-                  Payload Preview
+                  Signature
                 </th>
-                <th className="text-left p-4 font-medium text-foreground text-white">
+                {/* <th className="text-left p-4 font-medium text-foreground text-white">
                   Session ID
-                </th>
+                </th> */}
                 <th className="text-left p-4 font-medium text-foreground text-white">
                   Actions
                 </th>
@@ -298,12 +343,12 @@ export default function TrafficInspection() {
                   </td>
                   <td className="p-4">
                     <span className="font-mono text-sm text-foreground text-white">
-                      {traffic.sourceIp}:{traffic.sourcePort}
+                      {traffic.src_ip}:{traffic.src_port}
                     </span>
                   </td>
                   <td className="p-4">
                     <span className="font-mono text-sm text-foreground text-white">
-                      {traffic.destinationIp}:{traffic.destinationPort}
+                      {traffic.dest_ip}:{traffic.dest_port}
                     </span>
                   </td>
                   <td className="p-4">
@@ -322,30 +367,28 @@ export default function TrafficInspection() {
                   <td className="p-4">
                     <StatusBadge
                       variant={
-                        traffic.l7App === "HTTPS"
-                          ? "success"
-                          : traffic.l7App === "HTTP"
-                          ? "info"
-                          : traffic.l7App === "SSH"
-                          ? "medium"
-                          : traffic.l7App === "DNS"
+                        traffic.severity === 1
+                          ? "critical"
+                          : traffic.severity === 2
+                          ? "warning"
+                          : traffic.severity === 3
                           ? "low"
                           : "default"
                       }
                     >
-                      {traffic.l7App}
+                      {traffic.severity === 1 ? "High" : traffic.severity === 2 ? "Medium" : "Low"}
                     </StatusBadge>
                   </td>
                   <td className="p-4 max-w-xs">
                     <span className="font-mono text-sm text-muted-foreground text-white truncate block">
-                      {traffic.payloadPreview}
+                      {traffic.signature}
                     </span>
                   </td>
-                  <td className="p-4">
+                  {/* <td className="p-4">
                     <span className="font-mono text-sm text-muted-foreground text-white">
                       {traffic.sessionId}
                     </span>
-                  </td>
+                  </td> */}
                   <td className="p-4">
                     <Button variant="ghost" size="sm">
                       <Eye className="w-4 h-4" />
