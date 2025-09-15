@@ -1,25 +1,23 @@
 const express = require('express');
 const db = require('./util/db');
 const logRouter = require("./routes/logRoutes")
+const cors = require('cors')
 
 const server = express()
 
 server.use(express.json())
+
+server.use(cors({
+    origin: process.env.REACT_FRONTEND,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}))
 
 db.sync().then(() => {
     console.log("Database synced");
 }).catch((e) => {
     console.log(e);
 })
-
-// server.post("/filebeat", (req, res) => {
-//     console.log('filebeat sent');
-//     console.log("Headers -----------------------------------");
-//     console.log(req.headers);
-//     console.log("Body -----------------------------------");
-//     console.log(req.body);
-//     res.json("ok")
-// })
 
 server.use("/logs", logRouter)
 
