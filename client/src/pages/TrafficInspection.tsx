@@ -27,7 +27,7 @@ export default function TrafficInspection() {
   const [loader, setLoader] = useState(true)
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState([])
-  const wsref = useRef(null)
+  const pausedWsRef = useRef(false)
   const noItemsPerPage = 7
   const notify = (alert) => toast.warning(alert.slice(0, 35) + "...", { position: "top-right" });
 
@@ -59,7 +59,9 @@ export default function TrafficInspection() {
     try {
       const socket = new WebSocket(import.meta.env.VITE_WS)
       socket.onopen = () => console.log("websocket connected")
+
       socket.onmessage = (event) => {
+        if (pausedWsRef.current) return
         const message = JSON.parse(event.data);
         if (message.type === "new_alert") {
           console.log(message.data)
@@ -279,14 +281,16 @@ export default function TrafficInspection() {
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <Button
-            variant={isCapturing ? "default" : "outline"}
+            variant={"default"}
             onClick={() => {
               setIsCapturing(!isCapturing)
+              pausedWsRef.current = !pausedWsRef.current
+              if (pausedWsRef.current == false) getData()
             }}
             className="bg-gradient-primary text-white hover:opacity-90"
           >
             {isCapturing ? (
-              <Pause className="w-4 h-4 mr-2" />
+              <Pause className="w-4 h-4 mr-2"  />
             ) : (
               <Play className="w-4 h-4 mr-2" />
             )}
