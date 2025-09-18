@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
   Eye,
   Activity,
   Columns,
+  Loader,
+  LoaderCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -21,18 +23,27 @@ export default function TrafficInspection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCapturing, setIsCapturing] = useState(true);
   const [trafficData, setTrafficData] = useState([]);
+  const [totalAlertCount, setTotalAlertCount] = useState(0)
   const [loader, setLoader] = useState(true)
-  const notify = (alert) => toast.warning( alert.slice(0,35) + "...", { position: "top-right" });
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState([])
+  const wsref = useRef(null)
+  const noItemsPerPage = 7
+  const notify = (alert) => toast.warning(alert.slice(0, 35) + "...", { position: "top-right" });
 
   const getData = async () => {
     try {
+      setLoader(true)
       const backend = import.meta.env.VITE_BACKEND
-      const res = await await axios.get(backend+"/logs", {
-        withCredentials: true
+      const res = await axios.get(backend + "/logs", {
+        withCredentials: true,
+        params: {
+          page: page
+        }
       })
-      console.log(backend)
-      console.log(res.data)
-      setTrafficData(res.data)
+      setTrafficData(res.data.alerts)
+      setTotalAlertCount(res.data.alertCount)
+      setPagination(getPagination(page, Math.ceil(res.data.alertCount / noItemsPerPage), 3))
       setLoader(false)
     } catch (error) {
       console.log(error)
@@ -41,25 +52,35 @@ export default function TrafficInspection() {
 
   useEffect(() => {
     getData();
-  }, [])
+    console.log("rerender")
+  }, [page])
 
   useEffect(() => {
     try {
-      
       const socket = new WebSocket(import.meta.env.VITE_WS)
-      socket.onopen= () => console.log("websocket connected")
+      socket.onopen = () => console.log("websocket connected")
       socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         if (message.type === "new_alert") {
           console.log(message.data)
           notify(message.data.signature)
-          setTrafficData((prev) => [message.data, ...prev]); // prepend new alert
+          setPage(1)
+          setTrafficData((prev) => [message.data, ...prev.slice(0, prev.length - 1)]); // prepend new alert
+          console.log(totalAlertCount)
+          setTotalAlertCount(prev => {
+            const updated = prev + 1
+            setPagination(getPagination(page, Math.ceil(updated / noItemsPerPage), 3))
+            return updated
+          })
+          return () => {
+            socket.close();
+          };
         }
       }
     } catch (error) {
       console.log(error)
     }
-    }, [])
+  }, [])
 
   // Mock traffic data
   // [
@@ -163,6 +184,31 @@ export default function TrafficInspection() {
   //   return matchesSearch;
   // });
 
+  function getPagination(currentPage, totalPages, maxVisiblePages = 5) {
+    const pages = [];
+
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+
+    if (totalPages <= maxVisiblePages + 2) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      const start = Math.max(2, currentPage - Math.floor(maxVisiblePages / 2));
+      const end = Math.min(totalPages - 1, start + maxVisiblePages - 1);
+
+      pages.push(1); // Always show first page
+
+      if (start > 2) pages.push("...");
+
+      for (let i = start; i <= end; i++) pages.push(i);
+
+      if (end < totalPages - 1) pages.push("...");
+
+      pages.push(totalPages); // Always show last page
+    }
+
+    return pages;
+  }
+
   const exportTrafficData = () => {
     const headers = [
       "Timestamp",
@@ -235,8 +281,8 @@ export default function TrafficInspection() {
           <Button
             variant={isCapturing ? "default" : "outline"}
             onClick={() => {
-              notify(trafficData[0].signature)
-              setIsCapturing(!isCapturing)}}
+              setIsCapturing(!isCapturing)
+            }}
             className="bg-gradient-primary text-white hover:opacity-90"
           >
             {isCapturing ? (
@@ -249,7 +295,7 @@ export default function TrafficInspection() {
 
           <Button variant="outline">
             <Filter className="w-4 h-4 mr-2 text-[#0A2342]" />
-            
+
             <span className="text-[#0A2342]">Show Filters</span>
           </Button>
 
@@ -330,73 +376,87 @@ export default function TrafficInspection() {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {filteredTraffic.map((traffic, index) => (
-                <tr
-                  key={index}
-                  className="border-b border-border hover:bg-muted/10 transition-colors"
-                >
-                  <td className="p-4">
-                    <span className="font-mono text-sm text-foreground text-white">
-                      {traffic.timestamp}
-                    </span>
+            {loader ?
+              <tbody>
+                <tr>
+                  <td colSpan={7}>
+                    <div className=" flex h-64 w-ful justify-center items-center">
+                      <LoaderCircle className="animate-spin h-12 w-12" />
+                    </div>
                   </td>
-                  <td className="p-4">
-                    <span className="font-mono text-sm text-foreground text-white">
-                      {traffic.src_ip}:{traffic.src_port}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="font-mono text-sm text-foreground text-white">
-                      {traffic.dest_ip}:{traffic.dest_port}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <StatusBadge
-                      variant={
-                        traffic.protocol === "TCP"
-                          ? "info"
-                          : traffic.protocol === "UDP"
-                          ? "warning"
-                          : "default"
-                      }
-                    >
-                      {traffic.protocol}
-                    </StatusBadge>
-                  </td>
-                  <td className="p-4">
-                    <StatusBadge
-                      variant={
-                        traffic.severity === 1
-                          ? "critical"
-                          : traffic.severity === 2
-                          ? "warning"
-                          : traffic.severity === 3
-                          ? "low"
-                          : "default"
-                      }
-                    >
-                      {traffic.severity === 1 ? "High" : traffic.severity === 2 ? "Medium" : "Low"}
-                    </StatusBadge>
-                  </td>
-                  <td className="p-4 max-w-xs">
-                    <span className="font-mono text-sm text-muted-foreground text-white truncate block">
-                      {traffic.signature}
-                    </span>
-                  </td>
-                  {/* <td className="p-4">
+                </tr>
+              </tbody>
+              :
+              <tbody>
+                {filteredTraffic.map((traffic, index) => (
+                  <tr
+                    key={index}
+                    className="border-b border-border hover:bg-muted/10 transition-colors"
+                  >
+                    <td className="p-4">
+                      <span className="font-mono text-sm text-foreground text-white">
+                        {new Date(traffic.createdAt).toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className="font-mono text-sm text-foreground text-white">
+                        {traffic.src_ip}:{traffic.src_port}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className="font-mono text-sm text-foreground text-white">
+                        {traffic.dest_ip}:{traffic.dest_port}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <StatusBadge
+                        variant={
+                          traffic.protocol === "TCP"
+                            ? "info"
+                            : traffic.protocol === "UDP"
+                              ? "warning"
+                              : "default"
+                        }
+                      >
+                        {traffic.protocol}
+                      </StatusBadge>
+                    </td>
+                    <td className="p-4">
+                      <StatusBadge
+                        variant={
+                          traffic.severity === 1
+                            ? "critical"
+                            : traffic.severity === 2
+                              ? "warning"
+                              : traffic.severity === 3
+                                ? "low"
+                                : "default"
+                        }
+                      >
+                        {traffic.severity === 1 ? "High" : traffic.severity === 2 ? "Medium" : "Low"}
+                      </StatusBadge>
+                    </td>
+                    <td className="p-4 max-w-xs">
+                      <span className="font-mono text-sm text-muted-foreground text-white truncate block">
+                        {traffic.signature}
+                      </span>
+                    </td>
+                    {/* <td className="p-4">
                     <span className="font-mono text-sm text-muted-foreground text-white">
                       {traffic.sessionId}
                     </span>
                   </td> */}
-                  <td className="p-4">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+                    <td className="p-4">
+                      <Button variant="ghost" size="sm">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            }
+
+
           </table>
         </div>
 
@@ -409,20 +469,34 @@ export default function TrafficInspection() {
 
         {/* Pagination */}
         <div className="p-4 border-t border-border flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {filteredTraffic.length} entries
-          </div>
-          <div className="flex items-center gap-2 text-[#0A2342]">
-            <Button variant="outline" size="sm" disabled>
-              ← Previous
-            </Button>
-            <Button variant="outline" size="sm">
-              1
-            </Button>
-            <Button variant="outline" size="sm">
-              Next →
-            </Button>
-          </div>
+          {!loader &&
+            <>
+              <div className="text-sm text-muted-foreground">
+                {`Showing ${(page - 1) * noItemsPerPage + 1}–${Math.min(page * noItemsPerPage, totalAlertCount)} of ${totalAlertCount}`}
+              </div>
+              <div className="flex items-center gap-2 text-[#0A2342]">
+                <Button variant="outline" size="sm" disabled={page == 1} onClick={() => {
+                  setPage(page - 1)
+                }}>
+                  ← Previous
+                </Button>
+                {pagination.map((num) => {
+                  return <Button key={num} variant="outline" size="sm" disabled={num == page} onClick={() => {
+                    if (num != "...") {
+                      setPage(num)
+                    }
+                  }}>
+                    {num}
+                  </Button>
+                })}
+                <Button variant="outline" size="sm" disabled={Math.ceil(totalAlertCount / noItemsPerPage) == page} onClick={() => {
+                  setPage(page + 1)
+                }}>
+                  Next →
+                </Button>
+              </div>
+            </>
+          }
         </div>
       </Card>
     </div>
