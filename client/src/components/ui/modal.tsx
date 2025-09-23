@@ -50,7 +50,7 @@ export default function Modal({ isOpen, onClose, alert }) {
                     <div>
                         <p className="text-sm text-gray-500">Destination</p>
                         <p className="font-medium text-gray-900">
-                            {alert.src_ip}:{alert.src_port}
+                            {alert.dest_ip}:{alert.dest_port}
                         </p>
                     </div>
 
