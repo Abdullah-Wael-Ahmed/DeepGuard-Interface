@@ -60,13 +60,14 @@ export function AppSidebar() {
               </div>
             </div>
           ) : (
-            <div className="w-8 h-8 flex items-center justify-start mx-auto">
+            <div className="flex items-center justify-center">
               <img
-                className="w-full"
                 src={DeepGuardLogo}
                 alt="DeepGuard Logo"
+                className="w-10 h-10"
               />
             </div>
+
           )}
         </div>
 

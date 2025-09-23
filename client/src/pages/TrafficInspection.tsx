@@ -18,6 +18,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import Modal from "@/components/ui/modal";
 
 export default function TrafficInspection() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,18 +28,23 @@ export default function TrafficInspection() {
   const [loader, setLoader] = useState(true)
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState([])
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalContent, setModalContent] = useState("")
   const pausedWsRef = useRef(false)
+  const debounceTimer = useRef(null)
+  const searchRef = useRef("")
   const noItemsPerPage = 7
   const notify = (alert) => toast.warning(alert.slice(0, 35) + "...", { position: "top-right" });
 
-  const getData = async () => {
+  const getData = async (search = searchQuery) => {
     try {
       setLoader(true)
       const backend = import.meta.env.VITE_BACKEND
       const res = await axios.get(backend + "/logs", {
         withCredentials: true,
         params: {
-          page: page
+          page: page,
+          search: search
         }
       })
       setTrafficData(res.data.alerts)
@@ -48,6 +54,22 @@ export default function TrafficInspection() {
     } catch (error) {
       console.log(error)
     }
+  }
+
+  const applysSearch = (e) => {
+    const search = e.target.value
+    setSearchQuery(search)
+    searchRef.current = search
+
+    if (debounceTimer.current){
+      clearTimeout(debounceTimer.current)
+    }
+
+    debounceTimer.current = setTimeout(async () => {      
+
+        await getData(search)
+        
+    }, 750);
   }
 
   useEffect(() => {
@@ -64,11 +86,16 @@ export default function TrafficInspection() {
         if (pausedWsRef.current) return
         const message = JSON.parse(event.data);
         if (message.type === "new_alert") {
-          console.log(message.data)
+          if (
+            !(`${message.data.src_ip}:${message.data.src_port}`.includes(searchRef.current) ||
+            `${message.data.dest_ip}:${message.data.dest_port}`.includes(searchRef.current) ||
+            message.data.protocol.includes(searchRef.current))
+          ) {
+            return;
+          }
           notify(message.data.signature)
           setPage(1)
           setTrafficData((prev) => [message.data, ...prev.slice(0, prev.length - 1)]); // prepend new alert
-          console.log(totalAlertCount)
           setTotalAlertCount(prev => {
             const updated = prev + 1
             setPagination(getPagination(page, Math.ceil(updated / noItemsPerPage), 3))
@@ -176,15 +203,6 @@ export default function TrafficInspection() {
   //   },
   // ];
 
-  const filteredTraffic = trafficData
-  // trafficData.filter((traffic) => {
-  //   const matchesSearch =
-  //     traffic.sourceIp.includes(searchQuery) ||
-  //     traffic.destinationIp.includes(searchQuery) ||
-  //     traffic.l7App.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //     traffic.protocol.toLowerCase().includes(searchQuery.toLowerCase());
-  //   return matchesSearch;
-  // });
 
   function getPagination(currentPage, totalPages, maxVisiblePages = 5) {
     const pages = [];
@@ -226,7 +244,7 @@ export default function TrafficInspection() {
 
     const csvContent = [
       headers.join(","),
-      ...filteredTraffic.map((traffic) =>
+      ...trafficData.map((traffic) =>
         [
           traffic.timestamp,
           traffic.sourceIp,
@@ -296,7 +314,7 @@ export default function TrafficInspection() {
             )}
             {isCapturing ? "Pause Capture" : "Start Capture"}
           </Button>
-
+{/* 
           <Button variant="outline">
             <Filter className="w-4 h-4 mr-2 text-[#0A2342]" />
 
@@ -311,15 +329,15 @@ export default function TrafficInspection() {
           <Button variant="outline" onClick={exportTrafficData}>
             <Download className="w-4 h-4 mr-2 text-[#0A2342]" />
             <span className="text-[#0A2342]">Export Data</span>
-          </Button>
+          </Button> */}
 
-          <div className="flex-1 max-w-md">
+          <div className="flex-1 ">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Search traffic..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={applysSearch}
                 className="pl-10 text-black"
               />
             </div>
@@ -343,10 +361,10 @@ export default function TrafficInspection() {
                 </div>
               )}
             </div>
-            <Button variant="ghost" size="sm">
+            {/* <Button variant="ghost" size="sm">
               <Columns className="w-4 h-4 mr-2" />
               Columns
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -392,10 +410,12 @@ export default function TrafficInspection() {
               </tbody>
               :
               <tbody>
-                {filteredTraffic.map((traffic, index) => (
+                {trafficData.map((traffic, index) => (
                   <tr
                     key={index}
                     className="border-b border-border hover:bg-muted/10 transition-colors"
+                    onClick={() => {setIsModalOpen(true)
+                      setModalContent(traffic)}}
                   >
                     <td className="p-4">
                       <span className="font-mono text-sm text-foreground text-white">
@@ -442,7 +462,7 @@ export default function TrafficInspection() {
                     </td>
                     <td className="p-4 max-w-xs">
                       <span className="font-mono text-sm text-muted-foreground text-white truncate block">
-                        {traffic.signature}
+                        {traffic.signature.length >= 35 ? traffic.signature.slice(0,33)+"..." : traffic.signature}
                       </span>
                     </td>
                     {/* <td className="p-4">
@@ -464,7 +484,7 @@ export default function TrafficInspection() {
           </table>
         </div>
 
-        {filteredTraffic.length === 0 && (
+        {trafficData.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">
             <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No traffic data matches your current filters</p>
@@ -503,6 +523,7 @@ export default function TrafficInspection() {
           }
         </div>
       </Card>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} alert={modalContent}/>
     </div>
   );
 }
