@@ -16,6 +16,7 @@ import {
   Columns,
   Loader,
   LoaderCircle,
+  CircleAlert
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Modal from "@/components/ui/modal";
@@ -78,38 +79,50 @@ export default function TrafficInspection() {
   }, [page])
 
   useEffect(() => {
-    try {
-      const socket = new WebSocket(import.meta.env.VITE_WS)
-      socket.onopen = () => console.log("websocket connected")
+  let socket
 
-      socket.onmessage = (event) => {
-        if (pausedWsRef.current) return
-        const message = JSON.parse(event.data);
-        if (message.type === "new_alert") {
-          if (
-            !(`${message.data.src_ip}:${message.data.src_port}`.includes(searchRef.current) ||
+  try {
+    socket = new WebSocket(import.meta.env.VITE_WS)
+    socket.onopen = () => console.log("websocket connected")
+
+    socket.onmessage = (event) => {
+      if (pausedWsRef.current) return
+      const message = JSON.parse(event.data)
+
+      if (message.type === "new_alert") {
+        if (
+          !(
+            `${message.data.src_ip}:${message.data.src_port}`.includes(searchRef.current) ||
             `${message.data.dest_ip}:${message.data.dest_port}`.includes(searchRef.current) ||
-            message.data.protocol.includes(searchRef.current))
-          ) {
-            return;
-          }
-          notify(message.data.signature)
-          setPage(1)
-          setTrafficData((prev) => [message.data, ...prev.slice(0, prev.length - 1)]); // prepend new alert
-          setTotalAlertCount(prev => {
-            const updated = prev + 1
-            setPagination(getPagination(page, Math.ceil(updated / noItemsPerPage), 3))
-            return updated
-          })
-          return () => {
-            socket.close();
-          };
+            message.data.protocol.includes(searchRef.current)
+          )
+        ) {
+          return
         }
+
+        notify(message.data.signature)
+        setPage(1)
+        setTrafficData((prev) => [message.data, ...prev.slice(0, prev.length - 1)])
+        setTotalAlertCount((prev) => {
+          const updated = prev + 1
+          setPagination(getPagination(page, Math.ceil(updated / noItemsPerPage), 3))
+          return updated
+        })
       }
-    } catch (error) {
-      console.log(error)
     }
-  }, [])
+  } catch (error) {
+    console.log(error)
+  }
+
+  // ✅ cleanup runs when component unmounts or effect re-runs
+  return () => {
+    if (socket) {
+      console.log("closing websocket")
+      socket.close()
+    }
+  }
+}, [])
+
 
   // Mock traffic data
   // [
