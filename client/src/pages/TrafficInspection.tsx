@@ -102,7 +102,7 @@ export default function TrafficInspection() {
 
         notify(message.data.signature)
         setPage(1)
-        setTrafficData((prev) => [message.data, ...prev.slice(0, prev.length - 1)])
+        setTrafficData((prev) => [message.data, ...prev.slice(0, prev.length == noItemsPerPage ? prev.length - 1 : prev.length)])
         setTotalAlertCount((prev) => {
           const updated = prev + 1
           setPagination(getPagination(page, Math.ceil(updated / noItemsPerPage), 3))

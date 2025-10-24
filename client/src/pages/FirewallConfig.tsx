@@ -19,6 +19,7 @@ import {
   Shield,
   Settings,
 } from "lucide-react";
+import FirewallRuleModal from "@/components/ui/firewallRuleModal";
 
 export default function FirewallConfig() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -340,6 +341,7 @@ export default function FirewallConfig() {
           </details>
         </div>
       </Card>
+      <FirewallRuleModal isOpen={true} onClose={()=>{}}/>
     </div>
   );
 }
