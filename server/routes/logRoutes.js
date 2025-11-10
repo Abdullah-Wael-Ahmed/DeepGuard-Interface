@@ -66,7 +66,7 @@ router.get("/", async (req, res) => {
                     { protocol: { [Op.like]: `%${search}%` } }
                 ]
             }})
-        res.json({ alerts, alertCount })
+        res.json({ alerts, alertCount, noItems })
     } catch (error) {
         res.status(500).json("server error")
         console.log(error);
