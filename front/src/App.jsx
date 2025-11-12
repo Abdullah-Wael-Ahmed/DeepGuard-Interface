@@ -7,6 +7,8 @@ import Traffic from './pages/Traffic'
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Firewall from './pages/Firewall'
+import Dashboard from './pages/Dashboard'
+import Settings from './pages/Settings'
 
 function App() {
 
@@ -15,9 +17,11 @@ function App() {
       path: '/',
       element: <Layout />,
       children: [
+        { path: '/', element: <Dashboard /> },
         { path: '/reports', element: <Reports /> },
         { path: '/traffic', element: <Traffic /> },
-        { path: '/firewall', element: <Firewall /> }
+        { path: '/firewall', element: <Firewall /> },
+        { path: '/settings', element: <Settings /> }
       ]
     }
   ])

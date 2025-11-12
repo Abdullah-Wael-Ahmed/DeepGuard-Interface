@@ -27,7 +27,7 @@ const Layout = () => {
                             </div>
                         </div>
                         <nav className="flex flex-col gap-2">
-                            <a className={activeTab("")} href="#">
+                            <a className={activeTab("")} href="/">
                                 <Gauge/>
                                 <p className="text-sm font-medium">Dashboard</p>
                             </a>
@@ -47,7 +47,7 @@ const Layout = () => {
                                 <ChartLine />
                                 <p className="text-sm font-bold">Reports</p>
                             </Link>
-                            <a className={activeTab("settings")} href="#">
+                            <a className={activeTab("settings")} href="/settings">
                                 <Settings/>
                                 <p className="text-sm font-medium">Settings</p>
                             </a>
