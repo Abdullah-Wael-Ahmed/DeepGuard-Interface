@@ -11,4 +11,4 @@ router.get("/list", (req, res) => {
     })
 })
 
-export default router;
+module.exports = router;
