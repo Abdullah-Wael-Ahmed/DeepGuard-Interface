@@ -18,7 +18,7 @@ const runAsNodeUser = (command, res, successMessage) => {
 
 
 router.get('/list', (req, res) => {
-    const cmd = "/usr/sbin/iptables -L -n --line-numbers";
+    const cmd = "iptables -L INPUT -n --line-numbers";
     runAsNodeUser(cmd, res, 'Rules listed successfully');
 });
 
