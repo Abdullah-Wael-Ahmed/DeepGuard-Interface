@@ -6,6 +6,7 @@ import Reports from './pages/Reports'
 import Traffic from './pages/Traffic'
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Firewall from './pages/Firewall'
 
 function App() {
 
@@ -15,7 +16,8 @@ function App() {
       element: <Layout />,
       children: [
         { path: '/reports', element: <Reports /> },
-        { path: '/traffic', element: <Traffic /> }
+        { path: '/traffic', element: <Traffic /> },
+        { path: '/firewall', element: <Firewall /> }
       ]
     }
   ])

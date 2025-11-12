@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowDown, ArrowUp, Calendar, ChevronDown, Download, Share2 } from 'lucide-react';
 
 const Reports = () => {
     return (
@@ -12,7 +13,8 @@ const Reports = () => {
                             and automated incident reports.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-text-secondary">calendar_today</span>
+                        {/* <span className="material-symbols-outlined text-text-secondary">calendar_today</span> */}
+                        <Calendar className='text-gray-500'/>
                         <p className="text-text-secondary text-sm">Last 24 Hours</p>
                     </div>
                 </div>
@@ -20,19 +22,19 @@ const Reports = () => {
                 <div className="flex gap-3 mb-8">
                     <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-card-dark hover:bg-primary/20 hover:text-primary transition-colors pl-4 pr-3">
                         <p className="text-sm font-medium">Date</p>
-                        <span className="material-symbols-outlined text-lg">expand_more</span>
+                        <ChevronDown/>
                     </button>
                     <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-card-dark hover:bg-primary/20 hover:text-primary transition-colors pl-4 pr-3">
                         <p className="text-sm font-medium">Severity</p>
-                        <span className="material-symbols-outlined text-lg">expand_more</span>
+                        <ChevronDown/>
                     </button>
                     <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-card-dark hover:bg-primary/20 hover:text-primary transition-colors pl-4 pr-3">
                         <p className="text-sm font-medium">Type</p>
-                        <span className="material-symbols-outlined text-lg">expand_more</span>
+                        <ChevronDown/>
                     </button>
                     <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-card-dark hover:bg-primary/20 hover:text-primary transition-colors pl-4 pr-3">
                         <p className="text-sm font-medium">Status</p>
-                        <span className="material-symbols-outlined text-lg">expand_more</span>
+                        <ChevronDown/>
                     </button>
                 </div>
                 {/* Charts */}
@@ -42,7 +44,7 @@ const Reports = () => {
                         <p className="text-text-main text-4xl font-bold">1,234</p>
                         <div className="flex gap-2 items-center">
                             <p className="text-text-secondary text-sm">vs. previous 24 hours</p>
-                            <p className="text-green-400 text-sm font-medium flex items-center"><span className="material-symbols-outlined text-base">arrow_upward</span>+12.5%</p>
+                            <p className="text-green-400 text-sm font-medium flex items-center"><ArrowUp/>+12.5%</p>
                         </div>
                         <div className="flex-1 flex items-end pt-4">
                             <svg fill="none" height={150} preserveAspectRatio="none" viewBox="0 0 472 150" width="100%" xmlns="http://www.w3.org/2000/svg">
@@ -62,7 +64,7 @@ const Reports = () => {
                         <p className="text-text-main text-4xl font-bold">567</p>
                         <div className="flex gap-2 items-center">
                             <p className="text-text-secondary text-sm">Last 7 Days</p>
-                            <p className="text-red-400 text-sm font-medium flex items-center"><span className="material-symbols-outlined text-base">arrow_downward</span>-3.2%</p>
+                            <p className="text-red-400 text-sm font-medium flex items-center"><ArrowDown/>-3.2%</p>
                         </div>
                         <div className="grid flex-1 grid-flow-col gap-6 grid-rows-[1fr_auto] items-end justify-items-center pt-4 px-3">
                             <div className="bg-primary/20 w-full rounded-t-sm" style={{ height: '100%' }} />
@@ -92,8 +94,8 @@ const Reports = () => {
                         <div className="text-sm text-text-secondary">Firewall Block</div>
                         <div className="text-sm text-text-secondary">Unreviewed</div>
                         <div className="flex gap-2">
-                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><span className="material-symbols-outlined text-xl">share</span></button>
-                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><span className="material-symbols-outlined text-xl">download</span></button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><Share2/></button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><Download/></button>
                         </div>
                     </div>
                     <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 p-4 rounded-lg bg-card-dark border border-gray-800 hover:border-primary/50 hover:shadow-glow-primary transition-all duration-300">
@@ -105,8 +107,8 @@ const Reports = () => {
                         <div className="text-sm text-text-secondary">Summary</div>
                         <div className="text-sm text-green-400">Reviewed</div>
                         <div className="flex gap-2">
-                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><span className="material-symbols-outlined text-xl">share</span></button>
-                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><span className="material-symbols-outlined text-xl">download</span></button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><Share2/></button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><Download/></button>
                         </div>
                     </div>
                     <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 p-4 rounded-lg bg-card-dark border border-gray-800 hover:border-primary/50 hover:shadow-glow-primary transition-all duration-300">
@@ -119,8 +121,8 @@ const Reports = () => {
                         <div className="text-sm text-text-secondary">Anomaly Detection</div>
                         <div className="text-sm text-text-secondary">Unreviewed</div>
                         <div className="flex gap-2">
-                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><span className="material-symbols-outlined text-xl">share</span></button>
-                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><span className="material-symbols-outlined text-xl">download</span></button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><Share2/></button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-background-dark hover:text-primary transition-colors"><Download/></button>
                         </div>
                     </div>
                 </div>

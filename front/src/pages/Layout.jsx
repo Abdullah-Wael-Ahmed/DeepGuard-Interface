@@ -1,5 +1,6 @@
 import {Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut} from 'lucide-react'
 import {Link, Outlet, useLocation} from 'react-router-dom';
+import DeepGuard from '../assets/DeepGaurdDark.svg'
 
 const Layout = () => {
     const location = useLocation();
@@ -17,11 +18,12 @@ const Layout = () => {
                 <aside className="w-64 bg-background-dark p-4 flex flex-col justify-between border-r border-gray-800 h-screen sticky top-0">
                     <div className="flex flex-col gap-8">
                         <div className="flex gap-3 items-center px-2">
-                            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="DeepGuard logo" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAQYjvsapVrGE1y_TE90ydrIYDmyrBZhqe-ewPAO_jCKPiJYv_gW-tK7Szzsh18atz6Yy9Lw0zsNJ15Rb0kgscL1xxDg1legR-gEMw1ThowGU4r1SV3pKgVDOxLsZI72iQnTI7gbnEeJaSV9g4Zao8U-N237iWjWYhmZ4bA8mROxtowqmVFRxy_3stjzckcUTEsmWWB_ghZbyIWoT2ijztoFPRlNKsXnmQ58_13xHLwiu_YWDwSedXxmPPNvMbtD9ikenQOkzjVeZvx")' }}>
+                            <div className="bg-center bg-no-repeat bg-cover  size-12 " data-alt="DeepGuard logo">
+                                <img src={DeepGuard} alt="deepguard" />
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-text-main text-lg font-bold">DeepGuard</h1>
-                                <p className="text-text-secondary text-xs">Integrated Network Defense</p>
+                                <p className="text-text-secondary text-xs">Multi-Layer Threat Defense Gateway</p>
                             </div>
                         </div>
                         <nav className="flex flex-col gap-2">
@@ -33,10 +35,10 @@ const Layout = () => {
                                 <Shield />
                                 <p className="text-sm font-medium">Detection</p>
                             </a>
-                            <a className={activeTab("firewall")} href="#">
+                            <Link className={activeTab("firewall")} to={"/firewall"}>
                                 <BrickWallFire />
                                 <p className="text-sm font-medium">Firewall</p>
-                            </a>
+                            </Link>
                             <Link className={activeTab("traffic")} to={"/traffic"}>
                                 <HatGlasses />
                                 <p className="text-sm font-medium">Inspection</p>

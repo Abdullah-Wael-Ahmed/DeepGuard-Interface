@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
-import { Inbox, LoaderCircle, Search, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronFirst, ChevronLast, Inbox, LoaderCircle, Search, SkipBack, SkipForward } from 'lucide-react';
 import useWebSocket from "react-use-websocket"
 import { toast } from 'react-toastify';
 import ProtocolPieChart from '../components/ProtocolPieChart';
@@ -63,7 +63,7 @@ const Traffic = () => {
         const options = []
         for (let i = 0 ; i < totalPages ; i++){
             options.push(
-                <option selected={page == i+1} value={i+1} className='text-black'>{i+1}</option>
+                <option selected={page == i+1} value={i+1} className='text-white'>{i+1}</option>
             )
         }
         return options
@@ -121,9 +121,9 @@ const Traffic = () => {
             setLive(!live)
         }
         if (live) {
-            return <button className='flex items-center justify-center border-3 border-red-900 px-4 py-2 gap-x-2 hover:cursor-pointer rounded-md animate-pulse' onClick={click} >
+            return <button className='flex items-center justify-center border border-white px-4 py-2 gap-x-2 hover:cursor-pointer rounded-md ' onClick={click} >
                 <svg width={20} height={20} className='' >
-                    <circle cx={10} cy={10} r={10} className='fill-red-700 ' />
+                    <circle cx={10} cy={10} r={10} className='fill-red-700 animate-pulse ' />
                 </svg>
                 <p className=''>Live</p>
             </button>
@@ -139,23 +139,24 @@ const Traffic = () => {
 
     const getPaginationButtons = () => {
         let buttons = [];
-        const normalButton = "border-2 border-[#EAEAEA] p-1 rounded hover:cursor-pointer w-8";
-        const currentButton = "border-2 bg-[#EAEAEA] p-1  w-8 rounded text-black"
+        const normalButton = "bg-[#111828] p-1 rounded-sm hover:cursor-pointer w-8";
+        const currentButton = "border-2 border-primary bg-[#111828] p-1 text-primary w-8 rounded-sm text-black"
         const totalPages = Math.ceil(data.alertCount / data.noItems);
         buttons.push(
-            <button className={page == 1 ? "border-2 border-gray-500 p-1 rounded" : 'border-2 border-[#EAEAEA] p-1 rounded hover:cursor-pointer '} onClick={() => setPage(1)}>
-                <SkipBack className={page == 1 && ' text-gray-500'} />
+            <button className={(page == 1 ? "" : 'hover:cursor-pointer ') + "bg-[#111828] rounded-sm p-1"} onClick={() => setPage(1)}>
+                <ChevronFirst className={page == 1 && ' text-gray-500'} />
             </button>
         )
         if (page == 1) {
-            for (let i = 1; i < totalPages && i < 4; i++) {
+            for (let i = 1; i <= totalPages && i < 4; i++) {
+                console.log(i)
                 buttons.push(
                     <button disabled={page == i} className={i == page ? currentButton : normalButton} onClick={() => setPage(i)}>
                         {i}
                     </button>)
             }
         } else if (page == totalPages) {
-            for (let i = page; i > page - 3; i--) {
+            for (let i = page; i > page - 3 && i > 0; i--) {
                 buttons.push(
                     <button disabled={page == i} className={i == page ? currentButton : normalButton} onClick={() => setPage(i)}>
                         {i}
@@ -171,8 +172,8 @@ const Traffic = () => {
             }
         }
         buttons.push(
-            <button className={page == totalPages ? "border-2 border-gray-500 p-1 rounded" : 'border-2 border-[#EAEAEA] p-1 rounded hover:cursor-pointer '}  onClick={() => {setPage(totalPages)}}>
-                <SkipForward className={page == totalPages && "text-gray-500"}/>
+            <button className={(page == 1 ? "" : 'hover:cursor-pointer ') + "bg-[#111828] rounded-sm p-1"}  onClick={() => {setPage(totalPages)}}>
+                <ChevronLast className={page == totalPages && "text-gray-500"}/>
             </button>)
 
         return buttons;
@@ -180,7 +181,7 @@ const Traffic = () => {
 
     return (
         <main className="flex-1 p-8 overflow-y-auto bg-background-dark">
-            <div className="flex flex-wrap justify-between gap-4 mb-8">
+            <div className="flex flex-wrap justify-between gap-4 mb-4">
                 <div className="flex flex-col gap-1">
                     <p className="text-3xl font-bold text-[#EAEAEA]">Packet Inspection</p>
                     <p className="text-sm text-[#EAEAEA]/60">Monitor and analyze network packets in real-time.</p>
@@ -285,7 +286,7 @@ const Traffic = () => {
 
             {/* live and search bar */}
 
-            <div className="bg-card-dark p-3 my-3 rounded-lg flex">
+            <div className="bg-card-dark p-3 mb-3 rounded-lg flex">
                 {getLiveButton()}
                 <div className="flex items-center gap-4 ml-4 rounded border border-[#EAEAEA] w-full">
                     <label className="flex flex-col min-w-90 w-full">
@@ -364,7 +365,7 @@ const Traffic = () => {
                     ""
                     :
                     data.alerts.length > 0 ?
-                        <div className="bg-card-dark my-3 p-3 rounded-lg flex justify-between items-center align-middle">
+                        <div className="bg-card-dark mt-3 p-3 rounded-lg flex justify-between items-center align-middle">
 
                             <div>
                                 <p className="text-gray-500 text-sm">
@@ -381,7 +382,7 @@ const Traffic = () => {
 
                             <div className='flex gap-2'>
                                 <p>jump to</p>
-                                <select className='w-20 border border-white rounded-sm text-center outline-none' onChange={(e) => {
+                                <select className='w-20 bg-[#111828] rounded-sm text-center outline-none' onChange={(e) => {
                                     setPage(+e.target.value);
                                 }}>
                                     {getPageOptions()}
