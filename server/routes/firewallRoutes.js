@@ -32,7 +32,7 @@ router.post('/add-rule', (req, res) => {
     } = req.body;
 
     // Base command
-    let cmd = `/usr/sbin / iptables - A ${ chain }`;
+    let cmd = `/usr/sbin/iptables -A ${ chain }`;
 
     // Add protocol
     if (protocol && protocol !== 'all') cmd += ` -p ${protocol}`;
