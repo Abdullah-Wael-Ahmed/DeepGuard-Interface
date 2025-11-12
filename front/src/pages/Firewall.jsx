@@ -177,7 +177,7 @@ const Firewall = () => {
                                     </div>
                                 </div>
                                 <div className="flex justify-end mt-4">
-                                    <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300">
+                                    <button onClick={addRule} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300">
                                         <span className="truncate">Create Rule</span>
                                     </button>
                                 </div>
