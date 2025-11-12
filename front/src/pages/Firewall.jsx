@@ -1,17 +1,26 @@
+import axios from 'axios';
 import React, { useState } from 'react';
 
 const Firewall = () => {
 
 
+    const chain = ["INPUT", "OUTPUT"];
+    const protocol = ["TCP", "UDP", "ICMP", "ALL"];
+    const action = ["ACCEPT", "DROP", "REJECT", "LOG"];
+
     const [formData, setFormData] = useState({
-        chain: "",
-        protocol: "",
+        chain: chain[0],
+        protocol: protocol[0],
         srcIp: "",
         destIp: "",
         srcPort: "",
         destPort: "",
-        action: ""
+        action: action[0]
     });
+
+    // const verifyIp = (val) => {
+
+    // }
 
 
     const verifyPort = (val) => {
@@ -23,7 +32,7 @@ const Firewall = () => {
     }
 
     const changePort = (e) => {
-        if(!verifyPort(e.target.value)) return;
+        if (!verifyPort(e.target.value)) return;
         setFormData(prev => {
             return {
                 ...prev,
@@ -32,12 +41,49 @@ const Firewall = () => {
         })
     }
 
+    const addRule = async () => {
+        try {
+            const res = await axios.post(`${import.meta.env.VITE_BACK}/add-rule`, {
+                formData
+            }, {
+                withCredentials: true
+            })
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const verifyIp = (val) => {
+        if (val === "") return true; // allow empty input
+
+        // basic pattern for IPv4
+        const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+        if (!ipv4Regex.test(val)) return false;
+        
+
+        // check each segment is 0-255
+        const parts = val.split('.').map(Number);
+        for (let part of parts) {
+            if (part < 0 || part > 255) return false;
+        }
+        return true;
+    }
+
+    const changeIp = (e) => {
+        // if(!verifyIp(e.target.value)) return;
+        setFormData((prev) => {
+            return {
+                ...prev,
+                [e.target.name]: e.target.value
+            }
+        })
+    }
 
     return (
         <main className="flex-1 p-8 overflow-y-auto">
 
             {/* title and desc */}
-            
+
             <div className="flex flex-wrap justify-between gap-3 mb-8">
                 <div className="flex min-w-72 flex-col gap-3">
                     <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">Firewall Management</p>
@@ -48,7 +94,7 @@ const Firewall = () => {
             </div>
 
             {/* firewall form */}
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-3">
                     <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">
@@ -64,27 +110,45 @@ const Firewall = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-gray-300 text-sm" htmlFor="action">Chain</label>
-                                        <select className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="action">
-                                            <option>INPUT</option>
-                                            <option>OUTPUT</option>
+                                        <select value={formData.chain} onChange={(e) => {
+                                            if (chain.includes(e.target.value)) {
+                                                setFormData((prev) => {
+                                                    return {
+                                                        ...prev,
+                                                        chain: e.target.value
+                                                    }
+                                                })
+                                            }
+                                        }} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="action">
+                                            {chain.map((obj) => {
+                                                return <option value={obj}>{obj}</option>
+                                            })}
                                         </select>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-gray-300 text-sm" htmlFor="protocol">Protocol</label>
-                                        <select className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="protocol">
-                                            <option>TCP</option>
-                                            <option>UDP</option>
-                                            <option>ICMP</option>
-                                            <option>ALL</option>
+                                        <select value={formData.protocol} onChange={(e) => {
+                                            if (protocol.includes(e.target.value)) {
+                                                setFormData((prev) => {
+                                                    return {
+                                                        ...prev,
+                                                        protocol: e.target.value
+                                                    }
+                                                })
+                                            }
+                                        }} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="protocol">
+                                            {protocol.map((obj) => {
+                                                return <option value={obj}>{obj}</option>
+                                            })}
                                         </select>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-gray-300 text-sm" htmlFor="source-ip">Source IP</label>
-                                        <input className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="source-ip" placeholder="e.g., 192.168.1.1" type="text" />
+                                        <input value={formData.srcIp} onChange={changeIp} name='srcIp' className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="source-ip" placeholder="e.g., 192.168.1.1" type="text" />
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-gray-300 text-sm" htmlFor="dest-ip">Destination IP</label>
-                                        <input className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="dest-ip" placeholder="e.g., 8.8.8.8" type="text" />
+                                        <input value={formData.destIp} onChange={changeIp} name='destIp' className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="dest-ip" placeholder="e.g., 8.8.8.8" type="text" />
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-gray-300 text-sm" htmlFor="port">Source Port</label>
@@ -96,11 +160,19 @@ const Firewall = () => {
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-gray-300 text-sm" htmlFor="action">Action</label>
-                                        <select className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="action">
-                                            <option>ACCEPT</option>
-                                            <option>DROP</option>
-                                            <option>REJECT</option>
-                                            <option>LOG</option>
+                                        <select value={formData.action} onChange={(e) => {
+                                            if (action.includes(e.target.value)) {
+                                                setFormData((prev) => {
+                                                    return {
+                                                        ...prev,
+                                                        action: e.target.value
+                                                    }
+                                                })
+                                            }
+                                        }} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="action">
+                                            {action.map((obj) => {
+                                                return <option value={obj}>{obj}</option>
+                                            })}
                                         </select>
                                     </div>
                                 </div>
