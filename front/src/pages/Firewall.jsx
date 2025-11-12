@@ -43,7 +43,7 @@ const Firewall = () => {
 
     const addRule = async () => {
         try {
-            const res = await axios.post(`${import.meta.env.VITE_BACK}/add-rule`, {
+            const res = await axios.post(`${import.meta.env.VITE_BACK}/firewall/add-rule`, {
                 formData
             }, {
                 withCredentials: true
