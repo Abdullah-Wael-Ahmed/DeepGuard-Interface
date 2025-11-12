@@ -17,8 +17,6 @@ const runAsNodeUser = (command, res, successMessage) => {
 };
 
 router.post('/add-rule', (req, res) => {
-    console.log(req.body);
-    return;
     const {
         chain,            // INPUT / OUTPUT / FORWARD
         action,           // ACCEPT / DROP / REJECT / LOG

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
 
 const Firewall = () => {
 
@@ -44,10 +45,11 @@ const Firewall = () => {
     const addRule = async () => {
         try {
             const res = await axios.post(`${import.meta.env.VITE_BACK}/firewall/add-rule`, {
-                formData
+                ...formData
             }, {
                 withCredentials: true
             })
+            toast.info(res.message)
         } catch (error) {
             console.log(error);
         }
