@@ -1,6 +1,6 @@
-import {exec} from 'child_process'
-import { stderr, stdout } from 'process';
-const express = require("express")
+const express = require("express");
+const {exec} =  require('child_process')
+const { stderr, stdout } =  require('process');
 
 const router = express.Router();
 
