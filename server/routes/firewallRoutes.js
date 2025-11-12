@@ -16,7 +16,7 @@ const runAsNodeUser = (command, res, successMessage) => {
     });
 };
 
-router.post('/add-rule', verifyAuth, (req, res) => {
+router.post('/add-rule', (req, res) => {
     console.log(req.body);
     return;
     const {
