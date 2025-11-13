@@ -60,6 +60,8 @@ router.post('/add-rule', (req, res) => {
     // Final action
     cmd += ` -j ${action}`;
 
+    console.log(cmd);
+
     // Run as nodeuser
     runAsNodeUser(cmd, res,`Rule added successfully: ${ cmd }`);
 });

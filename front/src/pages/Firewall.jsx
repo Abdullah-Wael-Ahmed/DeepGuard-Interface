@@ -55,21 +55,21 @@ const Firewall = () => {
         }
     }
 
-    const verifyIp = (val) => {
-        if (val === "") return true; // allow empty input
+    // const verifyIp = (val) => {
+    //     if (val === "") return true; // allow empty input
 
-        // basic pattern for IPv4
-        const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-        if (!ipv4Regex.test(val)) return false;
+    //     // basic pattern for IPv4
+    //     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    //     if (!ipv4Regex.test(val)) return false;
         
 
-        // check each segment is 0-255
-        const parts = val.split('.').map(Number);
-        for (let part of parts) {
-            if (part < 0 || part > 255) return false;
-        }
-        return true;
-    }
+    //     // check each segment is 0-255
+    //     const parts = val.split('.').map(Number);
+    //     for (let part of parts) {
+    //         if (part < 0 || part > 255) return false;
+    //     }
+    //     return true;
+    // }
 
     const changeIp = (e) => {
         // if(!verifyIp(e.target.value)) return;
