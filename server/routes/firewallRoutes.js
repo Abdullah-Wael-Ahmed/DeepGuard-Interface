@@ -5,19 +5,19 @@ const { stderr, stdout } = require('process');
 const router = express.Router();
 
 
-const runAsNodeUser = (command, res, successMessage) => {
+const runAsNodeUser = (command, res, successMessage, operation = "") => {
     const fullCmd = `sudo -u nodeuser sudo ${command}`;
-    let output;
     exec(fullCmd, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error: ${stderr}`);
             return res.status(500).json({ error: stderr });
         }
-        // res.json({ message: successMessage, output: stdout });
-        // return stdout;
-        output = stdout;
+        if (operation == "list"){
+            res.json({ message: successMessage, output: parseIptablesOutput(stdout) });
+        }else {
+            res.json({ message: successMessage, output: stdout });
+        }
     });
-    return output
 };
 
 router.post('/add-rule', (req, res) => {
@@ -67,18 +67,14 @@ router.post('/add-rule', (req, res) => {
     console.log(cmd);
 
     // Run as nodeuser
-    res.json({
-        output: runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`)
-    });
+    runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`);
 });
 
 
 
 router.get('/list', (req, res) => {
     const cmd = "iptables -L INPUT -n --line-numbers";
-    const data = runAsNodeUser(cmd, res, 'Rules listed successfully');
-    console.log(data)
-    res.json(parseIptablesOutput(data));
+    runAsNodeUser(cmd, res, 'Rules listed successfully', 'list');
 });
 
 function parseIptablesOutput(output) {
@@ -128,6 +124,7 @@ function parseIptablesOutput(output) {
 
     return rules;
 }
+
 
 
 module.exports = router;
