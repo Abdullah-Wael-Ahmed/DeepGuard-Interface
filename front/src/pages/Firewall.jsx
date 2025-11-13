@@ -63,8 +63,8 @@ const Firewall = () => {
     const list = async () => {
         try {
             const res = await axios.get(`${import.meta.env.VITE_BACK}/firewall/list`)
-            console.log(res.output)
-            setRules(res.output)
+            console.log(res.data.output)
+            setRules(res.data.output)
             setLoader(false)
         } catch (error) {
             console.log(error);
