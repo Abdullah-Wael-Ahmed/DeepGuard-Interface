@@ -26,6 +26,7 @@ router.post("/filebeat", async (req, res) => {
         broadcast({ type: "new_alert", data: alert })
         res.json("ok")
     } catch (error) {
+        console.log(error)
         res.status(500).json("Server Error")
     }
 })
