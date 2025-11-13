@@ -1,5 +1,6 @@
 import axios from 'axios';
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'react-toastify';
 
 const Firewall = () => {
@@ -18,6 +19,9 @@ const Firewall = () => {
         destPort: "",
         action: action[0]
     });
+
+    const [rules, setRules] = useState([]);
+    const [loader, setLoader] = useState(true);
 
     // const verifyIp = (val) => {
 
@@ -55,13 +59,28 @@ const Firewall = () => {
         }
     }
 
+
+    const list = async () => {
+        try {
+            const res = await axios.get(`${import.meta.env.VITE_BACK}/firewall/list`)
+            setRules(res.output)
+            setLoader(false)
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    useEffect( () => {
+        list()
+    } ,[])
+
     // const verifyIp = (val) => {
     //     if (val === "") return true; // allow empty input
 
     //     // basic pattern for IPv4
     //     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
     //     if (!ipv4Regex.test(val)) return false;
-        
+
 
     //     // check each segment is 0-255
     //     const parts = val.split('.').map(Number);
@@ -239,7 +258,41 @@ const Firewall = () => {
                     </div>
                 </div> */}
             </div>
-            <div className="mt-8">
+            {loader ? "" :
+                <div className="mt-8">
+                    <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Current rules</h2>
+                    <div className="bg-graphite rounded-lg shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm text-gray-300">
+                                <thead className="bg-[#2a3b4c] text-xs text-gray-200 uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3" scope="col">Number</th>
+                                        <th className="px-6 py-3" scope="col">CHAIN</th>
+                                        <th className="px-6 py-3" scope="col">PROTOCOL</th>
+                                        <th className="px-6 py-3" scope="col">SOURCE</th>
+                                        <th className="px-6 py-3" scope="col">DESTINATION</th>
+                                        <th className="px-6 py-3" scope="col">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rules.map(obj => {
+                                        return <tr className="border-b border-gray-700 hover:bg-[#2a3b4c]/50">
+                                            <td className="px-6 py-4">{obj.num}</td>
+                                            <td className="px-6 py-4">{obj.chain}</td>
+                                            <td className="px-6 py-4">{obj.prot}</td>
+                                            <td className="px-6 py-4">{obj.source}</td>
+                                            <td className="px-6 py-4">{obj.destination}</td>
+                                            <td className="px-6 py-4">{obj.target}</td>
+                                        </tr>
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            {/* <div className="mt-8">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Activity Log</h2>
                 <div className="bg-graphite rounded-lg shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30 overflow-hidden">
                     <div className="overflow-x-auto">
@@ -304,7 +357,7 @@ const Firewall = () => {
                         </table>
                     </div>
                 </div>
-            </div>
+            </div> */}
         </main>
 
     );
