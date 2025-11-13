@@ -12,7 +12,8 @@ const runAsNodeUser = (command, res, successMessage) => {
             console.error(`Error: ${stderr}`);
             return res.status(500).json({ error: stderr });
         }
-        res.json({ message: successMessage, output: stdout });
+        // res.json({ message: successMessage, output: stdout });
+        return stdout;
     });
 };
 
@@ -32,7 +33,7 @@ router.post('/add-rule', (req, res) => {
     } = req.body;
 
     // Base command
-    let cmd = `/usr/sbin/iptables -A ${ chain }`;
+    let cmd = `/usr/sbin/iptables -A ${chain}`;
 
     // Add protocol
     if (protocol && protocol !== 'all') cmd += ` -p ${protocol}`;
@@ -63,15 +64,66 @@ router.post('/add-rule', (req, res) => {
     console.log(cmd);
 
     // Run as nodeuser
-    runAsNodeUser(cmd, res,`Rule added successfully: ${ cmd }`);
+    res.json({
+        output: runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`)
+    });
 });
 
 
 
 router.get('/list', (req, res) => {
     const cmd = "iptables -L INPUT -n --line-numbers";
-    runAsNodeUser(cmd, res, 'Rules listed successfully');
+    const data = runAsNodeUser(cmd, res, 'Rules listed successfully');
+    res.json(parseIptablesOutput(data));
 });
+
+function parseIptablesOutput(output) {
+    const lines = output.trim().split('\n');
+
+    const rules = [];
+    let chainName = '';
+    let startIndex = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        // Detect chain
+        if (line.startsWith('Chain ')) {
+            chainName = line.split(' ')[1];
+            continue;
+        }
+
+        // Skip header
+        if (line.startsWith('num')) {
+            startIndex = i + 1;
+            continue;
+        }
+
+        // Skip lines before header
+        if (startIndex === -1) continue;
+
+        // Parse rule lines (expected columns: num, target, prot, opt, source, destination, [rest])
+        const parts = line.split(/\s+/);
+
+        // The output may have variable spacing, so we normalize
+        if (parts.length >= 6) {
+            const [num, target, prot, opt, source, destination, ...rest] = parts;
+
+            rules.push({
+                chain: chainName,
+                num: Number(num),
+                target,
+                prot,
+                opt,
+                source,
+                destination,
+                extra: rest.join(' ') || ''
+            });
+        }
+    }
+
+    return rules;
+}
 
 
 module.exports = router;
