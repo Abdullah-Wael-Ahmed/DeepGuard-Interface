@@ -74,6 +74,7 @@ router.post('/add-rule', (req, res) => {
 router.get('/list', (req, res) => {
     const cmd = "iptables -L INPUT -n --line-numbers";
     const data = runAsNodeUser(cmd, res, 'Rules listed successfully');
+    console.log(data)
     res.json(parseIptablesOutput(data));
 });
 
