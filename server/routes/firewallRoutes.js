@@ -7,14 +7,17 @@ const router = express.Router();
 
 const runAsNodeUser = (command, res, successMessage) => {
     const fullCmd = `sudo -u nodeuser sudo ${command}`;
+    let output;
     exec(fullCmd, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error: ${stderr}`);
             return res.status(500).json({ error: stderr });
         }
         // res.json({ message: successMessage, output: stdout });
-        return stdout;
+        // return stdout;
+        output = stdout;
     });
+    return output
 };
 
 router.post('/add-rule', (req, res) => {
