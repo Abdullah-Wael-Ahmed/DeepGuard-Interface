@@ -125,6 +125,14 @@ function parseIptablesOutput(output) {
     return rules;
 }
 
+router.get('/debug-user', (req, res) => {
+    exec('whoami && id', (err, stdout) => {
+        res.json({ 
+            runningAs: stdout.trim(), 
+            note: "This is the user that needs NOPASSWD in /etc/sudoers" 
+        });
+    });
+});
 
 
 module.exports = router;
