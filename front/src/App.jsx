@@ -9,6 +9,11 @@ import "react-toastify/dist/ReactToastify.css";
 import Firewall from './pages/Firewall'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
+import AnomalyDetection from './pages/AnomalyDetection'
+import UserManagement from './pages/UserManagement'
+import Correlation from './pages/Correlation'
+import ThreatIntelligence from './pages/ThreatIntelligence'
+import { ThemeProvider } from './context/ThemeContext'
 
 function App() {
 
@@ -21,13 +26,17 @@ function App() {
         { path: '/reports', element: <Reports /> },
         { path: '/traffic', element: <Traffic /> },
         { path: '/firewall', element: <Firewall /> },
-        { path: '/settings', element: <Settings /> }
+        { path: '/settings', element: <Settings /> },
+        { path: '/detection', element: <AnomalyDetection /> },
+        { path: '/users', element: <UserManagement /> },
+        { path: '/correlation', element: <Correlation /> },
+        { path: '/threat-intel', element: <ThreatIntelligence /> }
       ]
     }
   ])
 
   return (
-    <>
+    <ThemeProvider>
       <RouterProvider router={router} />
       <ToastContainer
         position='top-right'
@@ -40,8 +49,9 @@ function App() {
         pauseOnHover
         theme='dark'
       />
-    </>
+    </ThemeProvider>
   )
 }
 
 export default App
+

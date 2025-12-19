@@ -1,6 +1,7 @@
-import {Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut} from 'lucide-react'
+import {Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe} from 'lucide-react'
 import {Link, Outlet, useLocation} from 'react-router-dom';
 import DeepGuard from '../assets/DeepGaurdDark.svg'
+import TopBar from '../components/TopBar';
 
 const Layout = () => {
     const location = useLocation();
@@ -13,9 +14,9 @@ const Layout = () => {
     
     return (
         <div className="bg-background-dark font-display text-text-main">
-            <div className="flex min-h-screen">
+            <div className="flex h-screen overflow-hidden">
                 {/* SideNavBar */}
-                <aside className="w-64 bg-background-dark p-4 flex flex-col justify-between border-r border-gray-800 h-screen sticky top-0">
+                <aside className="w-64 bg-background-dark p-4 flex flex-col justify-between border-r border-gray-800 h-full flex-shrink-0">
                     <div className="flex flex-col gap-8">
                         <div className="flex gap-3 items-center px-2">
                             <div className="bg-center bg-no-repeat bg-cover  size-12 " data-alt="DeepGuard logo">
@@ -27,14 +28,18 @@ const Layout = () => {
                             </div>
                         </div>
                         <nav className="flex flex-col gap-2">
-                            <a className={activeTab("")} href="/">
+                            <Link className={activeTab("")} to="/">
                                 <Gauge/>
                                 <p className="text-sm font-medium">Dashboard</p>
-                            </a>
-                            <a className={activeTab("detection")} href="#">
+                            </Link>
+                            <Link className={activeTab("detection")} to="/detection">
                                 <Shield />
                                 <p className="text-sm font-medium">Detection</p>
-                            </a>
+                            </Link>
+                            <Link className={activeTab("correlation")} to="/correlation">
+                                <Share2 />
+                                <p className="text-sm font-medium">Correlation</p>
+                            </Link>
                             <Link className={activeTab("firewall")} to={"/firewall"}>
                                 <BrickWallFire />
                                 <p className="text-sm font-medium">Firewall</p>
@@ -47,10 +52,18 @@ const Layout = () => {
                                 <ChartLine />
                                 <p className="text-sm font-bold">Reports</p>
                             </Link>
-                            <a className={activeTab("settings")} href="/settings">
+                            <Link className={activeTab("threat-intel")} to="/threat-intel">
+                                <Globe />
+                                <p className="text-sm font-medium">Threat Intel</p>
+                            </Link>
+                            <Link className={activeTab("users")} to="/users">
+                                <Users />
+                                <p className="text-sm font-medium">User Management</p>
+                            </Link>
+                            <Link className={activeTab("settings")} to="/settings">
                                 <Settings/>
                                 <p className="text-sm font-medium">Settings</p>
-                            </a>
+                            </Link>
                         </nav>
                     </div>
                     <div className="p-2">
@@ -60,7 +73,13 @@ const Layout = () => {
                         </button>
                     </div>
                 </aside>
-                <Outlet/>
+                
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                    <TopBar />
+                    <div className="flex-1 overflow-auto">
+                        <Outlet/>
+                    </div>
+                </div>
             </div>
         </div>
 

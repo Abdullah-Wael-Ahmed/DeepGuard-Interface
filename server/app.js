@@ -3,6 +3,7 @@ require("dotenv").config({quiet: true});
 const db = require('./util/db');
 const logRouter = require("./routes/logRoutes")
 const fireWallRouter = require("./routes/firewallRoutes")
+const threatIntelRouter = require("./routes/threatIntelRoutes")
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
@@ -28,6 +29,7 @@ db.sync().then(() => {
 
 app.use("/logs", logRouter)
 app.use("/firewall", fireWallRouter)
+app.use("/threat-intel", threatIntelRouter)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");

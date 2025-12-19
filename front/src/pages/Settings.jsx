@@ -1,121 +1,242 @@
-    import React from "react";
-    import { ChevronDown } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronDown, Palette, Check } from "lucide-react";
+import { useTheme, ACCENT_COLORS } from "../context/ThemeContext";
 
-    const Settings = () => {
-    return (
-        <div className="flex min-h-screen text-white font-display max-w-full grow">
-        {/* Main content */}
-        <main className="flex-1 p-8">
-            <div className="flex flex-col gap-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div>
-                <h1 className="text-4xl font-black tracking-tight">Settings</h1>
-            </div>
-            {/* Tabs */}
-            <div className="flex gap-8 border-b border-[#8892B0]/20 pb-3">
-                {["Application", "Notifications", "Security Preferences"].map(
-                (tab, idx) => (
-                    <button
-                    key={idx}
-                    className={`text-sm font-bold tracking-wider pb-3 border-b-2 ${
-                        idx === 0
-                        ? "border-[#64FFDA] text-white"
-                        : "border-transparent text-[#8892B0] hover:text-white"
-                    }`}
-                    >
-                    {tab}
-                    </button>
-                )
-                )}
-            </div>
-            {/* Settings grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                {/* Appearance */}
-                <div className="p-6 rounded-lg border border-[#8892B0]/20 bg-[#0A192F] hover:border-[#64FFDA]/50 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_rgba(100,255,218,0.1)] flex flex-col gap-4">
-                <h3 className="text-lg font-bold">Appearance</h3>
-                <div className="flex justify-between items-center">
-                    <p className="text-[#8892B0]">Theme</p>
-                    <div className="flex gap-2 bg-[#8892B0]/10 rounded-lg p-1">
-                    <button className="px-3 py-1 text-sm rounded-md text-white bg-[#64FFDA]/20">
-                        Dark
-                    </button>
-                    <button className="px-3 py-1 text-sm rounded-md text-[#8892B0] hover:bg-[#8892B0]/10">
-                        Light
-                    </button>
-                    </div>
+const Settings = () => {
+  const { accentColor, setAccentColor } = useTheme();
+  const [activeTab, setActiveTab] = useState(0);
+
+  const tabs = ["Appearance", "Notifications", "Security Preferences"];
+
+  return (
+    <div className="flex min-h-screen text-text-main font-display max-w-full grow">
+      {/* Main content */}
+      <main className="flex-1 p-8">
+        <div className="flex flex-col gap-8 max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="animate-fade-in">
+            <h1 className="text-4xl font-black tracking-tight">Settings</h1>
+            <p className="text-text-secondary mt-2">Customize your DeepGuard experience</p>
+          </div>
+          
+          {/* Tabs */}
+          <div className="flex gap-8 border-b border-gray-700 pb-3">
+            {tabs.map((tab, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveTab(idx)}
+                className={`text-sm font-bold tracking-wider pb-3 border-b-2 transition-all ${
+                  idx === activeTab
+                    ? "border-primary text-text-main"
+                    : "border-transparent text-text-secondary hover:text-text-main"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Settings Content */}
+          {activeTab === 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full stagger-children">
+              
+              {/* Accent Color */}
+              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark hover:border-primary/50 transition-all duration-300 shadow-lg card-lift flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Palette className="text-primary" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold">Accent Color</h3>
                 </div>
+                
+                <p className="text-text-secondary text-sm">Personalize the interface with your favorite color</p>
+                
+                <div className="grid grid-cols-6 gap-3 mt-2">
+                  {Object.entries(ACCENT_COLORS).map(([key, color]) => (
+                    <button
+                      key={key}
+                      onClick={() => setAccentColor(key)}
+                      className={`group relative w-10 h-10 rounded-full transition-all duration-300 hover:scale-110 ${
+                        accentColor === key 
+                          ? 'ring-2 ring-white ring-offset-2 ring-offset-card-dark scale-110' 
+                          : ''
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    >
+                      {accentColor === key && (
+                        <Check className="absolute inset-0 m-auto text-black" size={16} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                
+                <p className="text-xs text-text-secondary mt-2">
+                  Selected: <span className="text-primary font-medium">{ACCENT_COLORS[accentColor]?.name}</span>
+                </p>
+              </div>
 
+
+              {/* Language */}
+              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark hover:border-primary/50 transition-all duration-300 shadow-lg card-lift flex flex-col gap-4">
+                <h3 className="text-lg font-bold">Language</h3>
                 <div className="flex justify-between items-center">
-                    <p className="text-[#8892B0]">Language</p>
-                    <select className="bg-[#0A192F] text-white border border-[#8892B0]/20 rounded-md p-2 text-sm focus:ring-[#64FFDA] focus:border-[#64FFDA]">
+                  <p className="text-text-secondary">Display Language</p>
+                  <select className="bg-background-dark text-text-main border border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none">
                     <option>English (US)</option>
                     <option>Spanish</option>
                     <option>French</option>
-                    </select>
+                    <option>German</option>
+                    <option>Japanese</option>
+                  </select>
                 </div>
-                </div>
+              </div>
 
-                {/* Updates */}
-                <div className="p-6 rounded-lg border border-[#8892B0]/20 bg-[#0A192F] hover:border-[#64FFDA]/50 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_rgba(100,255,218,0.1)] flex flex-col gap-4">
+              {/* Updates */}
+              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark hover:border-primary/50 transition-all duration-300 shadow-lg card-lift flex flex-col gap-4">
                 <h3 className="text-lg font-bold">Updates</h3>
                 <div className="flex justify-between items-center">
-                    <p className="text-[#8892B0]">Automatic Updates</p>
-                    <label className="relative w-[46px] h-[26px] bg-[#8892B0]/20 rounded-full flex items-center cursor-pointer has-[:checked]:justify-end has-[:checked]:bg-[#64FFDA] p-0.5">
-                    <div className="h-[22px] w-[22px] bg-white rounded-full transition-transform shadow-md"></div>
-                    <input
-                        type="checkbox"
-                        defaultChecked
-                        className="absolute invisible"
-                    />
-                    </label>
+                  <div>
+                    <p className="text-text-main">Automatic Updates</p>
+                    <p className="text-xs text-text-secondary mt-1">Last checked: 2 hours ago</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" defaultChecked className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
                 </div>
-                <p className="text-xs text-[#8892B0]">
-                    Last checked: 2 hours ago
-                </p>
-                </div>
+              </div>
             </div>
+          )}
 
-            {/* User Management */}
-            <details className="p-6 rounded-lg border border-[#8892B0]/20 bg-[#0A192F] hover:border-[#64FFDA]/50 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_rgba(100,255,218,0.1)] group">
+          {activeTab === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full stagger-children">
+              {/* Email Notifications */}
+              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift flex flex-col gap-4">
+                <h3 className="text-lg font-bold">Email Notifications</h3>
+                {[
+                  { label: 'Critical Alerts', desc: 'Get notified for severity 1 threats', checked: true },
+                  { label: 'Daily Summary', desc: 'Receive daily security digest', checked: true },
+                  { label: 'Weekly Reports', desc: 'Get weekly analytics reports', checked: false },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-0">
+                    <div>
+                      <p className="text-text-main">{item.label}</p>
+                      <p className="text-xs text-text-secondary">{item.desc}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" defaultChecked={item.checked} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              {/* Push Notifications */}
+              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift flex flex-col gap-4">
+                <h3 className="text-lg font-bold">Push Notifications</h3>
+                {[
+                  { label: 'Real-time Alerts', desc: 'Browser push for live threats', checked: true },
+                  { label: 'System Status', desc: 'Notify when system goes offline', checked: true },
+                  { label: 'Firewall Changes', desc: 'Alert on rule modifications', checked: false },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-0">
+                    <div>
+                      <p className="text-text-main">{item.label}</p>
+                      <p className="text-xs text-text-secondary">{item.desc}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" defaultChecked={item.checked} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 2 && (
+            <div className="grid grid-cols-1 gap-6 w-full stagger-children">
+              {/* Security Settings */}
+              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift flex flex-col gap-4">
+                <h3 className="text-lg font-bold">Security Preferences</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex justify-between items-center p-4 bg-background-dark rounded-lg">
+                    <div>
+                      <p className="text-text-main font-medium">Session Timeout</p>
+                      <p className="text-xs text-text-secondary mt-1">Auto-logout after inactivity</p>
+                    </div>
+                    <select className="bg-card-dark border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                      <option>15 minutes</option>
+                      <option>30 minutes</option>
+                      <option>1 hour</option>
+                      <option>Never</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-4 bg-background-dark rounded-lg">
+                    <div>
+                      <p className="text-text-main font-medium">Two-Factor Auth</p>
+                      <p className="text-xs text-text-secondary mt-1">Extra security layer</p>
+                    </div>
+                    <button className="px-4 py-2 bg-primary/20 text-primary rounded-lg text-sm font-medium hover:bg-primary/30 transition-colors">
+                      Enable
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* User Management Link */}
+              <details className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift group">
                 <summary className="flex justify-between items-center cursor-pointer">
-                <p className="text-lg font-bold">User Management</p>
-                <ChevronDown className="transition-transform group-open:rotate-180" />
+                  <p className="text-lg font-bold">User Management</p>
+                  <ChevronDown className="transition-transform group-open:rotate-180 text-text-secondary" />
                 </summary>
                 <div className="mt-4 flex flex-col gap-4">
-                {[
+                  {[
                     { name: "John Doe", role: "Administrator" },
                     { name: "Jane Smith", role: "Analyst" },
-                ].map((user, idx) => (
+                  ].map((user, idx) => (
                     <div
-                    key={idx}
-                    className="flex justify-between items-center p-3 bg-[#8892B0]/10 rounded-md"
+                      key={idx}
+                      className="flex justify-between items-center p-3 bg-background-dark rounded-lg"
                     >
-                    <p className="text-sm">{user.name}</p>
-                    <p className="text-sm text-[#8892B0]">{user.role}</p>
-                    <button className="text-[#64FFDA] text-sm font-bold hover:underline">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                          {user.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-xs text-text-secondary">{user.role}</p>
+                        </div>
+                      </div>
+                      <button className="text-primary text-sm font-bold hover:underline">
                         Edit
-                    </button>
+                      </button>
                     </div>
-                ))}
-                <button className="self-start mt-2 bg-[#64FFDA]/20 hover:bg-[#64FFDA]/40 font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+                  ))}
+                  <button className="self-start mt-2 bg-primary/20 hover:bg-primary/30 font-bold py-2 px-4 rounded-lg text-sm transition-colors text-primary">
                     Add User
-                </button>
+                  </button>
                 </div>
-            </details>
+              </details>
+            </div>
+          )}
 
-            {/* Footer buttons */}
-            <div className="flex justify-end gap-4 mt-8">
-                <button className="text-[#8892B0] hover:text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                Reset to Default
-                </button>
-                <button className="bg-[#64FFDA] text-[#0A192F] font-bold py-2 px-4 rounded-lg text-sm hover:bg-white transition-colors shadow-[0_0_15px_rgba(100,255,218,0.5)]">
-                Save Changes
-                </button>
-            </div>
-            </div>
-        </main>
+          {/* Footer buttons */}
+          <div className="flex justify-end gap-4 mt-8">
+            <button className="text-text-secondary hover:text-text-main font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+              Reset to Default
+            </button>
+            <button className="bg-primary text-background-dark font-bold py-2 px-4 rounded-lg text-sm hover:brightness-110 transition-all shadow-glow-primary glow-pulse">
+              Save Changes
+            </button>
+          </div>
         </div>
-    );
-    };
+      </main>
+    </div>
+  );
+};
 
-    export default Settings;
+export default Settings;

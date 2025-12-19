@@ -6,13 +6,16 @@ import { ChevronFirst, ChevronLast, Inbox, LoaderCircle, Search, SkipBack, SkipF
 import useWebSocket from "react-use-websocket"
 import { toast } from 'react-toastify';
 import ProtocolPieChart from '../components/ProtocolPieChart';
+import { useSearchParams } from 'react-router-dom';
 
 const Traffic = () => {
+    const [searchParams] = useSearchParams();
+    const initialSearch = searchParams.get('search') || '';
 
     const [data, setData] = useState([]);
     // const [totalAlertCount, setTotalAlertCount] = useState(0);
     const [loader, setLoader] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [live, setLive] = useState(true);
     const [page, setPage] = useState(1);
     const debounceTimer = useRef(null);
