@@ -20,55 +20,96 @@ const runAsNodeUser = (command, res, successMessage, operation = "") => {
     });
 };
 
-router.post('/add-rule', (req, res) => {
+router.post('/add-rule', async (req, res) => {
     const {
-        chain,            // INPUT / OUTPUT / FORWARD
-        action,           // ACCEPT / DROP / REJECT / LOG
-        protocol,         // tcp / udp / icmp / all
-        srcIP,            // optional
-        dstIP,            // optional
-        srcPort,          // optional
-        dstPort,          // optional
-        inInterface,      // optional (for INPUT/FORWARD)
-        outInterface,     // optional (for OUTPUT/FORWARD)
-        logEnabled,       // boolean
-        description       // optional string for logging
+        chain, action, protocol, srcIP, dstIP, 
+        srcPort, dstPort, inInterface, outInterface, 
+        logEnabled, description 
     } = req.body;
 
-    // Base command
-    let cmd = `/usr/sbin/iptables -A ${chain}`;
+    try {
+        // 1. Construct the criteria string (reusable parts)
+        let criteria = `-A ${chain}`;
 
-    // Add protocol
-    if (protocol && protocol !== 'all') cmd += ` -p ${protocol}`;
+        if (protocol && protocol !== 'all') criteria += ` -p ${protocol}`;
+        if (srcIP?.trim()) criteria += ` -s ${srcIP}`;
+        if (dstIP?.trim()) criteria += ` -d ${dstIP}`;
+        if (inInterface?.trim()) criteria += ` -i ${inInterface}`;
+        if (outInterface?.trim()) criteria += ` -o ${outInterface}`;
 
-    // Add optional IPs
-    if (srcIP && srcIP.trim() !== '') cmd += ` -s ${srcIP}`;
-    if (dstIP && dstIP.trim() !== '') cmd += ` -d ${dstIP}`;
+        if ((protocol === 'tcp' || protocol === 'udp')) {
+            if (srcPort?.trim()) criteria += ` --sport ${srcPort}`;
+            if (dstPort?.trim()) criteria += ` --dport ${dstPort}`;
+        }
 
-    // Add optional interfaces
-    if (inInterface && inInterface.trim() !== '') cmd += ` -i ${inInterface}`;
-    if (outInterface && outInterface.trim() !== '') cmd += ` -o ${outInterface}`;
+        // 2. Execute Logic
+        // If logging is enabled, we need to run TWO commands.
+        if (logEnabled) {
+            const prefix = description ? description.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 29) : 'DeepGuard_Log';
+            // iptables log-prefix is limited to 29 chars
+            const logCmd = `${criteria} -j LOG --log-prefix "${prefix} "`;
+            await execPromise(logCmd);
+        }
 
-    // Add optional ports (only valid with tcp/udp)
-    if ((protocol === 'tcp' || protocol === 'udp')) {
-        if (srcPort && srcPort.trim() !== '') cmd += ` --sport ${srcPort}`;
-        if (dstPort && dstPort.trim() !== '') cmd += ` --dport ${dstPort}`;
+        // 3. Add the actual action rule
+        const actionCmd = `${criteria} -j ${action}`;
+        await execPromise(actionCmd);
+
+        res.json({ message: "Rule(s) added successfully", command: actionCmd });
+
+    } catch (error) {
+        res.status(500).json({ error: "Failed to add rule", details: error });
     }
-
-    // Logging prefix if enabled
-    if (logEnabled) {
-        const prefix = description ? description.replace(/[^a-zA-Z0-9_-]/g, '_') : 'DeepGuard_Log';
-        cmd += ` -j LOG --log-prefix "${prefix} "`;
-    }
-
-    // Final action
-    cmd += ` -j ${action}`;
-
-    console.log(cmd);
-
-    // Run as nodeuser
-    runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`);
 });
+// router.post('/add-rule', (req, res) => {
+//     const {
+//         chain,            // INPUT / OUTPUT / FORWARD
+//         action,           // ACCEPT / DROP / REJECT / LOG
+//         protocol,         // tcp / udp / icmp / all
+//         srcIP,            // optional
+//         dstIP,            // optional
+//         srcPort,          // optional
+//         dstPort,          // optional
+//         inInterface,      // optional (for INPUT/FORWARD)
+//         outInterface,     // optional (for OUTPUT/FORWARD)
+//         logEnabled,       // boolean
+//         description       // optional string for logging
+//     } = req.body;
+
+//     // Base command
+//     let cmd = `/usr/sbin/iptables -A ${chain}`;
+
+//     // Add protocol
+//     if (protocol && protocol !== 'all') cmd += ` -p ${protocol}`;
+
+//     // Add optional IPs
+//     if (srcIP && srcIP.trim() !== '') cmd += ` -s ${srcIP}`;
+//     if (dstIP && dstIP.trim() !== '') cmd += ` -d ${dstIP}`;
+
+//     // Add optional interfaces
+//     if (inInterface && inInterface.trim() !== '') cmd += ` -i ${inInterface}`;
+//     if (outInterface && outInterface.trim() !== '') cmd += ` -o ${outInterface}`;
+
+//     // Add optional ports (only valid with tcp/udp)
+//     if ((protocol === 'tcp' || protocol === 'udp')) {
+//         if (srcPort && srcPort.trim() !== '') cmd += ` --sport ${srcPort}`;
+//         if (dstPort && dstPort.trim() !== '') cmd += ` --dport ${dstPort}`;
+//     }
+
+//     // Logging prefix if enabled
+//     if (logEnabled) {
+//         const prefix = description ? description.replace(/[^a-zA-Z0-9_-]/g, '_') : 'DeepGuard_Log';
+//         cmd += ` -j LOG --log-prefix "${prefix} "`;
+//     }
+
+//     // Final action
+//     cmd += ` -j ${action}`;
+
+//     console.log(cmd);
+
+//     // Run as nodeuser
+//     runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`);
+// });
 
 
 
