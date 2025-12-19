@@ -122,7 +122,7 @@ const Firewall = () => {
                     <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">
                         Interactive Rule Builder</h2>
                     <div className="p-4 ">
-                        <div className="flex flex-col items-stretch justify-start rounded-lg bg-card-dark shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30">
+                        <div className="flex flex-col items-stretch justify-start rounded-lg bg-card-dark shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-primary/80">
                             <div className="flex w-full min-w-72 grow flex-col items-stretch justify-center gap-4 p-6">
                                 <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">New Firewall
                                     Rule</p>

@@ -6,7 +6,7 @@ const router = express.Router();
 
 
 const runAsNodeUser = (command, res, successMessage, operation = "") => {
-    const fullCmd = `sudo -u nodeuser sudo ${command}`;
+    const fullCmd = `sudo ${command}`;
     exec(fullCmd, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error: ${stderr}`);
