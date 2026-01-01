@@ -45,7 +45,7 @@ const Firewall = () => {
 
     const validateIp = (ip) => {
         if (ip == "") return true
-        
+
         // 1. Check if input is empty or not a string
         if (typeof ip !== 'string') return false;
 
@@ -78,7 +78,7 @@ const Firewall = () => {
 
     const addRule = async () => {
         try {
-            if (!validateIp(formData.srcIp) || !validateIp(formData.destIp)){
+            if (!validateIp(formData.srcIp) || !validateIp(formData.destIp)) {
                 toast.error("Invalid IP address")
                 return;
             }
@@ -278,7 +278,7 @@ const Firewall = () => {
                                         <textarea
                                             value={formData.description}
                                             onChange={(e) => {
-                                                if (formData.description.length <= 249){
+                                                if (formData.description.length <= 249) {
                                                     setFormData((prev) => {
                                                         return {
                                                             ...prev,
@@ -301,7 +301,7 @@ const Firewall = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex justify-end mt-4"> 
+                                <div className="flex justify-end mt-4">
                                     <button
                                         onClick={addRule}
                                         className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300"
@@ -416,6 +416,13 @@ const Firewall = () => {
                                     {selectedRule.destination || "Any"}
                                 </div>
                             </div>
+                            {selectedRule.description &&
+                                <div className="col-span-2">
+                                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Description</p>
+                                    <div className="bg-[#111828] p-2 rounded border border-gray-700 text-sm text-gray-200 font-mono break-all">
+                                        {selectedRule.description}
+                                    </div>
+                                </div>}
                         </div>
 
                         {/* Modal Footer */}
