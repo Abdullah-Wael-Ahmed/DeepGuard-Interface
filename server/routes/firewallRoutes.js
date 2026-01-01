@@ -20,6 +20,25 @@ const runAsNodeUser = (command, res, successMessage, operation = "") => {
     });
 };
 
+const execPromise = (command) => {
+    return new Promise((resolve, reject) => {
+        // We use just 'sudo' here assuming the app runs as 'nodeuser'
+        // If the app runs as root, you don't need sudo.
+        // If app runs as 'nodeuser', sudo allows it to run root commands.
+        const fullCmd = `sudo /usr/sbin/iptables ${command}`; 
+        
+        console.log(`Executing: ${fullCmd}`); // Debugging
+
+        exec(fullCmd, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Exec Error: ${stderr}`);
+                return reject(stderr || error.message);
+            }
+            resolve(stdout);
+        });
+    });
+};
+
 router.post('/add-rule', async (req, res) => {
     const {
         chain, action, protocol, srcIP, dstIP, 
