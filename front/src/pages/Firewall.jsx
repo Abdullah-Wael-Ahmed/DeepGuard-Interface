@@ -42,8 +42,43 @@ const Firewall = () => {
         });
     };
 
+    const validateIp = (ip) => {
+        // 1. Check if input is empty or not a string
+        if (!ip || typeof ip !== 'string') return false;
+
+        // 2. Trim whitespace
+        ip = ip.trim();
+
+        // 3. Basic Format Check: Must have 4 segments
+        const segments = ip.split('.');
+        if (segments.length !== 4) return false;
+
+        // 4. Validate each segment
+        for (const segment of segments) {
+            // A. Check for empty segments (e.g., "192..1.1")
+            if (segment.length === 0) return false;
+
+            // B. Check for non-numeric characters
+            if (!/^\d+$/.test(segment)) return false;
+
+            // C. Check for leading zeros (e.g., "192.168.01.1" is invalid)
+            // Exception: "0" by itself is valid, but "01" is not.
+            if (segment.length > 1 && segment.startsWith('0')) return false;
+
+            // D. Check numeric range (0-255)
+            const num = parseInt(segment, 10);
+            if (num < 0 || num > 255) return false;
+        }
+
+        return true;
+    };
+
     const addRule = async () => {
         try {
+            if (!validateIp(formData.srcIp) || !validateIp(formData.destIp)){
+                toast.error("Invalid IP address")
+                return;
+            }
             const res = await axios.post(
                 `${import.meta.env.VITE_BACK}/firewall/add-rule`,
                 { ...formData },
