@@ -136,7 +136,7 @@ router.post('/add-rule', async (req, res) => {
 
 
 router.get('/list', (req, res) => {
-    const cmd = "iptables -L -n INPUT --line-numbers";
+    const cmd = "iptables -L INPUT --line-numbers -n";
     runAsNodeUser(cmd, res, 'Rules listed successfully', 'list');
 });
 
