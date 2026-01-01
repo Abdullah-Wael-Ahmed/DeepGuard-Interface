@@ -186,12 +186,20 @@ function parseIptablesOutput(output) {
         // Skip lines before header
         if (startIndex === -1) continue;
 
-        // Parse rule lines (expected columns: num, target, prot, opt, source, destination, [rest])
+        // Parse rule lines
+        // Splitting by whitespace handles the fixed columns
         const parts = line.split(/\s+/);
 
-        // The output may have variable spacing, so we normalize
         if (parts.length >= 6) {
             const [num, target, prot, opt, source, destination, ...rest] = parts;
+
+            // Rejoin the remaining parts to get the full "extra" string
+            const rawExtra = rest.join(' ');
+
+            // REGEX: Extract text between /* and */
+            // iptables formats comments like: ... tcp dpt:80 /* My Description */
+            const commentMatch = rawExtra.match(/\/\*\s*(.*?)\s*\*\//);
+            const description = commentMatch ? commentMatch[1] : '';
 
             rules.push({
                 chain: chainName,
@@ -201,7 +209,8 @@ function parseIptablesOutput(output) {
                 opt,
                 source,
                 destination,
-                extra: rest.join(' ') || ''
+                description: description, // <--- Now available in your frontend
+                extra: rawExtra 
             });
         }
     }
