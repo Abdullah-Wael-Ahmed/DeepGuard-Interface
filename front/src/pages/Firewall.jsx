@@ -53,6 +53,7 @@ const Firewall = () => {
             }, {
                 withCredentials: true
             })
+            console.log(res)
             toast.info(res.message)
         } catch (error) {
             console.log(error);
