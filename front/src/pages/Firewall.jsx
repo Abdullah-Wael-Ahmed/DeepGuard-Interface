@@ -43,8 +43,10 @@ const Firewall = () => {
     };
 
     const validateIp = (ip) => {
+        if (ip == "") return true
+        
         // 1. Check if input is empty or not a string
-        if (!ip || typeof ip !== 'string') return false;
+        if (typeof ip !== 'string') return false;
 
         // 2. Trim whitespace
         ip = ip.trim();
