@@ -1,11 +1,10 @@
-import axios from 'axios';
-import React, { useState } from 'react';
-import { useEffect } from 'react';
-import { toast } from 'react-toastify';
+import axios from "axios";
+import React, { useState } from "react";
+import { useEffect } from "react";
+import { toast } from "react-toastify";
+import { LoaderCircle } from "lucide-react";
 
 const Firewall = () => {
-
-
     const chain = ["INPUT", "OUTPUT"];
     const protocol = ["TCP", "UDP", "ICMP", "ALL"];
     const action = ["ACCEPT", "DROP", "REJECT", "LOG"];
@@ -17,7 +16,7 @@ const Firewall = () => {
         destIp: "",
         srcPort: "",
         destPort: "",
-        action: action[0]
+        action: action[0],
     });
 
     const [rules, setRules] = useState([]);
@@ -27,54 +26,57 @@ const Firewall = () => {
 
     // }
 
-
     const verifyPort = (val) => {
-        if (!(/^\d*$/.test(val))) return false
+        if (!/^\d*$/.test(val)) return false;
         if (val === "") return true;
         val = +val;
         if (val >= 1 && val <= 65536) return true;
         return false;
-    }
+    };
 
     const changePort = (e) => {
         if (!verifyPort(e.target.value)) return;
-        setFormData(prev => {
+        setFormData((prev) => {
             return {
                 ...prev,
-                [`${e.target.name}`]: e.target.value
-            }
-        })
-    }
+                [`${e.target.name}`]: e.target.value,
+            };
+        });
+    };
 
     const addRule = async () => {
         try {
-            const res = await axios.post(`${import.meta.env.VITE_BACK}/firewall/add-rule`, {
-                ...formData
-            }, {
-                withCredentials: true
-            })
-            console.log(res)
-            toast.info(res.message)
+            const res = await axios.post(
+                `${import.meta.env.VITE_BACK}/firewall/add-rule`,
+                {
+                    ...formData,
+                },
+                {
+                    withCredentials: true,
+                }
+            );
+            toast.info(res.data.message);
+            list()
         } catch (error) {
             console.log(error);
         }
-    }
-
+    };
 
     const list = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_BACK}/firewall/list`)
-            console.log(res.data.output)
-            setRules(res.data.output)
-            setLoader(false)
+            setLoader(true);
+            const res = await axios.get(`${import.meta.env.VITE_BACK}/firewall/list`);
+            console.log(res.data.output);
+            setRules(res.data.output);
+            setLoader(false);
         } catch (error) {
             console.log(error);
         }
-    }
+    };
 
-    useEffect( () => {
-        list()
-    } ,[])
+    useEffect(() => {
+        list();
+    }, []);
 
     // const verifyIp = (val) => {
     //     if (val === "") return true; // allow empty input
@@ -82,7 +84,6 @@ const Firewall = () => {
     //     // basic pattern for IPv4
     //     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
     //     if (!ipv4Regex.test(val)) return false;
-
 
     //     // check each segment is 0-255
     //     const parts = val.split('.').map(Number);
@@ -97,22 +98,24 @@ const Firewall = () => {
         setFormData((prev) => {
             return {
                 ...prev,
-                [e.target.name]: e.target.value
-            }
-        })
-    }
+                [e.target.name]: e.target.value,
+            };
+        });
+    };
 
     return (
         <main className="flex-1 p-8 overflow-y-auto">
-
             {/* title and desc */}
 
             <div className="flex flex-wrap justify-between gap-3 mb-8">
                 <div className="flex min-w-72 flex-col gap-3">
-                    <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">Firewall Management</p>
+                    <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
+                        Firewall Management
+                    </p>
                     <p className="text-gray-400 text-base font-normal leading-normal">
-                        Create and manage firewall rules,
-                        monitor traffic, and control network access.</p>
+                        Create and manage firewall rules, monitor traffic, and control
+                        network access.
+                    </p>
                 </div>
             </div>
 
@@ -121,86 +124,156 @@ const Firewall = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-3">
                     <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">
-                        Interactive Rule Builder</h2>
+                        Interactive Rule Builder
+                    </h2>
                     <div className="p-4 ">
                         <div className="flex flex-col items-stretch justify-start rounded-lg bg-card-dark shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-primary/80">
                             <div className="flex w-full min-w-72 grow flex-col items-stretch justify-center gap-4 p-6">
-                                <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">New Firewall
-                                    Rule</p>
-                                <p className="text-gray-400 text-base font-normal leading-normal">Define a new rule to
-                                    control network traffic. Specify the action, source/destination IPs, protocol, and
-                                    port.</p>
+                                <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
+                                    New Firewall Rule
+                                </p>
+                                <p className="text-gray-400 text-base font-normal leading-normal">
+                                    Define a new rule to control network traffic. Specify the
+                                    action, source/destination IPs, protocol, and port.
+                                </p>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="action">Chain</label>
-                                        <select value={formData.chain} onChange={(e) => {
-                                            if (chain.includes(e.target.value)) {
-                                                setFormData((prev) => {
-                                                    return {
-                                                        ...prev,
-                                                        chain: e.target.value
-                                                    }
-                                                })
-                                            }
-                                        }} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="action">
+                                        <label className="text-gray-300 text-sm" htmlFor="action">
+                                            Chain
+                                        </label>
+                                        <select
+                                            value={formData.chain}
+                                            onChange={(e) => {
+                                                if (chain.includes(e.target.value)) {
+                                                    setFormData((prev) => {
+                                                        return {
+                                                            ...prev,
+                                                            chain: e.target.value,
+                                                        };
+                                                    });
+                                                }
+                                            }}
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="action"
+                                        >
                                             {chain.map((obj) => {
-                                                return <option value={obj}>{obj}</option>
+                                                return <option value={obj}>{obj}</option>;
                                             })}
                                         </select>
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="protocol">Protocol</label>
-                                        <select value={formData.protocol} onChange={(e) => {
-                                            if (protocol.includes(e.target.value)) {
-                                                setFormData((prev) => {
-                                                    return {
-                                                        ...prev,
-                                                        protocol: e.target.value
-                                                    }
-                                                })
-                                            }
-                                        }} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="protocol">
+                                        <label className="text-gray-300 text-sm" htmlFor="protocol">
+                                            Protocol
+                                        </label>
+                                        <select
+                                            value={formData.protocol}
+                                            onChange={(e) => {
+                                                if (protocol.includes(e.target.value)) {
+                                                    setFormData((prev) => {
+                                                        return {
+                                                            ...prev,
+                                                            protocol: e.target.value,
+                                                        };
+                                                    });
+                                                }
+                                            }}
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="protocol"
+                                        >
                                             {protocol.map((obj) => {
-                                                return <option value={obj}>{obj}</option>
+                                                return <option value={obj}>{obj}</option>;
                                             })}
                                         </select>
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="source-ip">Source IP</label>
-                                        <input value={formData.srcIp} onChange={changeIp} name='srcIp' className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="source-ip" placeholder="e.g., 192.168.1.1" type="text" />
+                                        <label
+                                            className="text-gray-300 text-sm"
+                                            htmlFor="source-ip"
+                                        >
+                                            Source IP
+                                        </label>
+                                        <input
+                                            value={formData.srcIp}
+                                            onChange={changeIp}
+                                            name="srcIp"
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="source-ip"
+                                            placeholder="e.g., 192.168.1.1"
+                                            type="text"
+                                        />
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="dest-ip">Destination IP</label>
-                                        <input value={formData.destIp} onChange={changeIp} name='destIp' className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="dest-ip" placeholder="e.g., 8.8.8.8" type="text" />
+                                        <label className="text-gray-300 text-sm" htmlFor="dest-ip">
+                                            Destination IP
+                                        </label>
+                                        <input
+                                            value={formData.destIp}
+                                            onChange={changeIp}
+                                            name="destIp"
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="dest-ip"
+                                            placeholder="e.g., 8.8.8.8"
+                                            type="text"
+                                        />
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="port">Source Port</label>
-                                        <input value={formData.srcPort} onChange={changePort} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="port" name='srcPort' placeholder="e.g., 443" type="text" />
+                                        <label className="text-gray-300 text-sm" htmlFor="port">
+                                            Source Port
+                                        </label>
+                                        <input
+                                            value={formData.srcPort}
+                                            onChange={changePort}
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="port"
+                                            name="srcPort"
+                                            placeholder="e.g., 443"
+                                            type="text"
+                                        />
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="port">Destination Port</label>
-                                        <input value={formData.destPort} onChange={changePort} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="port" name='destPort' placeholder="e.g., 443" type="text" />
+                                        <label className="text-gray-300 text-sm" htmlFor="port">
+                                            Destination Port
+                                        </label>
+                                        <input
+                                            value={formData.destPort}
+                                            onChange={changePort}
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="port"
+                                            name="destPort"
+                                            placeholder="e.g., 443"
+                                            type="text"
+                                        />
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="action">Action</label>
-                                        <select value={formData.action} onChange={(e) => {
-                                            if (action.includes(e.target.value)) {
-                                                setFormData((prev) => {
-                                                    return {
-                                                        ...prev,
-                                                        action: e.target.value
-                                                    }
-                                                })
-                                            }
-                                        }} className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent" id="action">
+                                        <label className="text-gray-300 text-sm" htmlFor="action">
+                                            Action
+                                        </label>
+                                        <select
+                                            value={formData.action}
+                                            onChange={(e) => {
+                                                if (action.includes(e.target.value)) {
+                                                    setFormData((prev) => {
+                                                        return {
+                                                            ...prev,
+                                                            action: e.target.value,
+                                                        };
+                                                    });
+                                                }
+                                            }}
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
+                                            id="action"
+                                        >
                                             {action.map((obj) => {
-                                                return <option value={obj}>{obj}</option>
+                                                return <option value={obj}>{obj}</option>;
                                             })}
                                         </select>
                                     </div>
                                 </div>
                                 <div className="flex justify-end mt-4">
-                                    <button onClick={addRule} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300">
+                                    <button
+                                        onClick={addRule}
+                                        className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300"
+                                    >
                                         <span className="truncate">Create Rule</span>
                                     </button>
                                 </div>
@@ -260,39 +333,63 @@ const Firewall = () => {
                     </div>
                 </div> */}
             </div>
-            {loader ? "" :
-                <div className="mt-8">
-                    <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Current rules</h2>
-                    <div className="bg-graphite rounded-lg shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm text-gray-300">
-                                <thead className="bg-[#2a3b4c] text-xs text-gray-200 uppercase">
-                                    <tr>
-                                        <th className="px-6 py-3" scope="col">Number</th>
-                                        <th className="px-6 py-3" scope="col">CHAIN</th>
-                                        <th className="px-6 py-3" scope="col">PROTOCOL</th>
-                                        <th className="px-6 py-3" scope="col">SOURCE</th>
-                                        <th className="px-6 py-3" scope="col">DESTINATION</th>
-                                        <th className="px-6 py-3" scope="col">Action</th>
-                                    </tr>
-                                </thead>
+            <div className="mt-8">
+                <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">
+                    Current rules
+                </h2>
+                <div className="bg-graphite rounded-lg shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-gray-300">
+                            <thead className="bg-[#2a3b4c] text-xs text-gray-200 uppercase">
+                                <tr>
+                                    <th className="px-6 py-3" scope="col">
+                                        Number
+                                    </th>
+                                    <th className="px-6 py-3" scope="col">
+                                        CHAIN
+                                    </th>
+                                    <th className="px-6 py-3" scope="col">
+                                        PROTOCOL
+                                    </th>
+                                    <th className="px-6 py-3" scope="col">
+                                        SOURCE
+                                    </th>
+                                    <th className="px-6 py-3" scope="col">
+                                        DESTINATION
+                                    </th>
+                                    <th className="px-6 py-3" scope="col">
+                                        Action
+                                    </th>
+                                </tr>
+                            </thead>
+                            {loader ? (
                                 <tbody>
-                                    {rules.map(obj => {
-                                        return <tr className="border-b border-gray-700 hover:bg-[#2a3b4c]/50">
-                                            <td className="px-6 py-4">{obj.num}</td>
-                                            <td className="px-6 py-4">{obj.chain}</td>
-                                            <td className="px-6 py-4">{obj.prot}</td>
-                                            <td className="px-6 py-4">{obj.source}</td>
-                                            <td className="px-6 py-4">{obj.destination}</td>
-                                            <td className="px-6 py-4">{obj.target}</td>
-                                        </tr>
+                                    <tr>
+                                        <td colSpan={6} className="align-center h-40">
+                                            <LoaderCircle className="animate-spin m-auto" size={64} />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            ) : (
+                                <tbody>
+                                    {rules.map((obj) => {
+                                        return (
+                                            <tr className="border-b border-gray-700 hover:bg-[#2a3b4c]/50">
+                                                <td className="px-6 py-4">{obj.num}</td>
+                                                <td className="px-6 py-4">{obj.chain}</td>
+                                                <td className="px-6 py-4">{obj.prot}</td>
+                                                <td className="px-6 py-4">{obj.source}</td>
+                                                <td className="px-6 py-4">{obj.destination}</td>
+                                                <td className="px-6 py-4">{obj.target}</td>
+                                            </tr>
+                                        );
                                     })}
                                 </tbody>
-                            </table>
-                        </div>
+                            )}
+                        </table>
                     </div>
                 </div>
-            }
+            </div>
 
             {/* <div className="mt-8">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Activity Log</h2>
@@ -361,8 +458,7 @@ const Firewall = () => {
                 </div>
             </div> */}
         </main>
-
     );
-}
+};
 
 export default Firewall;
