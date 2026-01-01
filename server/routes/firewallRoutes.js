@@ -83,57 +83,58 @@ router.post('/add-rule', async (req, res) => {
         res.status(500).json({ error: "Failed to add rule", details: error });
     }
 });
-// router.post('/add-rule', (req, res) => {
-//     const {
-//         chain,            // INPUT / OUTPUT / FORWARD
-//         action,           // ACCEPT / DROP / REJECT / LOG
-//         protocol,         // tcp / udp / icmp / all
-//         srcIP,            // optional
-//         dstIP,            // optional
-//         srcPort,          // optional
-//         dstPort,          // optional
-//         inInterface,      // optional (for INPUT/FORWARD)
-//         outInterface,     // optional (for OUTPUT/FORWARD)
-//         logEnabled,       // boolean
-//         description       // optional string for logging
-//     } = req.body;
 
-//     // Base command
-//     let cmd = `/usr/sbin/iptables -A ${chain}`;
+router.delete('/delete-rule', async (req, res) => {
+    const { chain, ruleNum } = req.params;
 
-//     // Add protocol
-//     if (protocol && protocol !== 'all') cmd += ` -p ${protocol}`;
+    // 1. Basic Validation
+    if (!chain || !ruleNum) {
+        return res.status(400).json({ 
+            error: "Missing required fields: 'chain' and 'ruleNum' are required." 
+        });
+    }
 
-//     // Add optional IPs
-//     if (srcIP && srcIP.trim() !== '') cmd += ` -s ${srcIP}`;
-//     if (dstIP && dstIP.trim() !== '') cmd += ` -d ${dstIP}`;
+    // 2. Security Check (Prevent Command Injection)
+    // Ensure ruleNum is actually a number
+    if (!/^\d+$/.test(ruleNum)) {
+        return res.status(400).json({ 
+            error: "Invalid Rule Number. Must be an integer." 
+        });
+    }
 
-//     // Add optional interfaces
-//     if (inInterface && inInterface.trim() !== '') cmd += ` -i ${inInterface}`;
-//     if (outInterface && outInterface.trim() !== '') cmd += ` -o ${outInterface}`;
+    // Ensure chain is a valid standard chain or alphanumeric (for custom chains)
+    if (!/^[a-zA-Z0-9_-]+$/.test(chain)) {
+        return res.status(400).json({ 
+            error: "Invalid Chain name." 
+        });
+    }
 
-//     // Add optional ports (only valid with tcp/udp)
-//     if ((protocol === 'tcp' || protocol === 'udp')) {
-//         if (srcPort && srcPort.trim() !== '') cmd += ` --sport ${srcPort}`;
-//         if (dstPort && dstPort.trim() !== '') cmd += ` --dport ${dstPort}`;
-//     }
+    try {
+        // 3. Construct the delete command
+        // usage: -D <CHAIN> <NUM>
+        const cmd = `-D ${chain} ${ruleNum}`;
+        
+        // 4. Execute using your existing promise helper
+        await execPromise(cmd);
 
-//     // Logging prefix if enabled
-//     if (logEnabled) {
-//         const prefix = description ? description.replace(/[^a-zA-Z0-9_-]/g, '_') : 'DeepGuard_Log';
-//         cmd += ` -j LOG --log-prefix "${prefix} "`;
-//     }
+        res.json({ 
+            message: `Successfully deleted rule #${ruleNum} from chain ${chain}` 
+        });
 
-//     // Final action
-//     cmd += ` -j ${action}`;
+    } catch (error) {
+        console.error("Delete Error:", error);
+        
+        // Handle specific iptables errors (like rule does not exist)
+        if (error.toString().includes("Bad rule") || error.toString().includes("Index of deletion")) {
+             return res.status(404).json({ error: "Rule not found or index out of range." });
+        }
 
-//     console.log(cmd);
-
-//     // Run as nodeuser
-//     runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`);
-// });
-
-
+        res.status(500).json({ 
+            error: "Failed to delete rule", 
+            details: error.toString() 
+        });
+    }
+});
 
 router.get('/list', (req, res) => {
     const cmd = "iptables -L INPUT --line-numbers -n";
