@@ -54,19 +54,19 @@ router.post('/add-rule', async (req, res) => {
 
         if (protocol && protocol !== 'all'){
             const safeprotocol = protocol.replace(/["`$]/g, '');
-            criteria += ` -o ${safeprotocol}`;
+            criteria += ` -p ${safeprotocol}`;
         }
         if (srcIp?.trim()){
             const safesrcIp = srcIp.replace(/["`$]/g, '');
-            criteria += ` -o ${safesrcIp}`;
+            criteria += ` -s ${safesrcIp}`;
         }
         if (destIp?.trim()){
             const safedestIp = destIp.replace(/["`$]/g, '');
-            criteria += ` -o ${safedestIp}`;
+            criteria += ` -d ${safedestIp}`;
         }
         if (inInterface?.trim()) {
             const safeinInterface = inInterface.replace(/["`$]/g, '');
-            criteria += ` -o ${safeinInterface}`;
+            criteria += ` -i ${safeinInterface}`;
         };
         if (outInterface?.trim()) {
             const safeoutInterface = outInterface.replace(/["`$]/g, '');
@@ -157,7 +157,7 @@ router.delete('/delete-rule', async (req, res) => {
 });
 
 router.get('/list', (req, res) => {
-    const cmd = "iptables -L INPUT --line-numbers -n";
+    const cmd = "iptables -L INPUT --line-numbers";
     runAsNodeUser(cmd, res, 'Rules listed successfully', 'list');
 });
 
