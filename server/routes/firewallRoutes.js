@@ -1,352 +1,198 @@
-import axios from "axios";
-import React, { useState, useEffect } from "react"; // Combined React imports
-import { toast } from "react-toastify";
-import { LoaderCircle, X } from "lucide-react"; // Added 'X' icon for the close button
+const express = require("express");
+const { exec } = require('child_process')
+const { stderr, stdout } = require('process');
 
-const Firewall = () => {
-    const chain = ["INPUT", "OUTPUT"];
-    const protocol = ["TCP", "UDP", "ICMP", "ALL"];
-    const action = ["ACCEPT", "DROP", "REJECT", "LOG"];
+const router = express.Router();
 
-    const [formData, setFormData] = useState({
-        chain: chain[0],
-        protocol: protocol[0],
-        srcIp: "",
-        destIp: "",
-        srcPort: "",
-        destPort: "",
-        action: action[0],
+
+const runAsNodeUser = (command, res, successMessage, operation = "") => {
+    const fullCmd = `sudo ${command}`;
+    exec(fullCmd, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error: ${stderr}`);
+            return res.status(500).json({ error: stderr });
+        }
+        if (operation == "list"){
+            res.json({ message: successMessage, output: parseIptablesOutput(stdout) });
+        }else {
+            res.json({ message: successMessage, output: stdout });
+        }
     });
-
-    const [rules, setRules] = useState([]);
-    const [loader, setLoader] = useState(true);
-
-    // --- NEW STATE FOR MODAL ---
-    const [selectedRule, setSelectedRule] = useState(null);
-
-    const verifyPort = (val) => {
-        if (!/^\d*$/.test(val)) return false;
-        if (val === "") return true;
-        val = +val;
-        if (val >= 1 && val <= 65536) return true;
-        return false;
-    };
-
-    const changePort = (e) => {
-        if (!verifyPort(e.target.value)) return;
-        setFormData((prev) => {
-            return {
-                ...prev,
-                [`${e.target.name}`]: e.target.value,
-            };
-        });
-    };
-
-    const addRule = async () => {
-        try {
-            const res = await axios.post(
-                `${import.meta.env.VITE_BACK}/firewall/add-rule`,
-                { ...formData },
-                { withCredentials: true }
-            );
-            toast.info(res.data.message);
-            list();
-        } catch (error) {
-            console.log(error);
-        }
-    };
-
-    const list = async () => {
-        try {
-            setLoader(true);
-            const res = await axios.get(`${import.meta.env.VITE_BACK}/firewall/list`);
-            setRules(res.data.output);
-            setLoader(false);
-        } catch (error) {
-            console.log(error);
-        }
-    };
-
-    useEffect(() => {
-        list();
-    }, []);
-
-    const changeIp = (e) => {
-        setFormData((prev) => {
-            return {
-                ...prev,
-                [e.target.name]: e.target.value,
-            };
-        });
-    };
-
-    // --- MODAL CLOSE HANDLER ---
-    const closeModal = () => {
-        setSelectedRule(null);
-    };
-
-    return (
-        <main className="flex-1 p-8 overflow-y-auto relative">
-            {/* title and desc */}
-            <div className="flex flex-wrap justify-between gap-3 mb-8">
-                <div className="flex min-w-72 flex-col gap-3">
-                    <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
-                        Firewall Management
-                    </p>
-                    <p className="text-gray-400 text-base font-normal leading-normal">
-                        Create and manage firewall rules, monitor traffic, and control network access.
-                    </p>
-                </div>
-            </div>
-
-            {/* firewall form */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-3">
-                    <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">
-                        Interactive Rule Builder
-                    </h2>
-                    <div className="p-4 ">
-                        <div className="flex flex-col items-stretch justify-start rounded-lg bg-card-dark shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-primary/80">
-                            <div className="flex w-full min-w-72 grow flex-col items-stretch justify-center gap-4 p-6">
-                                <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                                    New Firewall Rule
-                                </p>
-                                <p className="text-gray-400 text-base font-normal leading-normal">
-                                    Define a new rule to control network traffic. Specify the action, source/destination IPs, protocol, and port.
-                                </p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Chain */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="chain">Chain</label>
-                                        <select
-                                            value={formData.chain}
-                                            onChange={(e) => {
-                                                if (chain.includes(e.target.value)) {
-                                                    setFormData((prev) => ({ ...prev, chain: e.target.value }));
-                                                }
-                                            }}
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="chain"
-                                        >
-                                            {chain.map((obj) => <option key={obj} value={obj}>{obj}</option>)}
-                                        </select>
-                                    </div>
-                                    {/* Protocol */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="protocol">Protocol</label>
-                                        <select
-                                            value={formData.protocol}
-                                            onChange={(e) => {
-                                                if (protocol.includes(e.target.value)) {
-                                                    setFormData((prev) => ({ ...prev, protocol: e.target.value }));
-                                                }
-                                            }}
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="protocol"
-                                        >
-                                            {protocol.map((obj) => <option key={obj} value={obj}>{obj}</option>)}
-                                        </select>
-                                    </div>
-                                    {/* Source IP */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="source-ip">Source IP</label>
-                                        <input
-                                            value={formData.srcIp}
-                                            onChange={changeIp}
-                                            name="srcIp"
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="source-ip"
-                                            placeholder="e.g., 192.168.1.1"
-                                            type="text"
-                                        />
-                                    </div>
-                                    {/* Destination IP */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="dest-ip">Destination IP</label>
-                                        <input
-                                            value={formData.destIp}
-                                            onChange={changeIp}
-                                            name="destIp"
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="dest-ip"
-                                            placeholder="e.g., 8.8.8.8"
-                                            type="text"
-                                        />
-                                    </div>
-                                    {/* Source Port */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="srcPort">Source Port</label>
-                                        <input
-                                            value={formData.srcPort}
-                                            onChange={changePort}
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="srcPort"
-                                            name="srcPort"
-                                            placeholder="e.g., 443"
-                                            type="text"
-                                        />
-                                    </div>
-                                    {/* Dest Port */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="destPort">Destination Port</label>
-                                        <input
-                                            value={formData.destPort}
-                                            onChange={changePort}
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="destPort"
-                                            name="destPort"
-                                            placeholder="e.g., 443"
-                                            type="text"
-                                        />
-                                    </div>
-                                    {/* Action */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-gray-300 text-sm" htmlFor="action">Action</label>
-                                        <select
-                                            value={formData.action}
-                                            onChange={(e) => {
-                                                if (action.includes(e.target.value)) {
-                                                    setFormData((prev) => ({ ...prev, action: e.target.value }));
-                                                }
-                                            }}
-                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 focus:ring-cyan-accent focus:border-cyan-accent"
-                                            id="action"
-                                        >
-                                            {action.map((obj) => <option key={obj} value={obj}>{obj}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end mt-4">
-                                    <button
-                                        onClick={addRule}
-                                        className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300"
-                                    >
-                                        <span className="truncate">Create Rule</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-8">
-                <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">
-                    Current rules
-                </h2>
-                <div className="bg-graphite rounded-lg shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30 overflow-hidden">
-                    <div className="overflow-x-auto overflow-y-auto relative max-h-[350px]">
-                        <table className="w-full text-left text-sm text-gray-300">
-                            <thead className="bg-[#2a3b4c] text-xs text-gray-200 uppercase sticky top-0 z-10">
-                                <tr>
-                                    <th className="px-6 py-3" scope="col">Number</th>
-                                    <th className="px-6 py-3" scope="col">CHAIN</th>
-                                    <th className="px-6 py-3" scope="col">PROTOCOL</th>
-                                    <th className="px-6 py-3" scope="col">SOURCE</th>
-                                    <th className="px-6 py-3" scope="col">DESTINATION</th>
-                                    <th className="px-6 py-3" scope="col">Action</th>
-                                </tr>
-                            </thead>
-                            {loader ? (
-                                <tbody>
-                                    <tr>
-                                        <td colSpan={6} className="align-center h-40">
-                                            <LoaderCircle className="animate-spin m-auto" size={64} />
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            ) : (
-                                <tbody>
-                                    {rules.map((obj, index) => {
-                                        return (
-                                            <tr
-                                                key={obj.id || index}
-                                                // --- CLICK HANDLER ---
-                                                onClick={() => setSelectedRule(obj)}
-                                                className="border-b border-gray-700 hover:bg-[#2a3b4c]/50 cursor-pointer transition-colors duration-200"
-                                            >
-                                                <td className="px-6 py-4">{obj.num}</td>
-                                                <td className="px-6 py-4">{obj.chain}</td>
-                                                <td className="px-6 py-4">{obj.prot}</td>
-                                                <td className="px-6 py-4">{obj.source}</td>
-                                                <td className="px-6 py-4">{obj.destination}</td>
-                                                <td className="px-6 py-4">{obj.target}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            )}
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            {/* --- RULE DETAILS MODAL --- */}
-            {selectedRule && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-[#1e293b] rounded-lg shadow-2xl border border-gray-600 w-full max-w-lg transform transition-all scale-100">
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-                            <h3 className="text-xl font-bold text-white">Rule Details</h3>
-                            <button
-                                onClick={closeModal}
-                                className="text-gray-400 hover:text-white transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        {/* Modal Body */}
-                        <div className="p-6 grid grid-cols-2 gap-y-4 gap-x-6">
-                            <div className="col-span-2 sm:col-span-1">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider">Number</p>
-                                <p className="text-white font-mono text-lg">{selectedRule.num || "-"}</p>
-                            </div>
-                            <div className="col-span-2 sm:col-span-1">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider">Chain</p>
-                                <p className="text-cyan-400 font-semibold">{selectedRule.chain || "-"}</p>
-                            </div>
-                            <div className="col-span-2 sm:col-span-1">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider">Protocol</p>
-                                <p className="text-white">{selectedRule.prot || "-"}</p>
-                            </div>
-                            <div className="col-span-2 sm:col-span-1">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider">Action</p>
-                                <span className={`inline-block px-2 py-1 rounded text-xs font-bold 
-                                    ${selectedRule.target === 'ACCEPT' ? 'bg-green-900/50 text-green-400' :
-                                        selectedRule.target === 'DROP' ? 'bg-red-900/50 text-red-400' :
-                                            'bg-yellow-900/50 text-yellow-400'}`}>
-                                    {selectedRule.target || "-"}
-                                </span>
-                            </div>
-                            <div className="col-span-2">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Source</p>
-                                <div className="bg-[#111828] p-2 rounded border border-gray-700 text-sm text-gray-200 font-mono break-all">
-                                    {selectedRule.source || "Any"}
-                                </div>
-                            </div>
-                            <div className="col-span-2">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Destination</p>
-                                <div className="bg-[#111828] p-2 rounded border border-gray-700 text-sm text-gray-200 font-mono break-all">
-                                    {selectedRule.destination || "Any"}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="p-4 border-t border-gray-700 flex justify-end">
-                            <button
-                                onClick={closeModal}
-                                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </main>
-    );
 };
 
-export default Firewall;
+const execPromise = (command) => {
+    return new Promise((resolve, reject) => {
+        // We use just 'sudo' here assuming the app runs as 'nodeuser'
+        // If the app runs as root, you don't need sudo.
+        // If app runs as 'nodeuser', sudo allows it to run root commands.
+        const fullCmd = `sudo /usr/sbin/iptables ${command}`; 
+        
+        console.log(`Executing: ${fullCmd}`); // Debugging
+
+        exec(fullCmd, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Exec Error: ${stderr}`);
+                return reject(stderr || error.message);
+            }
+            resolve(stdout);
+        });
+    });
+};
+
+router.post('/add-rule', async (req, res) => {
+    const {
+        chain, action, protocol, srcIP, dstIP, 
+        srcPort, dstPort, inInterface, outInterface, 
+        logEnabled, description 
+    } = req.body;
+
+    try {
+        // 1. Construct the criteria string (reusable parts)
+        let criteria = `-A ${chain}`;
+
+        if (protocol && protocol !== 'all') criteria += ` -p ${protocol}`;
+        if (srcIP?.trim()) criteria += ` -s ${srcIP}`;
+        if (dstIP?.trim()) criteria += ` -d ${dstIP}`;
+        if (inInterface?.trim()) criteria += ` -i ${inInterface}`;
+        if (outInterface?.trim()) criteria += ` -o ${outInterface}`;
+
+        if ((protocol === 'tcp' || protocol === 'udp')) {
+            if (srcPort?.trim()) criteria += ` --sport ${srcPort}`;
+            if (dstPort?.trim()) criteria += ` --dport ${dstPort}`;
+        }
+
+        // 2. Execute Logic
+        // If logging is enabled, we need to run TWO commands.
+        if (logEnabled) {
+            const prefix = description ? description.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 29) : 'DeepGuard_Log';
+            // iptables log-prefix is limited to 29 chars
+            const logCmd = `${criteria} -j LOG --log-prefix "${prefix} "`;
+            await execPromise(logCmd);
+        }
+
+        // 3. Add the actual action rule
+        const actionCmd = `${criteria} -j ${action}`;
+        await execPromise(actionCmd);
+
+        res.json({ message: "Rule(s) added successfully", command: actionCmd });
+
+    } catch (error) {
+        res.status(500).json({ error: "Failed to add rule", details: error });
+    }
+});
+// router.post('/add-rule', (req, res) => {
+//     const {
+//         chain,            // INPUT / OUTPUT / FORWARD
+//         action,           // ACCEPT / DROP / REJECT / LOG
+//         protocol,         // tcp / udp / icmp / all
+//         srcIP,            // optional
+//         dstIP,            // optional
+//         srcPort,          // optional
+//         dstPort,          // optional
+//         inInterface,      // optional (for INPUT/FORWARD)
+//         outInterface,     // optional (for OUTPUT/FORWARD)
+//         logEnabled,       // boolean
+//         description       // optional string for logging
+//     } = req.body;
+
+//     // Base command
+//     let cmd = `/usr/sbin/iptables -A ${chain}`;
+
+//     // Add protocol
+//     if (protocol && protocol !== 'all') cmd += ` -p ${protocol}`;
+
+//     // Add optional IPs
+//     if (srcIP && srcIP.trim() !== '') cmd += ` -s ${srcIP}`;
+//     if (dstIP && dstIP.trim() !== '') cmd += ` -d ${dstIP}`;
+
+//     // Add optional interfaces
+//     if (inInterface && inInterface.trim() !== '') cmd += ` -i ${inInterface}`;
+//     if (outInterface && outInterface.trim() !== '') cmd += ` -o ${outInterface}`;
+
+//     // Add optional ports (only valid with tcp/udp)
+//     if ((protocol === 'tcp' || protocol === 'udp')) {
+//         if (srcPort && srcPort.trim() !== '') cmd += ` --sport ${srcPort}`;
+//         if (dstPort && dstPort.trim() !== '') cmd += ` --dport ${dstPort}`;
+//     }
+
+//     // Logging prefix if enabled
+//     if (logEnabled) {
+//         const prefix = description ? description.replace(/[^a-zA-Z0-9_-]/g, '_') : 'DeepGuard_Log';
+//         cmd += ` -j LOG --log-prefix "${prefix} "`;
+//     }
+
+//     // Final action
+//     cmd += ` -j ${action}`;
+
+//     console.log(cmd);
+
+//     // Run as nodeuser
+//     runAsNodeUser(cmd, res, `Rule added successfully: ${cmd}`);
+// });
+
+
+
+router.get('/list', (req, res) => {
+    const cmd = "iptables -L INPUT --line-numbers";
+    runAsNodeUser(cmd, res, 'Rules listed successfully', 'list');
+});
+
+function parseIptablesOutput(output) {
+    const lines = output.trim().split('\n');
+
+    const rules = [];
+    let chainName = '';
+    let startIndex = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        // Detect chain
+        if (line.startsWith('Chain ')) {
+            chainName = line.split(' ')[1];
+            continue;
+        }
+
+        // Skip header
+        if (line.startsWith('num')) {
+            startIndex = i + 1;
+            continue;
+        }
+
+        // Skip lines before header
+        if (startIndex === -1) continue;
+
+        // Parse rule lines (expected columns: num, target, prot, opt, source, destination, [rest])
+        const parts = line.split(/\s+/);
+
+        // The output may have variable spacing, so we normalize
+        if (parts.length >= 6) {
+            const [num, target, prot, opt, source, destination, ...rest] = parts;
+
+            rules.push({
+                chain: chainName,
+                num: Number(num),
+                target,
+                prot,
+                opt,
+                source,
+                destination,
+                extra: rest.join(' ') || ''
+            });
+        }
+    }
+
+    return rules;
+}
+
+router.get('/debug-user', (req, res) => {
+    exec('whoami && id', (err, stdout) => {
+        res.json({ 
+            runningAs: stdout.trim(), 
+            note: "This is the user that needs NOPASSWD in /etc/sudoers" 
+        });
+    });
+});
+
+
+module.exports = router;
