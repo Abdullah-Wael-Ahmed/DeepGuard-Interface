@@ -41,16 +41,18 @@ const execPromise = (command) => {
 
 router.post('/add-rule', async (req, res) => {
     const {
-        chain, action, protocol, srcIP, dstIP, 
+        chain, action, protocol, 
         srcPort, dstPort, inInterface, outInterface, 
         logEnabled, description 
     } = req.body;
+
+    const srcIP = res.body.srcIp;
+    const dstIP = res.body.dstIp;
 
     try {
         // 1. Construct the criteria string (reusable parts)
         let criteria = `-A ${chain}`;
 
-        console.log(srcIP)
         // test
 
         if (protocol && protocol !== 'all') criteria += ` -p ${protocol}`;
