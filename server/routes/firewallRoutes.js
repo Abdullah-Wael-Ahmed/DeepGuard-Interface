@@ -50,7 +50,7 @@ router.post('/add-rule', async (req, res) => {
         // 1. Construct the criteria string (reusable parts)
         let criteria = `-A ${chain}`;
 
-        console.log(srcIP?.trim(), srcIP, srcIP.trim())
+        console.log(srcIP?.trim())
         // test
 
         if (protocol && protocol !== 'all') criteria += ` -p ${protocol}`;
@@ -80,6 +80,7 @@ router.post('/add-rule', async (req, res) => {
         res.json({ message: "Rule(s) added successfully", command: actionCmd });
 
     } catch (error) {
+        console.log(error)
         res.status(500).json({ error: "Failed to add rule", details: error });
     }
 });
