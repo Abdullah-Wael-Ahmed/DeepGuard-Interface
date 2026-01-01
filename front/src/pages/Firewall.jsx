@@ -338,7 +338,7 @@ const Firewall = () => {
                     Current rules
                 </h2>
                 <div className="bg-graphite rounded-lg shadow-[0_0_15px_rgba(100,255,218,0.1)] border border-cyan-accent/30 overflow-hidden">
-                    <div className="overflow-x-auto overflow-y-auto relative max-h-[500px]">
+                    <div className="overflow-x-auto overflow-y-auto relative max-h-[350px]">
                         <table className="w-full text-left text-sm text-gray-300">
                             <thead className="bg-[#2a3b4c] text-xs text-gray-200 uppercase sticky top-0">
                                 <tr>
