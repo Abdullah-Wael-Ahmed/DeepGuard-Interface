@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
-import { ChevronFirst, ChevronLast, Inbox, LoaderCircle, Search, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronFirst, ChevronLast, Inbox, LoaderCircle, Search, SkipBack, SkipForward, X } from 'lucide-react';
 import useWebSocket from "react-use-websocket"
 import { toast } from 'react-toastify';
 import ProtocolPieChart from '../components/ProtocolPieChart';
@@ -18,6 +18,7 @@ const Traffic = () => {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [live, setLive] = useState(true);
     const [page, setPage] = useState(1);
+    const [selectedAlert, setSelectedAlert] = useState(null);
     const debounceTimer = useRef(null);
     const noitems = 7;
 
@@ -335,7 +336,7 @@ const Traffic = () => {
                             <tbody className="divide-y divide-[#1A1D21]">
                                 {data.alerts.length > 0 ?
                                     data.alerts.map(alert => {
-                                        return <tr key={alert.id} className="hover:bg-[#1A1D21]/50 transition-colors">
+                                        return <tr key={alert.id} onClick={() => setSelectedAlert(alert)} className="hover:bg-[#1A1D21]/50 transition-colors cursor-pointer">
                                             <td className="p-4 text-[#EAEAEA]">{new Date(alert.createdAt).toLocaleString()}</td>
                                             <td className="p-4 text-[#EAEAEA]">{alert.src_ip}:{alert.src_port}</td>
                                             <td className="p-4 text-[#EAEAEA]">{alert.dest_ip}:{alert.dest_port}</td>
@@ -396,7 +397,72 @@ const Traffic = () => {
                         :
                         ""
             }
+            {selectedAlert && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                    onClick={() => setSelectedAlert(null)}
+                >
+                    <div 
+                        className="bg-[#1e293b] border border-gray-600 w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-[#2a3b4c] px-6 py-4 flex justify-between items-center border-b border-gray-600">
+                            <h3 className="text-white text-lg font-bold">Alert Details</h3>
+                            <button onClick={() => setSelectedAlert(null)} className="text-gray-400 hover:text-white">
+                                <X size={24} />
+                            </button>
+                        </div>
 
+                        {/* Body */}
+                        <div className="p-6 grid grid-cols-2 gap-6">
+                            <div className="col-span-2">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Time</p>
+                                <p className="text-white text-lg">{new Date(selectedAlert.createdAt).toLocaleString()}</p>
+                            </div>
+                            <div className="col-span-1">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Protocol</p>
+                                <span className={`${getProtocolbg(selectedAlert.protocol)} py-1 px-3 rounded-lg text-sm text-white`}>
+                                    {selectedAlert.protocol}
+                                </span>
+                            </div>
+                            <div className="col-span-1">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Severity</p>
+                                {getSeverity(selectedAlert.severity)}
+                            </div>
+                            <div className="col-span-2 h-px bg-gray-700 my-2"></div>
+                            <div className="col-span-1">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Source</p>
+                                <div className="bg-[#111828] p-3 rounded border border-gray-700 text-gray-200 font-mono text-sm">
+                                    {selectedAlert.src_ip}:{selectedAlert.src_port}
+                                </div>
+                            </div>
+                            <div className="col-span-1">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Destination</p>
+                                <div className="bg-[#111828] p-3 rounded border border-gray-700 text-gray-200 font-mono text-sm">
+                                    {selectedAlert.dest_ip}:{selectedAlert.dest_port}
+                                </div>
+                            </div>
+                            <div className="col-span-2">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Signature</p>
+                                <div className="bg-[#111828] p-4 rounded border border-gray-700 text-gray-200 text-sm">
+                                    {selectedAlert.signature}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="bg-[#111828] px-6 py-4 flex justify-end">
+                            <button 
+                                onClick={() => setSelectedAlert(null)}
+                                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </main>
 
