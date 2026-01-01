@@ -51,6 +51,7 @@ router.post('/add-rule', async (req, res) => {
         let criteria = `-A ${chain}`;
 
         console.log(req.body)
+        // test
 
         if (protocol && protocol !== 'all') criteria += ` -p ${protocol}`;
         if (srcIP?.trim()) criteria += ` -s ${srcIP}`;
