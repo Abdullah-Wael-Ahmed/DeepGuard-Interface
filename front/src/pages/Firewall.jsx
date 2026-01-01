@@ -15,6 +15,7 @@ const Firewall = () => {
         destIp: "",
         srcPort: "",
         destPort: "",
+        description: "",
         action: action[0],
     });
 
@@ -270,8 +271,37 @@ const Firewall = () => {
                                             {action.map((obj) => <option key={obj} value={obj}>{obj}</option>)}
                                         </select>
                                     </div>
+                                    <div className="col-span-1 md:col-span-2 flex flex-col gap-2 relative">
+                                        <label className="text-gray-300 text-sm" htmlFor="description">
+                                            Description
+                                        </label>
+                                        <textarea
+                                            value={formData.description}
+                                            onChange={(e) => {
+                                                if (formData.description.length <= 249){
+                                                    setFormData((prev) => {
+                                                        return {
+                                                            ...prev,
+                                                            description: e.target.value
+                                                        }
+                                                    })
+                                                }
+                                            }} // Reusing your existing generic handler
+                                            name="description"
+                                            id="description"
+                                            maxLength={249}
+                                            rows={2}
+                                            placeholder="Optional description (max 249 chars)..."
+                                            // Added pb-6 to prevent text from overlapping the counter
+                                            className="bg-[#2a3b4c] text-white border border-gray-600 rounded-md p-2 pb-6 focus:ring-cyan-accent focus:border-cyan-accent resize-none"
+                                        />
+                                        {/* Character Counter Indicator */}
+                                        <div className="absolute bottom-3 right-3 text-xs text-gray-400 pointer-events-none select-none">
+                                            {249 - (formData.description?.length || 0)}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex justify-end mt-4">
+                                <div className="flex justify-end mt-4"> 
                                     <button
                                         onClick={addRule}
                                         className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#111828] text-deep-blue text-sm font-bold leading-normal tracking-wider hover:bg-cyan-accent/80 transition-all duration-300"
