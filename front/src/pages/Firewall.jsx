@@ -69,7 +69,7 @@ const Firewall = () => {
 
     const deleteRule = async (index, chain) => {
         try {
-            const res = await axios.delete(
+            await axios.delete(
                 `${import.meta.env.VITE_BACK}/firewall/delete-rule`,
                 {
                     withCredentials: true, params: {
@@ -352,8 +352,8 @@ const Firewall = () => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 border-t border-gray-700 flex justify-end">
-                            <button onClick={(e) => deleteRule(selectedRule.num, selectedRule.chain)} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors">Delete</button>
+                        <div className="p-4 border-t border-gray-700 flex justify-end gap-x-1">
+                            <button onClick={() => deleteRule(selectedRule.num, selectedRule.chain)} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors">Delete</button>
                             <button
                                 onClick={closeModal}
                                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"

@@ -85,7 +85,7 @@ router.post('/add-rule', async (req, res) => {
 });
 
 router.delete('/delete-rule', async (req, res) => {
-    const { chain, ruleNum } = req.params;
+    const { chain, ruleNum } = req.query;
 
     // 1. Basic Validation
     if (!chain || !ruleNum) {
