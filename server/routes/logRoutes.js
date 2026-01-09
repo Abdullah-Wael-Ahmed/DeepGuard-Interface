@@ -8,11 +8,11 @@ const router = express.Router();
 router.post("/filebeat", async (req, res) => {
     try {
 
-        console.log('filebeat sent');
-        console.log("Headers -----------------------------------");
-        console.log(req.headers);
-        console.log("Body -----------------------------------");
-        console.log(req.body);
+        // console.log('filebeat sent');
+        // console.log("Headers -----------------------------------");
+        // console.log(req.headers);
+        // console.log("Body -----------------------------------");
+        // console.log(req.body);
         const alert = await Alert.create({
             timestamp: req.body["@timestamp"],
             src_ip: req.body.source.ip,
