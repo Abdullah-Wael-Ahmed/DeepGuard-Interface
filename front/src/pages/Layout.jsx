@@ -72,6 +72,10 @@ const Layout = () => {
                                 <Globe />
                                 <p className="text-sm font-medium">Threat Intel</p>
                             </Link>
+                            <Link className={activeTab("network-analytics")} to="/network-analytics">
+                                <ChartLine />
+                                <p className="text-sm font-medium">Network Analytics</p>
+                            </Link>
                             <Link className={activeTab("users")} to="/users">
                                 <Users />
                                 <p className="text-sm font-medium">User Management</p>

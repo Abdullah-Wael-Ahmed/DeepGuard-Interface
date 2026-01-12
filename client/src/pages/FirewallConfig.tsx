@@ -341,7 +341,7 @@ export default function FirewallConfig() {
           </details>
         </div>
       </Card>
-      <FirewallRuleModal isOpen={true} onClose={()=>{}}/>
+      <FirewallRuleModal isOpen={false} onClose={() => { }} onSave={() => { }} />
     </div>
   );
 }
