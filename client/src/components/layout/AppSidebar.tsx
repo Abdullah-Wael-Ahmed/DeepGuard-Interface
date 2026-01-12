@@ -19,6 +19,7 @@ const navigationItems = [
   { title: "Anomaly Alerts", url: "/anomaly-alerts", icon: AlertTriangle },
   { title: "Firewall Config", url: "/firewall-config", icon: Shield },
   { title: "Traffic Inspection", url: "/traffic-inspection", icon: Zap },
+  { title: "Network Analytics", url: "/network-analytics", icon: BarChart3 },
 ];
 
 export function AppSidebar() {

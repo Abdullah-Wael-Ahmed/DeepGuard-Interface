@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import AnomalyAlerts from "./pages/AnomalyAlerts";
 import FirewallConfig from "./pages/FirewallConfig";
 import TrafficInspection from "./pages/TrafficInspection";
+import NetworkBehaviorAnalytics from "./pages/NetworkBehaviorAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,10 @@ const App = () => (
                   <Route
                     path="/traffic-inspection"
                     element={<TrafficInspection />}
+                  />
+                  <Route
+                    path="/network-analytics"
+                    element={<NetworkBehaviorAnalytics />}
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

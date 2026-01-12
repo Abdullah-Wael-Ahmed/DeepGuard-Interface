@@ -11,7 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 // Pages
 import Layout from './pages/Layout';
-import LoginPage from './pages/AuthPage'; 
+import LoginPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
 import Traffic from './pages/Traffic';
@@ -21,6 +21,7 @@ import AnomalyDetection from './pages/AnomalyDetection';
 import UserManagement from './pages/UserManagement';
 import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
+import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 
 function App() {
   const router = createBrowserRouter([
@@ -55,6 +56,7 @@ function App() {
                 { path: 'correlation', element: <Correlation /> },
                 { path: 'threat-intel', element: <ThreatIntelligence /> },
                 { path: 'settings', element: <Settings /> },
+                { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> }
               ]
             }
           ]
