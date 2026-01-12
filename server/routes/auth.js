@@ -16,9 +16,22 @@ const generateRefreshToken = (user) => {
     return jwt.sign(
         { id: user.id },
         process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "30m" }
     );
 };
+
+router.get("/users", async (req, res) => {
+    try {
+        const users = await User.findAll({
+            attributes: { exclude: ["password"] },
+            order: [['createdAt', 'DESC']]
+        });
+        res.json(users);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json("Server Error");
+    }
+});
 
 router.post("/register", async (req, res) => {
     try {
@@ -64,7 +77,7 @@ router.post("/login", async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "Strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            maxAge: 30 * 60 * 1000, // 30 mins
             path: "/"
         });
         // send access token to frontend
@@ -92,7 +105,14 @@ router.get("/refresh", async (req, res) => {
                 const user = await User.findByPk(decoded.id);
                 if (!user) return res.status(401).json("Unauthorized");
                 const accessToken = generateAccessToken(user);
-                res.json({ accessToken });
+                res.json({ 
+                    accessToken,
+                    user: { 
+                        name: user.name, 
+                        email: user.email, 
+                        role: user.role 
+                    }
+                });
             }
         );
     } catch (error) {

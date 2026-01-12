@@ -9,6 +9,7 @@ const auth = require("./routes/auth")
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
+const { seedSuperAdmin } = require('./util/seeder');
 
 const app = express()
 
@@ -24,8 +25,9 @@ server = http.createServer(app)
 
 initWebSocket(server)
 
-db.sync().then(() => {
+db.sync().then(async () => {
     console.log("Database synced");
+    await seedSuperAdmin();
 }).catch((e) => {
     console.log(e);
 })

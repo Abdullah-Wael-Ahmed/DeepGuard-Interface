@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Search, Bell, User, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const TopBar = () => {
+    const { auth } = useAuth();
+    const user = auth?.user;
     const [searchValue, setSearchValue] = useState('');
     const [showNotifications, setShowNotifications] = useState(false);
     const navigate = useNavigate();
@@ -109,8 +112,8 @@ const TopBar = () => {
                 {/* User Profile */}
                 <div className="flex items-center gap-3 pl-4 border-l border-gray-700">
                     <div className="text-right hidden md:block">
-                        <p className="text-sm font-medium text-text-main">Admin User</p>
-                        <p className="text-xs text-text-secondary">Security Ops</p>
+                        <p className="text-sm font-medium text-text-main">{user?.name} </p>
+                        <p className="text-xs text-text-secondary capitalize">{user?.role}</p>
                     </div>
                     <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px] status-online">
                          <div className="h-full w-full rounded-full bg-background-dark flex items-center justify-center">

@@ -10,12 +10,11 @@ const useRefreshToken = () => {
         });
         
         setAuth(prev => {
-            console.log("Old Auth:", JSON.stringify(prev));
-            console.log("New Access Token:", response.data.accessToken);
+            console.log("Session Restored:", response.data.user);
             return { 
                 ...prev, 
                 accessToken: response.data.accessToken,
-                user: response.data.user
+                user: response.data.user // This will be populated
             };
         });
         return response.data.accessToken;
