@@ -76,10 +76,10 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background font-display relative overflow-hidden p-4">
+        <div className="min-h-screen flex items-center justify-center bg-background font-display relative overflow-hidden p-4" style={{backgroundColor: "#030e14", backgroundImage: "radial-gradient(circle at center,#0b2a33 0%,   /* Darker, muted teal */#020b10 100%  /* Almost black */)"}}>
             
             {/* Background Atmosphere */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
+            {/* <div className="absolute inset-0 opacity-10 pointer-events-none">
                 <svg
                     fill="none"
                     preserveAspectRatio="none"
@@ -95,7 +95,7 @@ const LoginPage = () => {
                         strokeWidth="2"
                     ></path>
                 </svg>
-            </div>
+            </div> */}
 
             {/* Main Card */}
             <div className="w-full max-w-md bg-card-dark border border-gray-700 rounded-2xl p-8 shadow-2xl relative z-10 card-lift animate-fade-in">
