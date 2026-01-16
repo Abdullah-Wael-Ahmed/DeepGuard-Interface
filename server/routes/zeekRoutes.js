@@ -161,6 +161,9 @@ router.get("/dns-activity", async (req, res) => {
 // Ingest Endpoints (Mock/Real ingestion)
 router.post("/ingest/conn", async (req, res) => {
     try {
+        console.log("zeek conn ----------------------------------------")
+        console.log(req.body)
+        console.log("--------------------------------------------------")
         await ZeekConnection.create(req.body);
         res.json({ status: "ok" });
     } catch (error) {
@@ -170,6 +173,9 @@ router.post("/ingest/conn", async (req, res) => {
 
 router.post("/ingest/dns", async (req, res) => {
     try {
+        console.log("zeek dns ----------------------------------------")
+        console.log(req.body)
+        console.log("--------------------------------------------------\n")
         await ZeekDNS.create(req.body);
         res.json({ status: "ok" });
     } catch (error) {
