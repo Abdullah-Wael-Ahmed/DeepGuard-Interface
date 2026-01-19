@@ -161,10 +161,38 @@ router.get("/dns-activity", async (req, res) => {
 // Ingest Endpoints (Mock/Real ingestion)
 router.post("/ingest/conn", async (req, res) => {
     try {
-        console.log("zeek conn ----------------------------------------")
+        const data = req.body;
+
+        console.log("zeek conn ---------------------------------")
         console.log(req.body)
-        console.log("--------------------------------------------------")
-        await ZeekConnection.create(req.body);
+        console.log('---------------------------------------------')
+
+        // Convert Zeek ts (Unix timestamp in seconds) to JS Date
+        const timestamp = data.ts ? new Date(data.ts * 1000) : new Date();
+
+        // Create new connection in DB
+        await ZeekConnection.create({
+            timestamp: timestamp,
+            uid: data.uid,                      // Note: Ensure this isn't pruned in Logstash!
+
+            // Map Logstash [source][ip] -> DB id_orig_h
+            id_orig_h: data.source?.ip,
+            id_orig_p: data.source?.port,
+
+            // Map Logstash [destination][ip] -> DB id_resp_h
+            id_resp_h: data.destination?.ip,
+            id_resp_p: data.destination?.port,
+
+            proto: data.protocol,               // Renamed from 'proto'
+            service: data.app_protocol,         // Renamed from 'service'
+
+            duration: data.duration,            // Kept as is
+
+            orig_bytes: data.bytes_sent,        // Renamed from 'orig_bytes'
+            resp_bytes: data.bytes_received,    // Renamed from 'resp_bytes'
+
+            conn_state: data.conn_state         // Note: Ensure this isn't pruned!
+        });
         res.json({ status: "ok" });
     } catch (error) {
         res.status(500).json(error);
