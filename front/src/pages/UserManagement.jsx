@@ -49,7 +49,20 @@ const UserManagement = () => {
         setLoading(false);
         }
     };
+const handleDelete = async (userId) => {
 
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+        try {
+            await axios.delete(`${import.meta.env.VITE_BACK}/auth/users/${userId}`, {
+                withCredentials: true
+            });
+            toast.success("User deleted successfully");
+            fetchUsers(); // Refresh the list
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to delete user");
+        }
+    };
     const validateForm = () => {
         const newErrors = {};
         if (!formData.name.trim()) {
@@ -242,12 +255,13 @@ const UserManagement = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 text-text-secondary hover:text-primary hover:bg-background-dark rounded-lg transition-colors">
-                            <Edit2 size={16} />
-                        </button>
-                        <button className="p-2 text-text-secondary hover:text-red-500 hover:bg-background-dark rounded-lg transition-colors">
-                            <Trash2 size={16} />
-                        </button>
+                            <button 
+                            onClick={() => handleDelete(user.id)}
+                            className="p-2 text-text-secondary hover:text-red-500 hover:bg-background-dark rounded-lg transition-colors"
+                            title="Delete User"
+                        >
+                        <Trash2 size={16} />
+                            </button>
                         </div>
                     </td>
                     </tr>

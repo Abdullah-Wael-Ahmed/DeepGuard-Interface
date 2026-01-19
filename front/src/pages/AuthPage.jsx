@@ -54,7 +54,7 @@ const LoginPage = () => {
 
             // 4. Success UI
             setLoading(false);
-            toast.success("Welcome back, Operator.");
+            toast.success(`Welcome back, ${user?.name || "Operator"}.`);
             
             // 5. Redirect (Go to Dashboard or the page they tried to visit)
             navigate(from, { replace: true });

@@ -121,6 +121,22 @@ router.get("/refresh", async (req, res) => {
     }
 });
 
+router.delete("/users/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Prevent deleting the Super Admin or yourself if needed
+        const userToDelete = await User.findByPk(id);
+        if (userToDelete.email === 'admin@deepguard.sec') {
+            return res.status(403).json("Cannot delete Super Admin");
+        }
+        await User.destroy({ where: { id } });
+        res.json("User deleted successfully");
+    } catch (error) {
+        console.log(error);
+        res.status(500).json("Server Error");
+    }
+});
+
 router.post("/logout", (req, res) => {
     const cookies = req.cookies;
     if (!cookies?.jwt) return res.sendStatus(204);
