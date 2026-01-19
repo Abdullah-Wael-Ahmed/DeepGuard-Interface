@@ -35,30 +35,17 @@ router.get("/stats", async (req, res) => {
 });
 
 // Line chart: Connections over time (last 24h, hourly buckets)
-
 router.get("/connections-over-time", async (req, res) => {
     try {
-        // 1. Calculate the time 24 hours ago
-        const oneDayAgo = new Date(new Date() - 24 * 60 * 60 * 1000);
-
         const data = await ZeekConnection.findAll({
             attributes: [
                 [fn("strftime", "%Y-%m-%d %H:00:00", col("timestamp")), "time"],
                 [fn("COUNT", col("id")), "count"],
             ],
-            // 2. ADD THIS WHERE CLAUSE
-            where: {
-                timestamp: {
-                    [Op.gte]: oneDayAgo // "Greater Than or Equal to" 24 hours ago
-                }
-            },
             group: [literal("strftime('%Y-%m-%d %H:00:00', timestamp)")],
             order: [[literal("time"), "ASC"]],
-            // Limit is optional now because the time filter constrains it, 
-            // but keeping it is safe.
-            limit: 24, 
+            limit: 24, // simplified for demo
         });
-
         res.json(data);
     } catch (error) {
         console.error("Connections over time error:", error);
