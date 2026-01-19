@@ -201,12 +201,37 @@ router.post("/ingest/conn", async (req, res) => {
 
 router.post("/ingest/dns", async (req, res) => {
     try {
-        console.log("zeek dns ----------------------------------------")
+        const data = req.body;
+
+        console.log("zeek dns------------------------------")
         console.log(req.body)
-        console.log("--------------------------------------------------\n")
-        await ZeekDNS.create(req.body);
+        console.log("--------------------------------------")
+
+        // 1. Handle Timestamp
+        const timestamp = data["@timestamp"] ? new Date(data["@timestamp"]) : new Date();
+
+        // 2. Create DNS Record
+        await ZeekDNS.create({
+            timestamp: timestamp,
+            uid: data.uid,                   // Requires 'uid' in Logstash prune whitelist!
+            
+            // Map Logstash [source][ip] -> DB id_orig_h
+            id_orig_h: data.source?.ip,
+            id_orig_p: data.source?.port,
+
+            // Map Logstash [dns_query] -> DB query
+            query: data.dns_query,           
+            
+            // Map Logstash [dns_qtype] -> DB qtype_name
+            qtype_name: data.dns_qtype,      
+            
+            // Map Logstash [dns_rcode] -> DB rcode_name
+            rcode_name: data.dns_rcode       
+        });
+
         res.json({ status: "ok" });
     } catch (error) {
+        console.error("Zeek DNS Ingest Error:", error);
         res.status(500).json(error);
     }
 });
