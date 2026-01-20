@@ -35,7 +35,7 @@ router.get("/users", async (req, res) => {
 
 router.post("/register", async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
         // Check if exists
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
@@ -47,7 +47,7 @@ router.post("/register", async (req, res) => {
             name,
             email,
             password: hashedPassword,
-            role: "operator",
+            role,
             status: "active"
         });
         res.status(201).json("Operator registered successfully");

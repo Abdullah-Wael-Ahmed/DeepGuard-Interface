@@ -117,7 +117,7 @@ const LoginPage = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                     
                     <div className="space-y-1">
-                        <label className="text-sm font-medium text-text-secondary ml-1">Email Identifier</label>
+                        <label className="text-sm font-medium text-text-secondary ml-1">Email</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <Mail className="h-5 w-5 text-gray-500 group-focus-within:text-primary transition-colors" />
@@ -134,7 +134,7 @@ const LoginPage = () => {
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-sm font-medium text-text-secondary ml-1">Passkey</label>
+                        <label className="text-sm font-medium text-text-secondary ml-1">Password</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-primary transition-colors" />
@@ -166,7 +166,7 @@ const LoginPage = () => {
                             <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                         ) : (
                             <>
-                                <span>Establish Connection</span>
+                                <span>Login</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </>
                         )}
