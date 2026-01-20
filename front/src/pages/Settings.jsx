@@ -6,7 +6,7 @@ const Settings = () => {
   const { accentColor, setAccentColor } = useTheme();
   const [activeTab, setActiveTab] = useState(0);
 
-  const tabs = ["Appearance", "Notifications", "Security Preferences"];
+  const tabs = ["Appearance", "Security Preferences"];
 
   return (
     <div className="flex min-h-screen text-text-main font-display max-w-full grow">
@@ -77,7 +77,7 @@ const Settings = () => {
               </div>
 
 
-              {/* Language */}
+              {/* Language
               <div className="p-6 rounded-xl border border-gray-700 bg-card-dark hover:border-primary/50 transition-all duration-300 shadow-lg card-lift flex flex-col gap-4">
                 <h3 className="text-lg font-bold">Language</h3>
                 <div className="flex justify-between items-center">
@@ -90,10 +90,10 @@ const Settings = () => {
                     <option>Japanese</option>
                   </select>
                 </div>
-              </div>
+              </div> */}
 
               {/* Updates */}
-              <div className="p-6 rounded-xl border border-gray-700 bg-card-dark hover:border-primary/50 transition-all duration-300 shadow-lg card-lift flex flex-col gap-4">
+              {/* <div className="p-6 rounded-xl border border-gray-700 bg-card-dark hover:border-primary/50 transition-all duration-300 shadow-lg card-lift flex flex-col gap-4">
                 <h3 className="text-lg font-bold">Updates</h3>
                 <div className="flex justify-between items-center">
                   <div>
@@ -105,11 +105,13 @@ const Settings = () => {
                     <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
-              </div>
+              </div> */}
             </div>
           )}
 
-          {activeTab === 1 && (
+          {/* notifications tab */}
+
+          {activeTab === 2 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full stagger-children">
               {/* Email Notifications */}
               <div className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift flex flex-col gap-4">
@@ -155,7 +157,7 @@ const Settings = () => {
             </div>
           )}
 
-          {activeTab === 2 && (
+          {activeTab === 1 && (
             <div className="grid grid-cols-1 gap-6 w-full stagger-children">
               {/* Security Settings */}
               <div className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift flex flex-col gap-4">
@@ -188,7 +190,7 @@ const Settings = () => {
               </div>
               
               {/* User Management Link */}
-              <details className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift group">
+              {/* <details className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift group">
                 <summary className="flex justify-between items-center cursor-pointer">
                   <p className="text-lg font-bold">User Management</p>
                   <ChevronDown className="transition-transform group-open:rotate-180 text-text-secondary" />
@@ -220,7 +222,7 @@ const Settings = () => {
                     Add User
                   </button>
                 </div>
-              </details>
+              </details> */}
             </div>
           )}
 
