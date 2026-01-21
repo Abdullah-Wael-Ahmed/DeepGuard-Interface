@@ -27,6 +27,12 @@ router.post("/filebeat", async (req, res) => {
         broadcast({ type: "new_alert", data: alert })
         res.json("ok")
     } catch (error) {
+
+        if (error.name === 'SequelizeValidationError') {
+            console.error("Validation Error:", error.message);
+            return res.status(400).json({ error: "Invalid Data Format" }); // Logstash drops it. Safe.
+        }
+
         console.log(error)
         res.status(500).json("Server Error")
     }
