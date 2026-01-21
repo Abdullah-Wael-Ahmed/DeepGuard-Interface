@@ -15,7 +15,7 @@ const Settings = () => {
         <div className="flex flex-col gap-8 max-w-7xl mx-auto">
           {/* Header */}
           <div className="animate-fade-in">
-            <h1 className="text-4xl font-black tracking-tight">Settings</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gradient">Settings</h1>
             <p className="text-text-secondary mt-2">Customize your DeepGuard experience</p>
           </div>
           

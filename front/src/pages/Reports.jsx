@@ -8,7 +8,7 @@ const Reports = () => {
                 {/* PageHeading */}
                 <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
                     <div className="flex flex-col gap-2">
-                        <h1 className="text-text-main text-4xl font-bold tracking-tight">Reports &amp; Analytics</h1>
+                        <h1 className="text-4xl font-bold tracking-tight text-gradient">Reports &amp; Analytics</h1>
                         <p className="text-text-secondary text-base">Detailed security reports, event correlation graphs,
                             and automated incident reports.</p>
                     </div>

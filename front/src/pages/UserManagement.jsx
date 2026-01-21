@@ -141,7 +141,7 @@ const UserManagement = () => {
         {/* --- HEADER --- */}
         <div className="flex justify-between items-center mb-8">
             <div>
-            <h1 className="text-3xl font-bold text-text-main">User Management</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gradient">User Management</h1>
             <p className="text-text-secondary mt-1">
                 Manage access control and RBAC policies
             </p>

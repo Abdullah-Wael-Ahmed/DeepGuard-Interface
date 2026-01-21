@@ -383,7 +383,7 @@ const ThreatIntelligence = () => {
                     {/* Header */}
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <div className="flex flex-col gap-2">
-                            <h1 className="text-4xl font-bold tracking-tight">Threat Intelligence</h1>
+                            <h1 className="text-4xl font-bold tracking-tight text-gradient">Threat Intelligence</h1>
                             <p className="text-text-secondary text-base">
                                 Multi-source threat intelligence with {providers.filter(p => p.configured).length} active providers
                             </p>

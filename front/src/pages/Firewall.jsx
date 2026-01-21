@@ -146,7 +146,7 @@ const Firewall = () => {
             {/* title and desc */}
             <div className="flex flex-wrap justify-between gap-3 mb-8">
                 <div className="flex min-w-72 flex-col gap-3">
-                    <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
+                    <p className="text-4xl font-bold tracking-tight text-gradient">
                         Firewall Management
                     </p>
                     <p className="text-gray-400 text-base font-normal leading-normal">

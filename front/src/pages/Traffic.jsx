@@ -187,7 +187,7 @@ const Traffic = () => {
         <main className="flex-1 p-8 overflow-y-auto bg-background-dark">
             <div className="flex flex-wrap justify-between gap-4 mb-4">
                 <div className="flex flex-col gap-1">
-                    <p className="text-3xl font-bold text-[#EAEAEA]">Packet Inspection</p>
+                    <p className="text-4xl font-bold tracking-tight text-gradient">Packet Inspection</p>
                     <p className="text-sm text-[#EAEAEA]/60">Monitor and analyze network packets in real-time.</p>
                 </div>
 

@@ -145,7 +145,7 @@ const Correlation = () => {
     <div className="flex-1 bg-background-dark p-8 overflow-y-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-text-main">Event Correlation</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-gradient">Event Correlation</h1>
           <p className="text-text-secondary mt-1">Cross-referencing events to identify complex attack patterns</p>
         </div>
         <button 
