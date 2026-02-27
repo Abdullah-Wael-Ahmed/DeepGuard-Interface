@@ -9,15 +9,13 @@ COPY . .
 RUN npm run build
 
 
-# ---- Production Stage ----
-FROM node:20
+# ---- Production Stage (Nginx) ----
+FROM nginx:alpine
+# Copy the built React/Vite files into Nginx's public folder
+COPY --from=build /app/dist /usr/share/nginx/html
+# Copy our custom Nginx configuration
+COPY default.conf /etc/nginx/conf.d/default.conf
 
-WORKDIR /app
+EXPOSE 80
 
-RUN npm install -g serve
-
-COPY --from=build /app/dist ./dist
-
-EXPOSE 3000
-
-CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["nginx", "-g", "daemon off;"]

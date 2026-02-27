@@ -1,0 +1,61 @@
+filebeat.inputs:
+
+# Each - is an input. Most options can be set at the input level, so
+# you can use different inputs for various configurations.
+# Below are the input-specific configurations.
+
+# filestream is an input for collecting log messages from files.
+- type: filestream
+
+  # Unique ID among all inputs, an ID is required.
+  id: my-filestream-id
+
+  # Change to true to enable this input configuration.
+  enabled: true
+
+  # Paths that should be crawled and fetched. Glob based paths.
+  paths:
+    - /var/log/suricata/alerts.json
+  parsers:
+    - ndjson:
+        overwrite_keys: true
+        expand_keys: true
+        add_error_key: true
+
+# ================ zeek ============================
+
+- type: filestream
+  id: zeek-conn-json
+  enabled: true
+  paths:
+    - /opt/zeek/logs/current/conn.log
+
+  parsers:
+    - ndjson:
+        overwrite_keys: true
+        add_error_key: true
+
+  fields:
+    source: zeek
+    log_type: conn
+
+  fields_under_root: true
+
+
+- type: filestream
+  id: zeek-dns-json
+  enabled: true
+  paths:
+    - /opt/zeek/logs/current/dns.log
+
+  parsers:
+    - ndjson:
+        overwrite_keys: true
+        add_error_key: true
+
+  fields:
+    source: zeek
+    log_type: dns
+
+  fields_under_root: true
+
