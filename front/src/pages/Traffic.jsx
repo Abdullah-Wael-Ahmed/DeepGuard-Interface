@@ -153,7 +153,6 @@ const Traffic = () => {
         )
         if (page == 1) {
             for (let i = 1; i <= totalPages && i < 4; i++) {
-                console.log(i)
                 buttons.push(
                     <button disabled={page == i} className={i == page ? currentButton : normalButton} onClick={() => setPage(i)}>
                         {i}
