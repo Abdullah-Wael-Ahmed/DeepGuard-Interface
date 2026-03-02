@@ -1,0 +1,83 @@
+
+master@deepguard-gw:~/dockerized-DeepGuard/DeepGuard-Interface$ cat suricata-config/rules/local.rules
+# Line test by KAREEM GHORAB
+
+alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Ping Detected"; sid:1000001; rev:1;)
+
+alert icmp any any -> any any (msg:"ICMP Echo Request Detected"; itype:8; sid:9000001; rev:1;)
+
+alert tcp any any -> any any (flags:S; msg:"Possible TCP SYN Scan Detected"; \
+    threshold:type both, track by_src, count 20, seconds 3; sid:1000002; rev:2;)
+
+#alert http any any -> any ![80,443] (msg:"HTTP traffic on non-standard port"; flow:to_server,established; sid:1000005; rev:4;)
+
+alert http any any -> any ![80,443,8080,5000] (msg:"HTTP traffic on non-standard port"; flow:to_server,established; sid:1000005; rev:5;)
+
+alert tcp any any -> any 80 (msg:"EXPLOIT: Possible Shellcode Execution"; \
+content:"|90 90 90 90|"; nocase; \
+classtype:shellcode-detect; \
+sid:1000008; rev:1;)
+
+alert tcp any any -> any 22 (msg:"TEST P2 - attempted-admin-username"; \
+content:"root"; nocase; flow:to_server,established; \
+classtype:attempted-admin; sid:1001002; rev:1;)
+
+
+#--------- first message -----------
+alert udp any any -> any 53 (msg:"SURICATA DNS Query to a Suspicious *.ws Domain"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; content:"|02|ws|00|"; nocase; sid:2500003; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.ws Domain"; flow:established,to_server; content:".ws"; http_host; isdataat:!1,relative; sid:2500004; rev:1;)
+alert udp any any -> any 53 (msg:"SURICATA DNS Query to a Suspicious *.to Domain"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; content:"|02|to|00|"; nocase; sid:2500005; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.to Domain"; flow:established,to_server; content:".to"; http_host; isdataat:!1,relative; sid:2500006; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.to Domain"; flow:established,to_server; content:".onion.to"; http_host; isdataat:!1,relative; sid:2500007; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.city Domain"; flow:established,to_server; content:".onion.city"; http_host; isdataat:!1,relative; sid:2500008; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.cab Domain"; flow:established,to_server; content:".onion.cab"; http_host; isdataat:!1,relative; sid:2500009; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.direct Domain"; flow:established,to_server; content:".onion.direct"; http_host; isdataat:!1,relative; sid:2500010; rev:1;)
+alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious .onion. Domain"; flow:established,to_server; content:".onion."; http_host; isdataat:!1,relative; sid:2500011; rev:1;)
+alert udp any any -> any 53 (msg:"SURICATA DNS Query to a Suspicious *.onion Domain"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; content:"|02|onion|00|"; nocase; sid:2500012; rev:1;)
+alert tls any any -> any any (msg:"SURICATA SSL session to suspicious onion.to"; tls.subject:"CN=.onion.to, OU=Domain Control Validated"; sid:2500013; rev:1;)
+#-----------------------------------
+
+
+
+#--------- second message ----------
+# HTTP
+alert tcp any any -> any 443 (msg:"SURICATA HTTP clear text on port 443"; flow:to_server; app-layer-protocol:http; threshold: type limit, track by_src, seconds 3600, count 1; sid:2271019; rev:1;)
+alert tcp any any -> any !80 (msg:"SURICATA HTTP on unusual port"; flow:to_server; app-layer-protocol:http; threshold: type limit, track by_src, seconds 60, count 1; sid:2271001; rev:1;)
+alert tcp any any -> any 80 (msg:"SURICATA non-HTTP on TCP port 80"; flow:to_server; app-layer-protocol:!http; threshold: type limit, track by_src, seconds 60, count 1; sid:2271002; rev:1;)
+
+# SSL
+alert tcp any any -> any ![443,465,587] (msg:"SURICATA TLS on unusual port"; flow:to_server; app-layer-protocol:tls; threshold: type limit, track by_src, seconds 60, count 1; sid:2271004; rev:1;)
+alert tcp any any -> any [443,465] (msg:"SURICATA non-TLS on TLS port"; flow:to_server; app-layer-protocol:!tls; threshold: type limit, track by_src, seconds 60, count 1; sid:2271003; rev:1;)
+
+# FTP
+alert tcp any any -> any ![20,21,6667] (msg:"SURICATA FTP on unusual TCP port"; flow:to_server; app-layer-protocol:ftp; threshold: type limit, track by_src, seconds 60, count 1; sid:2271005; rev:1;)
+alert tcp any any -> any [20,21] (msg:"SURICATA non-FTP on TCP port 21"; flow:to_server; app-layer-protocol:!ftp; threshold: type limit, track by_src, seconds 60, count 1; sid:2271006; rev:1;)
+
+# SSH
+alert tcp any any -> any !22 (msg:"SURICATA SSH on unusual port"; flow:to_server; app-layer-protocol:ssh; threshold: type limit, track by_src, seconds 60, count 1; sid:2271009; rev:1;)
+alert tcp any any -> any 22 (msg:"SURICATA non-SSH on TCP port 22"; flow:to_server; app-layer-protocol:!ssh; threshold: type limit, track by_src, seconds 60, count 1; sid:2271010; rev:1;)
+
+alert tcp any any -> any !143 (msg:"SURICATA IMAP on unusual port"; flow:to_server; app-layer-protocol:imap; threshold: type limit, track by_src, seconds 60, count 1; sid:2271011; rev:1;)
+alert tcp any any -> any 143 (msg:"SURICATA non-IMAP on TCP port 143"; flow:to_server; app-layer-protocol:!imap; threshold: type limit, track by_src, seconds 60, count 1; sid:2271012; rev:1;)
+
+# SMB
+alert tcp any any -> any 139 (msg:"SURICATA non-SMB on TCP port 139"; flow:to_server; app-layer-protocol:!smb; threshold: type limit, track by_src, seconds 60, count 1; sid:2271013; rev:1;)
+alert tcp any any -> any [80,8080] (msg:"SURICATA DCERPC detected over port tcp 80,8080"; flow:to_server; app-layer-protocol:dcerpc; threshold: type limit, track by_src, seconds 60, count 1; sid:2271014; rev:1;)
+
+# DNS
+alert tcp any any -> any !53 (msg:"SURICATA DNS-TCP on unusual port"; flow:to_server; app-layer-protocol:dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271015; rev:1;)
+
+alert tcp any any -> any 53 (msg:"SURICATA non-DNS-TCP on TCP port 53"; flow:to_server; app-layer-protocol:!dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271016; rev:1;)
+
+alert udp any any -> any !53 (msg:"SURICATA DNS-UDP on unusual port"; flow:to_server; app-layer-protocol:dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271017; rev:1;)
+
+alert udp any any -> any 53 (msg:"SURICATA non-DNS-UDP on UDP port 53"; flow:to_server; app-layer-protocol:!dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271018; rev:1;)
+
+# MODBUS
+#alert tcp any any -> any 502 (msg:"SURICATA TCP port 502 but not MODBUS"; flow:to_server; app-layer-protocol:!modbus; threshold: type limit, track by_src, seconds 60, count 1; sid:2271019; rev:1;)
+#alert tcp any any -> any any (msg:"SURICATA TCP port 502 MODBUS"; flow:to_server; app-layer-protocol:modbus; threshold: type limit, track by_src, seconds 60, count 1; sid:2271020; rev:1;)
+
+
+#-----------------------------------
+
+

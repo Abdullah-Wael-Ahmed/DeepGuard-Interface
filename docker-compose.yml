@@ -6,6 +6,10 @@ services:
     build: ./server
     container_name: deepguard-backend
     restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs/suricata:/app/logs/suricata:ro
 
   frontend:
     build: ./front
@@ -15,3 +19,35 @@ services:
     restart: unless-stopped 
     depends_on:
       - backend
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.12.0 # Use the version matching your VM
+    container_name: deepguard-filebeat
+    user: root
+    network_mode: "host" # Allows it to talk to Logstash on localhost easily
+    volumes:
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs/suricata:/var/log/suricata:ro # Ensure this path matches what's in your filebeat.yml
+    command: ["--strict.perms=false"]
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.0
+    container_name: deepguard-logstash
+    network_mode: "host"
+    volumes:
+      - ./configs/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    restart: unless-stopped
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: deepguard-suricata
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./logs/suricata:/var/log/suricata
+      - ./suricata-config:/etc/suricata
+    command: -c /etc/suricata/suricata.yaml -i ens33
+    restart: unless-stopped
