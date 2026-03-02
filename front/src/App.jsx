@@ -22,7 +22,6 @@ import UserManagement from './pages/UserManagement';
 import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
-import MitreAttack from './pages/MitreAttack';
 
 function App() {
   const router = createBrowserRouter([
@@ -55,7 +54,6 @@ function App() {
                 { path: 'detection', element: <AnomalyDetection /> },
                 { path: 'users', element: <UserManagement /> },
                 { path: 'correlation', element: <Correlation /> },
-                { path: 'mitre-attack', element: <MitreAttack /> },
                 { path: 'threat-intel', element: <ThreatIntelligence /> },
                 { path: 'settings', element: <Settings /> },
                 { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> }
