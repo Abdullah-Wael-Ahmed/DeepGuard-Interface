@@ -59,7 +59,7 @@ const MitreAttack = () => {
     const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Chatbot state
-    const [copilotOpen, setCopilotOpen] = useState(true);
+    const [copilotOpen, setCopilotOpen] = useState(false); // Default closed for floating icon
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
     const [chatHistory, setChatHistory] = useState([
@@ -110,8 +110,10 @@ const MitreAttack = () => {
     }, []);
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatHistory]);
+        if (copilotOpen) {
+            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [chatHistory, copilotOpen]);
 
     // ─────────────── Technique Drill-Down ───────────────
 
@@ -157,47 +159,38 @@ const MitreAttack = () => {
     // ─────────────── Render ───────────────
 
     return (
-        <div className="flex-1 bg-background-dark p-8 overflow-y-auto">
-            <div className="flex flex-col gap-8 max-w-[1800px] mx-auto">
+        <div className="flex-1 bg-background-dark p-4 sm:p-8 overflow-y-auto relative">
+            <div className="flex flex-col gap-8 max-w-[1800px] mx-auto pb-24"> {/* Added pb-24 for floating button clearance */}
 
                 {/* ═══════════════ Header ═══════════════ */}
                 <div className="flex flex-wrap justify-between items-center gap-4 animate-fade-in">
                     <div className="flex flex-col gap-2">
-                        <h1 className="text-4xl font-bold tracking-tight text-gradient flex items-center gap-3">
+                        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gradient flex items-center gap-3">
                             <Crosshair className="text-red-500" size={32} />
                             MITRE ATT&CK Mapping
                         </h1>
-                        <p className="text-text-secondary text-base">
+                        <p className="text-text-secondary text-sm sm:text-base max-w-2xl">
                             Real-time threat mapping, correlation analysis, and AI-driven investigation assistant.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setCopilotOpen(!copilotOpen)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all text-sm font-medium ${copilotOpen
-                                ? 'bg-card-dark border-primary/50 text-primary shadow-glow-sm'
-                                : 'bg-card-dark border-gray-700 text-text-secondary hover:border-primary/30'}`}
-                        >
-                            <Bot size={16} />
-                            {copilotOpen ? 'Copilot Active' : 'Open Copilot'}
-                        </button>
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
                         <button
                             onClick={() => { fetchMatrix(); fetchRecentAlerts(); }}
-                            className="flex items-center gap-2 px-4 py-2 bg-card-dark rounded-lg border border-gray-700 hover:border-primary transition-all text-sm"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-card-dark rounded-lg border border-gray-700 hover:border-primary transition-all text-sm"
                         >
                             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                            <span>Refresh</span>
+                            <span>Refresh Data</span>
                         </button>
                     </div>
                 </div>
 
                 {/* ═══════════════ Stats Row ═══════════════ */}
                 {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-6">
                         {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 stagger-children">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 stagger-children">
                         <div className="flex flex-col gap-2 rounded-xl p-5 bg-card-dark border border-gray-700 hover:border-red-500/50 transition-all duration-300 card-lift">
                             <div className="flex justify-between items-start">
                                 <p className="text-text-secondary text-sm font-medium">Active Techniques</p>
@@ -236,7 +229,7 @@ const MitreAttack = () => {
                                 {stats.high_severity > 0 ? '⚠ Requires attention' : '✓ All clear'}
                             </p>
                         </div>
-                        <div className="flex flex-col gap-2 rounded-xl p-5 bg-card-dark border border-gray-700 hover:border-primary/50 transition-all duration-300 card-lift">
+                        <div className="flex flex-col gap-2 rounded-xl p-5 bg-card-dark border border-gray-700 hover:border-primary/50 transition-all duration-300 card-lift sm:col-span-2 xl:col-span-1">
                             <div className="flex justify-between items-start">
                                 <p className="text-text-secondary text-sm font-medium">Detection Coverage</p>
                                 <div className="p-2 bg-primary/10 rounded-lg"><Target className="text-primary" size={18} /></div>
@@ -247,296 +240,306 @@ const MitreAttack = () => {
                     </div>
                 )}
 
-                {/* ═══════════════ Main workspace: Matrix + Copilot ═══════════════ */}
-                <div className="flex gap-6">
+                {/* ═══════════════ Main workspace: Matrix & Tables ═══════════════ */}
+                <div className="flex flex-col gap-6 w-full transition-all duration-300">
 
                     {/* ─── ATT&CK Matrix ─── */}
-                    <div className={`${copilotOpen ? 'flex-[3]' : 'flex-1'} flex flex-col gap-6 transition-all duration-300`}>
-
-                        {/* Matrix Card */}
-                        <div className="bg-card-dark rounded-xl border border-gray-700 overflow-hidden card-lift animate-fade-in">
-                            <div className="p-5 border-b border-gray-700 flex flex-wrap justify-between items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <MapPin className="text-primary" size={18} />
-                                    <h2 className="text-lg font-medium text-text-main">ATT&CK Matrix — Detection Overlay</h2>
-                                </div>
-                                <div className="flex gap-4 text-xs font-medium">
-                                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500"></span> Signature (Suricata)</div>
-                                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Correlated / Zeek</div>
-                                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500"></span> AI Inferred</div>
-                                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-600"></span> Not Observed</div>
-                                </div>
+                    <div className="bg-card-dark rounded-xl border border-gray-700 overflow-hidden card-lift animate-fade-in w-full">
+                        <div className="p-4 sm:p-5 border-b border-gray-700 flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="text-primary" size={18} />
+                                <h2 className="text-lg font-medium text-text-main">ATT&CK Matrix — Detection Overlay</h2>
                             </div>
-
-                            <div className="p-4 overflow-x-auto">
-                                {loading ? (
-                                    <div className="flex items-center justify-center h-64">
-                                        <LoaderCircle className="animate-spin text-primary" size={48} />
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${matrix.length}, minmax(130px, 1fr))` }}>
-                                        {matrix.map(tactic => (
-                                            <div key={tactic.id} className="flex flex-col gap-1.5">
-                                                {/* Tactic Header */}
-                                                <div className="bg-background-dark/60 p-2 text-center text-[10px] font-bold uppercase rounded-md text-text-secondary tracking-wider border border-gray-800">
-                                                    {tactic.shortName}
-                                                </div>
-                                                {/* Techniques */}
-                                                {tactic.techniques.map(tech => {
-                                                    const style = getSourceStyle(tech.source, tech.ai_inferred);
-                                                    return (
-                                                        <div
-                                                            key={tech.id}
-                                                            onClick={() => handleTechniqueClick(tech)}
-                                                            className={`p-2 rounded text-[11px] border flex justify-between items-center transition-all duration-200 ${tech.detected
-                                                                ? `${style.border} ${style.glow} hover:bg-white/5 cursor-pointer`
-                                                                : 'border-gray-800 bg-gray-800/20 text-gray-600'}`}
-                                                        >
-                                                            <span className={tech.detected ? 'text-text-main font-medium' : 'text-gray-600'} title={tech.name}>{tech.id}</span>
-                                                            <span className={`w-2 h-2 rounded-full ${style.dot} flex-shrink-0`}></span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                            <div className="flex flex-wrap gap-3 sm:gap-4 text-xs font-medium">
+                                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500"></span> Signature</div>
+                                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Correlated / Zeek</div>
+                                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500"></span> AI Inferred</div>
+                                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-600"></span> Not Observed</div>
                             </div>
                         </div>
 
-                        {/* ─── Technique Drill-Down Panel ─── */}
-                        {selectedTechnique && (
-                            <div className="bg-card-dark rounded-xl border border-gray-700 overflow-hidden animate-fade-in">
-                                <div className="p-5 border-b border-gray-700 flex justify-between items-center">
-                                    <div className="flex items-center gap-3">
-                                        <Eye className="text-primary" size={18} />
-                                        <h2 className="text-lg font-medium text-text-main">
-                                            {selectedTechnique.id} — {selectedTechnique.name}
-                                        </h2>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSeverityBadge(selectedTechnique.severity)}`}>
-                                            {selectedTechnique.severity}
-                                        </span>
-                                    </div>
-                                    <button onClick={() => { setSelectedTechnique(null); setTechniqueDetail(null); }} className="p-1 hover:bg-gray-700 rounded transition-colors">
-                                        <X size={18} className="text-text-secondary" />
-                                    </button>
+                        <div className="p-4 overflow-x-auto w-full">
+                            {loading ? (
+                                <div className="flex items-center justify-center h-64 w-full">
+                                    <LoaderCircle className="animate-spin text-primary" size={48} />
                                 </div>
-                                <div className="p-5">
-                                    {loadingDetail ? (
-                                        <div className="flex items-center justify-center h-32">
-                                            <LoaderCircle className="animate-spin text-primary" size={36} />
-                                        </div>
-                                    ) : techniqueDetail && techniqueDetail.alerts?.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {techniqueDetail.alerts.map((alert, idx) => {
-                                                const aStyle = getSourceStyle(alert.source, alert.ai_inferred);
+                            ) : (
+                                <div className="grid gap-3 min-w-[1200px]" style={{ gridTemplateColumns: `repeat(${matrix.length}, minmax(130px, 1fr))` }}>
+                                    {matrix.map(tactic => (
+                                        <div key={tactic.id} className="flex flex-col gap-1.5">
+                                            {/* Tactic Header */}
+                                            <div className="bg-background-dark/60 p-2 text-center text-[10px] font-bold uppercase rounded-md text-text-secondary tracking-wider border border-gray-800 truncate">
+                                                {tactic.shortName}
+                                            </div>
+                                            {/* Techniques */}
+                                            {tactic.techniques.map(tech => {
+                                                const style = getSourceStyle(tech.source, tech.ai_inferred);
                                                 return (
-                                                    <div key={idx} className={`p-4 rounded-lg bg-background-dark border ${aStyle.border} ${aStyle.glow}`}>
-                                                        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${aStyle.bg} ${aStyle.text}`}>{aStyle.label}</span>
-                                                                <span className="text-xs text-text-secondary font-mono">{alert.alert_id}</span>
-                                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSeverityBadge(alert.severity)}`}>{alert.severity}</span>
-                                                            </div>
-                                                            <span className="text-xs text-text-secondary flex items-center gap-1">
-                                                                <Clock size={12} /> {formatTime(alert.timestamp)}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-sm text-text-main mb-3">{alert.signature}</p>
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                                            <div><span className="text-text-secondary">Source IP</span><p className="text-cyan-400 font-mono mt-0.5">{alert.src_ip}</p></div>
-                                                            <div><span className="text-text-secondary">Dest IP</span><p className="text-purple-400 font-mono mt-0.5">{alert.dest_ip}</p></div>
-                                                            <div><span className="text-text-secondary">Ports</span><p className="text-text-main font-mono mt-0.5">{alert.dest_ports?.join(', ')}</p></div>
-                                                            <div><span className="text-text-secondary">Confidence</span><p className={`font-bold mt-0.5 ${alert.confidence >= 0.9 ? 'text-red-400' : alert.confidence >= 0.7 ? 'text-orange-400' : 'text-yellow-400'}`}>{(alert.confidence * 100).toFixed(0)}%</p></div>
-                                                        </div>
-                                                        <div className="flex gap-2 mt-4">
-                                                            <button onClick={() => handleBlockIP(alert.src_ip)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded text-xs font-medium hover:bg-red-500/20 transition-colors">
-                                                                <Ban size={12} /> Block {alert.src_ip}
-                                                            </button>
-                                                            <button onClick={() => { setChatInput(`Explain ${alert.alert_id} detection for ${selectedTechnique.id}`); setCopilotOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded text-xs font-medium hover:bg-primary/20 transition-colors">
-                                                                <Bot size={12} /> Ask Copilot
-                                                            </button>
-                                                        </div>
+                                                    <div
+                                                        key={tech.id}
+                                                        onClick={() => handleTechniqueClick(tech)}
+                                                        className={`p-2 rounded text-[11px] border flex justify-between items-center transition-all duration-200 ${tech.detected
+                                                            ? `${style.border} ${style.glow} hover:bg-white/5 cursor-pointer`
+                                                            : 'border-gray-800 bg-gray-800/20 text-gray-600'}`}
+                                                    >
+                                                        <span className={`truncate mr-2 ${tech.detected ? 'text-text-main font-medium' : 'text-gray-600'}`} title={tech.name}>{tech.id}</span>
+                                                        <span className={`w-2 h-2 rounded-full ${style.dot} flex-shrink-0`}></span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-32 text-gray-500">
-                                            <Inbox size={36} />
-                                            <p className="mt-2">No alerts for this technique.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ─── Recent ATT&CK Alerts Table ─── */}
-                        <div className="bg-card-dark rounded-xl border border-gray-700 overflow-hidden card-lift animate-fade-in">
-                            <div className="p-5 border-b border-gray-700">
-                                <h2 className="text-lg font-medium text-text-main">Recent ATT&CK Detections</h2>
-                                <p className="text-text-secondary text-sm">Latest mapped events from Suricata, Zeek, and AI engines</p>
-                            </div>
-                            {loading ? (
-                                <div className="flex items-center justify-center h-32">
-                                    <LoaderCircle className="animate-spin text-primary" size={36} />
-                                </div>
-                            ) : recentAlerts.length > 0 ? (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead>
-                                            <tr className="border-b border-gray-700 bg-background-dark/30">
-                                                {['Time', 'Alert ID', 'Technique', 'Source', 'Severity', 'Src IP', 'Confidence'].map(h => (
-                                                    <th key={h} className="p-4 text-xs font-medium text-text-secondary uppercase tracking-wider">{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-800 stagger-children">
-                                            {recentAlerts.map((alert, idx) => {
-                                                const s = getSourceStyle(alert.source, alert.ai_inferred);
-                                                return (
-                                                    <tr key={idx} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => handleTechniqueClick({ id: alert.technique_id, name: alert.signature, detected: true, source: alert.source, severity: alert.severity, ai_inferred: alert.ai_inferred })}>
-                                                        <td className="p-4 text-text-secondary font-mono text-xs">{formatTime(alert.timestamp)}</td>
-                                                        <td className="p-4 text-primary font-mono text-xs">{alert.alert_id}</td>
-                                                        <td className="p-4 text-text-main font-medium text-xs">{alert.technique_id}</td>
-                                                        <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs font-medium ${s.bg} ${s.text}`}>{alert.source}</span></td>
-                                                        <td className="p-4"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSeverityBadge(alert.severity)}`}>{alert.severity}</span></td>
-                                                        <td className="p-4 text-cyan-400 font-mono text-xs">{alert.src_ip}</td>
-                                                        <td className="p-4 text-xs font-bold">{(alert.confidence * 100).toFixed(0)}%</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-32 text-gray-500">
-                                    <Inbox size={36} />
-                                    <p className="mt-2">No recent ATT&CK detections</p>
+                                    ))}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* ═══════════════ Security Copilot Panel ═══════════════ */}
-                    {copilotOpen && (
-                        <div className="w-[420px] flex-shrink-0 flex flex-col bg-card-dark rounded-xl border border-gray-700 overflow-hidden animate-slide-in-right" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-                            {/* Copilot Header */}
-                            <div className="p-4 bg-gradient-to-r from-card-dark to-background-dark border-b border-gray-700 flex justify-between items-center flex-shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 bg-primary/20 rounded-lg">
-                                        <Bot className="text-primary" size={18} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">DeepGuard Security Copilot</h3>
-                                        <p className="text-[10px] text-text-secondary">RAG-Enhanced • ATT&CK-Aware</p>
-                                    </div>
+                    {/* ─── Technique Drill-Down Panel ─── */}
+                    {selectedTechnique && (
+                        <div className="bg-card-dark rounded-xl border border-gray-700 overflow-hidden animate-fade-in w-full">
+                            <div className="p-4 sm:p-5 border-b border-gray-700 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <Eye className="text-primary hidden sm:block" size={18} />
+                                    <h2 className="text-base sm:text-lg font-medium text-text-main truncate">
+                                        {selectedTechnique.id} — {selectedTechnique.name}
+                                    </h2>
+                                    <span className={`hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getSeverityBadge(selectedTechnique.severity)}`}>
+                                        {selectedTechnique.severity}
+                                    </span>
                                 </div>
-                                <button onClick={() => setCopilotOpen(false)} className="p-1 hover:bg-gray-700 rounded transition-colors">
-                                    <X size={16} className="text-text-secondary" />
+                                <button onClick={() => { setSelectedTechnique(null); setTechniqueDetail(null); }} className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0">
+                                    <X size={18} className="text-text-secondary" />
                                 </button>
                             </div>
-
-                            {/* Chat History */}
-                            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-                                {chatHistory.map((msg, idx) => (
-                                    <div key={idx} className={`animate-fade-in ${msg.role === 'user' ? 'self-end max-w-[85%]' : 'self-start max-w-[95%]'}`}>
-                                        <div className={`rounded-lg p-3 text-sm ${msg.role === 'user'
-                                            ? 'bg-primary/10 border border-primary/20 text-text-main'
-                                            : 'bg-background-dark border border-gray-700'}`}>
-
-                                            {msg.role === 'bot' && (
-                                                <div className="flex items-center gap-1.5 mb-2">
-                                                    <Cpu size={14} className="text-primary" />
-                                                    <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Copilot Analysis</span>
-                                                    {msg.payload?.severity && (
-                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ml-auto ${getSeverityBadge(msg.payload.severity)}`}>
-                                                            {msg.payload.severity}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            <p className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</p>
-
-                                            {msg.payload && (
-                                                <div className="mt-3 space-y-2">
-                                                    {/* Technical Details */}
-                                                    <div className="text-xs bg-black/30 p-2 rounded font-mono border border-gray-800 text-gray-300 space-y-1">
-                                                        <div className="flex justify-between"><span className="text-gray-500">Tactic:</span><span className="text-primary font-bold">{msg.payload.mapped_tactic}</span></div>
-                                                        <div className="flex justify-between"><span className="text-gray-500">Confidence:</span><span className="text-purple-400">{(msg.payload.confidence * 100).toFixed(0)}%</span></div>
-                                                    </div>
-
-                                                    {/* Action Buttons */}
-                                                    {msg.payload.recommended_action?.length > 0 && (
-                                                        <div className="space-y-1.5">
-                                                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Recommended Actions</span>
-                                                            {msg.payload.recommended_action.map((act, i) => (
-                                                                <button
-                                                                    key={i}
-                                                                    onClick={() => act.action === 'block_ip' ? handleBlockIP(act.target) : toast.info(act.description)}
-                                                                    className={`w-full text-left p-2 rounded text-xs border transition-colors flex items-center justify-between group ${act.action === 'block_ip'
-                                                                        ? 'bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/15'
-                                                                        : 'bg-primary/5 border-primary/20 text-primary hover:bg-primary/15'}`}
-                                                                >
-                                                                    <span className="truncate">{act.description}</span>
-                                                                    <ChevronRight size={12} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+                            <div className="p-4 sm:p-5">
+                                {loadingDetail ? (
+                                    <div className="flex items-center justify-center h-32">
+                                        <LoaderCircle className="animate-spin text-primary" size={36} />
                                     </div>
-                                ))}
-                                {chatLoading && (
-                                    <div className="self-start animate-fade-in">
-                                        <div className="flex items-center gap-2 text-text-secondary text-sm p-3 bg-background-dark rounded-lg border border-gray-700">
-                                            <LoaderCircle className="animate-spin" size={14} />
-                                            Copilot analyzing...
-                                        </div>
+                                ) : techniqueDetail && techniqueDetail.alerts?.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {techniqueDetail.alerts.map((alert, idx) => {
+                                            const aStyle = getSourceStyle(alert.source, alert.ai_inferred);
+                                            return (
+                                                <div key={idx} className={`p-4 rounded-lg bg-background-dark border ${aStyle.border} ${aStyle.glow}`}>
+                                                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] sm:text-xs font-bold ${aStyle.bg} ${aStyle.text}`}>{aStyle.label}</span>
+                                                            <span className="text-xs text-text-secondary font-mono">{alert.alert_id}</span>
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${getSeverityBadge(alert.severity)}`}>{alert.severity}</span>
+                                                        </div>
+                                                        <span className="text-[10px] sm:text-xs text-text-secondary flex items-center gap-1">
+                                                            <Clock size={12} /> {formatTime(alert.timestamp)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-text-main mb-3 break-words">{alert.signature}</p>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                                        <div><span className="text-text-secondary">Source IP</span><p className="text-cyan-400 font-mono mt-0.5">{alert.src_ip}</p></div>
+                                                        <div><span className="text-text-secondary">Dest IP</span><p className="text-purple-400 font-mono mt-0.5">{alert.dest_ip}</p></div>
+                                                        <div><span className="text-text-secondary">Ports</span><p className="text-text-main font-mono mt-0.5">{alert.dest_ports?.join(', ')}</p></div>
+                                                        <div><span className="text-text-secondary">Confidence</span><p className={`font-bold mt-0.5 ${alert.confidence >= 0.9 ? 'text-red-400' : alert.confidence >= 0.7 ? 'text-orange-400' : 'text-yellow-400'}`}>{(alert.confidence * 100).toFixed(0)}%</p></div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2 mt-4">
+                                                        <button onClick={() => handleBlockIP(alert.src_ip)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded text-xs font-medium hover:bg-red-500/20 transition-colors">
+                                                            <Ban size={12} /> Block IP
+                                                        </button>
+                                                        <button onClick={() => { setChatInput(`Explain ${alert.alert_id} detection for ${selectedTechnique.id}`); setCopilotOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded text-xs font-medium hover:bg-primary/20 transition-colors">
+                                                            <Bot size={12} /> Ask Copilot
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+                                        <Inbox size={36} />
+                                        <p className="mt-2 text-sm text-center">No alerts for this technique.</p>
                                     </div>
                                 )}
-                                <div ref={chatEndRef} />
                             </div>
-
-                            {/* Chat Input */}
-                            <form onSubmit={handleChatSubmit} className="p-3 border-t border-gray-700 bg-background-dark/50 flex-shrink-0">
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="text"
-                                        value={chatInput}
-                                        onChange={(e) => setChatInput(e.target.value)}
-                                        placeholder="Ask DeepGuard Copilot..."
-                                        className="w-full bg-background-dark border border-gray-700 rounded-lg py-2.5 pl-4 pr-12 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 placeholder-gray-600 transition-all"
-                                        disabled={chatLoading}
-                                    />
-                                    <button
-                                        type="submit"
-                                        disabled={chatLoading || !chatInput.trim()}
-                                        className="absolute right-2 p-1.5 bg-primary/20 text-primary hover:bg-primary/40 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                    >
-                                        <Send size={14} />
-                                    </button>
-                                </div>
-                                <div className="flex gap-2 mt-2">
-                                    {['Why T1046?', 'Lateral movement', 'False positive?'].map(q => (
-                                        <button
-                                            key={q}
-                                            type="button"
-                                            onClick={() => { setChatInput(q); }}
-                                            className="px-2 py-1 text-[10px] bg-gray-800 text-text-secondary rounded hover:bg-gray-700 hover:text-text-main transition-colors"
-                                        >
-                                            {q}
-                                        </button>
-                                    ))}
-                                </div>
-                            </form>
                         </div>
                     )}
+
+                    {/* ─── Recent ATT&CK Alerts Table ─── */}
+                    <div className="bg-card-dark rounded-xl border border-gray-700 overflow-hidden card-lift animate-fade-in w-full">
+                        <div className="p-4 sm:p-5 border-b border-gray-700">
+                            <h2 className="text-lg font-medium text-text-main">Recent ATT&CK Detections</h2>
+                            <p className="text-text-secondary text-xs sm:text-sm">Latest mapped events from Suricata, Zeek, and AI engines</p>
+                        </div>
+                        {loading ? (
+                            <div className="flex items-center justify-center h-32 w-full">
+                                <LoaderCircle className="animate-spin text-primary" size={36} />
+                            </div>
+                        ) : recentAlerts.length > 0 ? (
+                            <div className="overflow-x-auto w-full">
+                                <table className="w-full text-left text-sm min-w-[800px]">
+                                    <thead>
+                                        <tr className="border-b border-gray-700 bg-background-dark/30">
+                                            {['Time', 'Alert ID', 'Technique', 'Source', 'Severity', 'Src IP', 'Confidence'].map(h => (
+                                                <th key={h} className="p-4 text-[11px] sm:text-xs font-medium text-text-secondary uppercase tracking-wider">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-800 stagger-children">
+                                        {recentAlerts.map((alert, idx) => {
+                                            const s = getSourceStyle(alert.source, alert.ai_inferred);
+                                            return (
+                                                <tr key={idx} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => handleTechniqueClick({ id: alert.technique_id, name: alert.signature, detected: true, source: alert.source, severity: alert.severity, ai_inferred: alert.ai_inferred })}>
+                                                    <td className="p-4 text-text-secondary font-mono text-[11px] sm:text-xs whitespace-nowrap">{formatTime(alert.timestamp)}</td>
+                                                    <td className="p-4 text-primary font-mono text-[11px] sm:text-xs">{alert.alert_id}</td>
+                                                    <td className="p-4 text-text-main font-medium text-[11px] sm:text-xs whitespace-nowrap">{alert.technique_id}</td>
+                                                    <td className="p-4"><span className={`px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium whitespace-nowrap ${s.bg} ${s.text}`}>{alert.source}</span></td>
+                                                    <td className="p-4"><span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${getSeverityBadge(alert.severity)}`}>{alert.severity}</span></td>
+                                                    <td className="p-4 text-cyan-400 font-mono text-[11px] sm:text-xs">{alert.src_ip}</td>
+                                                    <td className="p-4 text-[11px] sm:text-xs font-bold">{(alert.confidence * 100).toFixed(0)}%</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+                                <Inbox size={36} />
+                                <p className="mt-2 text-sm text-center">No recent ATT&CK detections</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* ═══════════════ Floating Security Copilot Panel ═══════════════ */}
+            
+            {/* Floating Action Button (FAB) */}
+            <button
+                onClick={() => setCopilotOpen(!copilotOpen)}
+                className={`fixed bottom-6 right-6 sm:bottom-8 sm:right-8 p-4 rounded-full shadow-2xl z-[60] transition-all duration-300 flex items-center justify-center ${
+                    copilotOpen 
+                    ? 'bg-gray-700 text-white hover:bg-gray-600 rotate-90' 
+                    : 'bg-primary text-background-dark hover:bg-primary-dark hover:-translate-y-1 hover:shadow-glow-primary'
+                }`}
+            >
+                {copilotOpen ? <X size={24} /> : <Bot size={24} />}
+            </button>
+
+            {/* Copilot Overlay Window */}
+            {copilotOpen && (
+                <div 
+                    className="fixed bottom-24 right-4 sm:right-8 w-[calc(100vw-2rem)] sm:w-[420px] flex flex-col bg-card-dark rounded-xl border border-gray-700 shadow-2xl z-50 overflow-hidden animate-slide-up origin-bottom-right" 
+                    style={{ maxHeight: 'calc(100vh - 140px)', height: '600px' }}
+                >
+                    {/* Copilot Header */}
+                    <div className="p-4 bg-gradient-to-r from-card-dark to-background-dark border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/20 rounded-lg">
+                                <Bot className="text-primary" size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm sm:text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">DeepGuard Copilot</h3>
+                                <p className="text-[10px] sm:text-xs text-text-secondary">RAG-Enhanced • ATT&CK-Aware</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Chat History */}
+                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+                        {chatHistory.map((msg, idx) => (
+                            <div key={idx} className={`animate-fade-in flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`rounded-xl p-3 sm:p-4 text-xs sm:text-sm max-w-[85%] ${msg.role === 'user'
+                                    ? 'bg-primary/10 border border-primary/20 text-text-main rounded-tr-sm'
+                                    : 'bg-background-dark border border-gray-700 rounded-tl-sm'}`}>
+
+                                    {msg.role === 'bot' && (
+                                        <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-gray-800">
+                                            <Cpu size={14} className="text-primary" />
+                                            <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Analysis</span>
+                                            {msg.payload?.severity && (
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ml-auto ${getSeverityBadge(msg.payload.severity)}`}>
+                                                    {msg.payload.severity}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <p className="leading-relaxed whitespace-pre-line text-gray-200">{msg.text}</p>
+
+                                    {msg.payload && (
+                                        <div className="mt-4 space-y-3">
+                                            {/* Technical Details */}
+                                            <div className="text-[10px] sm:text-xs bg-black/40 p-2.5 rounded font-mono border border-gray-800 text-gray-400 space-y-1.5">
+                                                <div className="flex justify-between"><span className="text-gray-500">Tactic:</span><span className="text-primary font-bold">{msg.payload.mapped_tactic}</span></div>
+                                                <div className="flex justify-between"><span className="text-gray-500">Confidence:</span><span className="text-purple-400">{(msg.payload.confidence * 100).toFixed(0)}%</span></div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            {msg.payload.recommended_action?.length > 0 && (
+                                                <div className="space-y-2 pt-2">
+                                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Recommended Actions</span>
+                                                    {msg.payload.recommended_action.map((act, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => act.action === 'block_ip' ? handleBlockIP(act.target) : toast.info(act.description)}
+                                                            className={`w-full text-left p-2.5 rounded text-[11px] sm:text-xs border transition-colors flex items-center justify-between group ${act.action === 'block_ip'
+                                                                ? 'bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/15'
+                                                                : 'bg-primary/5 border-primary/20 text-primary hover:bg-primary/15'}`}
+                                                        >
+                                                            <span className="truncate pr-2">{act.description}</span>
+                                                            <ChevronRight size={14} className="flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {chatLoading && (
+                            <div className="self-start animate-fade-in max-w-[85%]">
+                                <div className="flex items-center gap-3 text-text-secondary text-xs sm:text-sm p-4 bg-background-dark rounded-xl rounded-tl-sm border border-gray-700">
+                                    <LoaderCircle className="animate-spin text-primary" size={16} />
+                                    Synthesizing response...
+                                </div>
+                            </div>
+                        )}
+                        <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Chat Input */}
+                    <form onSubmit={handleChatSubmit} className="p-3 sm:p-4 border-t border-gray-700 bg-background-dark flex-shrink-0">
+                        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
+                            {['Why T1046?', 'Lateral movement', 'False positive?'].map(q => (
+                                <button
+                                    key={q}
+                                    type="button"
+                                    onClick={() => { setChatInput(q); }}
+                                    className="flex-shrink-0 px-2.5 py-1 text-[11px] bg-gray-800 border border-gray-700 text-text-secondary rounded-full hover:bg-gray-700 hover:text-text-main hover:border-gray-500 transition-colors"
+                                >
+                                    {q}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative flex items-center">
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                placeholder="Ask DeepGuard Copilot..."
+                                className="w-full bg-card-dark border border-gray-600 rounded-lg py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 placeholder-gray-500 transition-all shadow-inner"
+                                disabled={chatLoading}
+                            />
+                            <button
+                                type="submit"
+                                disabled={chatLoading || !chatInput.trim()}
+                                className="absolute right-2 p-2 bg-primary text-background-dark hover:bg-primary-dark rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                <Send size={16} />
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
         </div>
     );
 };
