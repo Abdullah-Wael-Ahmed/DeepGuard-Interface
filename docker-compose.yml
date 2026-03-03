@@ -51,3 +51,27 @@ services:
       - ./suricata-config:/etc/suricata
     command: -c /etc/suricata/suricata.yaml -i ens33
     restart: unless-stopped
+
+  zeek:
+    image: zeek/zeek:8.1.0
+    container_name: deepguard-zeek
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      # Configuration files (your project-local copy)
+      - ./configs/zeek:/usr/local/zeek/etc:ro
+      # Logs → keep using your existing /opt/zeek/logs path
+      # The container writes to its internal /usr/local/zeek/logs,
+      # but Docker redirects everything to your real /opt/zeek/logs
+      - /opt/zeek/logs:/usr/local/zeek/logs
+    command: zeek -i ens33 local -C  # ← use this if your setup relies on zeekctl # If you do NOT use zeekctl (direct Zeek invocation), replace with:   
+    # command: zeek -i ens33 local   # change ens33 to your actual interface name!
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
