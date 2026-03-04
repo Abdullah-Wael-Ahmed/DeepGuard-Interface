@@ -25,7 +25,7 @@ const execPromise = (command) => {
         // We use just 'sudo' here assuming the app runs as 'nodeuser'
         // If the app runs as root, you don't need sudo.
         // If app runs as 'nodeuser', sudo allows it to run root commands.
-        const fullCmd = `sudo /usr/sbin/iptables ${command}`;
+        const fullCmd = `sudo iptables ${command}`;
 
         console.log(`Executing: ${fullCmd}`); // Debugging
 

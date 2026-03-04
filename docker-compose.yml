@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./logs/suricata:/app/logs/suricata:ro
       - ./logs/zeek:/app/logs/zeek:ro          # backend reads zeek logs here
