@@ -15,6 +15,7 @@ services:
     volumes:
       - ./logs/suricata:/app/logs/suricata:ro
       - ./logs/zeek:/app/logs/zeek:ro          # backend reads zeek logs here
+      - iptables_socket:/tmp/iptables-proxy   # ← proxy writes socket here
     depends_on:
       db:
         condition: service_healthy   # ← waits until MySQL is actually ready
