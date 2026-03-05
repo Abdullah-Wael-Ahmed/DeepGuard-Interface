@@ -1,7 +1,5 @@
 const { Sequelize } = require("sequelize");
 
-console.log(process.env.MYSQL_DATABASE,process.env.MYSQL_USER,process.env.MYSQL_PASSWORD)
-
 const db = new Sequelize({
     host: 'db',
     dialect: "mysql",

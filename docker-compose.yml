@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./server/.env
+    environment:
+      NODE_ENV: dep
     ports:
       - "5000:5000"
     cap_add:
@@ -16,6 +18,16 @@ services:
     depends_on:
       db:
         condition: service_healthy   # ← waits until MySQL is actually ready
+
+  iptables-proxy:
+    build: ./iptables-service
+    container_name: deepguard-iptables
+    restart: unless-stopped
+    network_mode: host          # needs host networking to affect host iptables
+    privileged: true            # needs privilege to run iptables
+    volumes:
+      - iptables_socket:/tmp/iptables-proxy   # ← proxy writes socket here
+
   frontend:
     build: ./front
     container_name: deepguard-frontend
@@ -96,3 +108,4 @@ services:
         max-file: "5"
 volumes:
   mysql_data:
+  iptables_socket:   # shared between backend and iptables-proxy

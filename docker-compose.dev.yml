@@ -8,6 +8,8 @@ services:
     container_name: deepguard-backend-dev
     env_file:
       - ./server/.env
+    environment:
+      NODE_ENV: dev
     ports:
       - "5000:5000"
     volumes:
