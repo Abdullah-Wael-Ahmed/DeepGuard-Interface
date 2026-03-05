@@ -29,7 +29,7 @@ router.post("/filebeat", async (req, res) => {
         }
 
         console.log(error)
-        res.status(500).json("Server Error")
+        res.status(400).json("Server Error")
     }
 })
 
