@@ -12,6 +12,7 @@ const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
 const { seedSuperAdmin } = require('./util/seeder');
+const verifyJWT = require("./middleware/verifyJWT")
 
 const app = express()
 
@@ -28,11 +29,11 @@ db.sync().then(async () => {
 }).catch((e) => {
     console.log(e);
 })
-
+app.use("/auth", auth)
+app.use(verifyJWT)
 app.use("/logs", logRouter)
 app.use("/firewall", fireWallRouter)
 app.use("/threat-intel", threatIntelRouter)
-app.use("/auth", auth)
 app.use("/zeek", zeekRouter)
 app.use("/mitre", mitreRouter)
 
