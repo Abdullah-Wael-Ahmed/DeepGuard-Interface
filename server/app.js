@@ -30,7 +30,7 @@ db.sync().then(async () => {
     console.log(e);
 })
 app.use("/auth", auth)
-app.use(verifyJWT)
+if (process.env.NODE_ENV === "dep") app.use(verifyJWT)
 app.use("/logs", logRouter)
 app.use("/firewall", fireWallRouter)
 app.use("/threat-intel", threatIntelRouter)
