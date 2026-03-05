@@ -17,11 +17,6 @@ const app = express()
 
 app.use(express.json())
 app.use(cookieParser());
-app.use(cors({
-    origin: [process.env.REACT_FRONTEND, process.env.REACT_FRONTEND_LOCAL],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-}))
 
 server = http.createServer(app)
 

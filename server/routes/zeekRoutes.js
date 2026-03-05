@@ -43,7 +43,7 @@ router.get("/connections-over-time", async (req, res) => {
 
         const data = await ZeekConnection.findAll({
             attributes: [
-                [fn("strftime", "%Y-%m-%d %H:00:00", col("timestamp")), "time"],
+                [fn("DATE_FORMAT", col("timestamp"), "%Y-%m-%d %H:00:00"), "time"],
                 [fn("COUNT", col("id")), "count"],
             ],
             // 2. ADD THIS WHERE CLAUSE
@@ -52,7 +52,7 @@ router.get("/connections-over-time", async (req, res) => {
                     [Op.gte]: oneDayAgo // "Greater Than or Equal to" 24 hours ago
                 }
             },
-            group: [literal("strftime('%Y-%m-%d %H:00:00', timestamp)")],
+            group: [literal("DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00')")],
             order: [[literal("time"), "ASC"]],
             // Limit is optional now because the time filter constrains it, 
             // but keeping it is safe.

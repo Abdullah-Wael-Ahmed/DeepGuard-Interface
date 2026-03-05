@@ -48,8 +48,8 @@ filebeat.inputs:
   id: zeek-conn-json
   enabled: true
   paths:
-    - /opt/zeek/logs/current/conn.log
-
+    #- /opt/zeek/logs/current/conn.log
+    - /usr/local/zeek/logs/current/conn.log
   parsers:
     - ndjson:
         overwrite_keys: true
@@ -66,8 +66,8 @@ filebeat.inputs:
   id: zeek-dns-json
   enabled: true
   paths:
-    - /opt/zeek/logs/current/dns.log
-
+    #- /opt/zeek/logs/current/dns.log
+    - /usr/local/zeek/logs/current/dns.log
   parsers:
     - ndjson:
         overwrite_keys: true

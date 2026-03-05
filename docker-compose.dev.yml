@@ -6,12 +6,17 @@ services:
       context: ./server
       dockerfile: Dockerfile.dev
     container_name: deepguard-backend-dev
+    env_file:
+      - ./server/.env
     ports:
       - "5000:5000"
     volumes:
       - ./server:/app             # Syncs local server code into the container
       - /app/node_modules         # PROTECTS the container's Linux modules
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy   # ← waits until MySQL is actually ready
 
   frontend:
     build: 
@@ -26,3 +31,33 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  db:
+    image: mysql:8.0
+    container_name: deepguard-mysql
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: deepguard-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80" # Exposes phpMyAdmin on your local port 8080
+    environment:
+      # THE MAGIC LINK: This tells phpMyAdmin exactly which container to connect to
+      PMA_HOST: db 
+      PMA_PORT: 3306
+    depends_on:
+      - db # Ensures the database starts before phpMyAdmin tries to connect
+
+volumes:
+  mysql_data:

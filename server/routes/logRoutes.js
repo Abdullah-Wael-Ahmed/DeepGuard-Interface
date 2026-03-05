@@ -8,11 +8,6 @@ const router = express.Router();
 router.post("/filebeat", async (req, res) => {
     try {
 
-        // console.log('filebeat sent');
-        // console.log("Headers -----------------------------------");
-        // console.log(req.headers);
-        // console.log("Body -----------------------------------");
-        // console.log(req.body);
         console.log(req.body);
         const alert = await Alert.create({
             timestamp: req.body["@timestamp"],
@@ -27,14 +22,14 @@ router.post("/filebeat", async (req, res) => {
         broadcast({ type: "new_alert", data: alert })
         res.json("ok")
     } catch (error) {
-
-        if (error.name === 'SequelizeValidationError') {
+        console.log(error.name)
+        if (error.name === 'TypeError') {
             console.error("Validation Error:", error.message);
             return res.status(400).json({ error: "Invalid Data Format" }); // Logstash drops it. Safe.
         }
 
         console.log(error)
-        res.status(500).json("Server Error")
+        res.status(400).json("Server Error")
     }
 })
 

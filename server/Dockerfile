@@ -2,6 +2,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+RUN apk update && apk add sudo iptables
+
 COPY package*.json ./
 
 # Install only production dependencies (ignores devDependencies like nodemon)
