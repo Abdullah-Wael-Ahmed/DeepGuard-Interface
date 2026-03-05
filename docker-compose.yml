@@ -4,6 +4,8 @@ services:
     build: ./server
     container_name: deepguard-backend
     restart: unless-stopped
+    env_file:
+      - ./server/.env
     ports:
       - "5000:5000"
     cap_add:
@@ -11,7 +13,9 @@ services:
     volumes:
       - ./logs/suricata:/app/logs/suricata:ro
       - ./logs/zeek:/app/logs/zeek:ro          # backend reads zeek logs here
-
+    depends_on:
+      db:
+        condition: service_healthy   # ← waits until MySQL is actually ready
   frontend:
     build: ./front
     container_name: deepguard-frontend
@@ -20,6 +24,21 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  db:
+    image: mysql:8.0
+    container_name: deepguard-mysql
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.12.0
