@@ -14,20 +14,20 @@ services:
       - NET_ADMIN
     volumes:
       - ./logs/suricata:/app/logs/suricata:ro
-      - ./logs/zeek:/app/logs/zeek:ro          # backend reads zeek logs here
-      - iptables_socket:/tmp/iptables-proxy   # ← proxy writes socket here
+      - ./logs/zeek:/app/logs/zeek:ro
+      - iptables_socket:/tmp/iptables-proxy
     depends_on:
       db:
-        condition: service_healthy   # ← waits until MySQL is actually ready
+        condition: service_healthy
 
   iptables-proxy:
     build: ./iptables-service
     container_name: deepguard-iptables
     restart: unless-stopped
-    network_mode: host          # needs host networking to affect host iptables
-    privileged: true            # needs privilege to run iptables
+    network_mode: host
+    privileged: true
     volumes:
-      - iptables_socket:/tmp/iptables-proxy   # ← proxy writes socket here
+      - iptables_socket:/tmp/iptables-proxy
 
   frontend:
     build: ./front
@@ -61,17 +61,28 @@ services:
     volumes:
       - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs/suricata:/var/log/suricata:ro
-      - ./logs/zeek:/usr/local/zeek/logs/current:ro   # ← keep your filebeat.yml paths unchanged
+      - ./logs/zeek:/usr/local/zeek/logs/current:ro
     command: ["--strict.perms=false"]
     restart: unless-stopped
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.12.0
     container_name: deepguard-logstash
-    network_mode: "host"
+    ports:
+      - "5044:5044"
     volumes:
       - ./configs/logstash/pipeline:/usr/share/logstash/pipeline:ro
     restart: unless-stopped
+
+  anomaly-detector:
+    build: ./anomaly-detector
+    container_name: deepguard-anomaly
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./anomaly-detector/model:/app/model
+      - ./anomaly-detector/data:/app/data
 
   suricata:
     image: jasonish/suricata:latest
@@ -97,16 +108,16 @@ services:
       - NET_RAW
     volumes:
       - ./configs/zeek:/usr/local/zeek/etc:ro
-      - ./logs/zeek:/usr/local/zeek/logs/current      # ← Zeek writes here, host sees ./logs/zeek
+      - ./logs/zeek:/usr/local/zeek/logs/current
       - /opt/zeek/share/zeek/site:/usr/local/zeek/share/zeek/site
     command: sh -c "mkdir -p /usr/local/zeek/logs/current &&
                  zeek -i ens33 local -C Log::default_logdir=/usr/local/zeek/logs/current"
-          #zeek -i ens33 local -C Log::default_logdir=/usr/local/zeek/logs/current
     logging:
       driver: "json-file"
       options:
         max-size: "50m"
         max-file: "5"
+
 volumes:
   mysql_data:
-  iptables_socket:   # shared between backend and iptables-proxy
+  iptables_socket:
