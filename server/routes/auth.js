@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const router = express.Router();
+const verifyJWT = require("../middleware/verifyJWT");
 
 const generateAccessToken = (user) => {
     return jwt.sign(
