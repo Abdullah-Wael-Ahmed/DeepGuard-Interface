@@ -4,7 +4,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 // Context Providers
 import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 // Auth Components
 import PersistLogin from './components/PersistLogin';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,7 +23,31 @@ import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 import MitreAttack from './pages/MitreAttack'
+import { useEffect } from 'react';
+import axios from 'axios'
+const AxiosInterceptorSetup = ({ children }) => {
+  const { auth } = useAuth();
 
+  useEffect(() => {
+    const requestInterceptor = axios.interceptors.request.use(
+      (config) => {
+        // Automatically attach the token to every request
+        if (auth?.accessToken) {
+          config.headers.Authorization = `Bearer ${auth.accessToken}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    // Cleanup interceptor to prevent memory leaks
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+    };
+  }, [auth]);
+
+  return children;
+};
 function App() {
   const router = createBrowserRouter([
     {
@@ -74,12 +98,14 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
-        <ToastContainer
-          position='top-right'
-          autoClose={3000}
-          theme='dark'
-        />
+        <AxiosInterceptorSetup>
+          <RouterProvider router={router} />
+          <ToastContainer
+            position='top-right'
+            autoClose={3000}
+            theme='dark'
+          />
+        </AxiosInterceptorSetup>
       </AuthProvider>
     </ThemeProvider>
   );
