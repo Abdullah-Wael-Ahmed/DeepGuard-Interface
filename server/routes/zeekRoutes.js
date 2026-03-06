@@ -181,17 +181,31 @@ router.post("/ingest/conn", async (req, res) => {
         console.log(req.body)
         console.log('---------------------------------------------')
 
+        // Forward to anomaly detector with proper feature mapping
+        const duration     = data.duration || 0;
+        const bytesSent    = data.bytes_sent || 0;
+        const bytesRecv    = data.bytes_received || 0;
+        const origPkts     = data.orig_pkts || 0;
+        const respPkts     = data.resp_pkts || 0;
+        const origIpBytes  = data.orig_ip_bytes || 0;
+        const respIpBytes  = data.resp_ip_bytes || 0;
+        const totalPkts    = origPkts + respPkts;
+        const totalBytes   = origIpBytes + respIpBytes;
+        const flowBytesS   = duration > 0 ? totalBytes / duration : 0;
+        const flowPktsS    = duration > 0 ? totalPkts / duration : 0;
+        const flowIATMean  = totalPkts > 0 ? (duration * 1000000) / totalPkts : 0;
+
         axios.post("http://deepguard-anomaly:5001/analyze", {
-            "Flow Duration":               data.duration || 0,
-            "Total Fwd Packets":           0,
-            "Total Backward Packets":      0,
-            "Total Length of Fwd Packets": data.bytes_sent || 0,
-            "Total Length of Bwd Packets": data.bytes_received || 0,
-            "Fwd Packet Length Max":       0,
-            "Bwd Packet Length Max":       0,
-            "Flow Bytes/s":                data.duration > 0 ? ((data.bytes_sent || 0) + (data.bytes_received || 0)) / data.duration : 0,
-            "Flow Packets/s":              0,
-            "Flow IAT Mean":               0,
+            "Flow Duration":               duration,
+            "Total Fwd Packets":           origPkts,
+            "Total Backward Packets":      respPkts,
+            "Total Length of Fwd Packets": bytesSent,
+            "Total Length of Bwd Packets": bytesRecv,
+            "Fwd Packet Length Max":       origPkts > 0 ? Math.round(origIpBytes / origPkts) : 0,
+            "Bwd Packet Length Max":       respPkts > 0 ? Math.round(respIpBytes / respPkts) : 0,
+            "Flow Bytes/s":                flowBytesS,
+            "Flow Packets/s":              flowPktsS,
+            "Flow IAT Mean":               flowIATMean,
             "Destination Port":            data.destination?.port || 0,
             "src_ip":                      data.source?.ip || "unknown"
         }).catch((err) => console.error("Anomaly detector error:", err.message));
