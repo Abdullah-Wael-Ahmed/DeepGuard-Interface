@@ -11,12 +11,14 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0',
+    strictPort: true,
     watch: {
       usePolling: true
     },
     hmr: {
       clientPort: 3000,
-      host: 'localhost'
+      host: '127.0.0.1',
+      overlay: true
     },
     proxy: {
       '/api': {
