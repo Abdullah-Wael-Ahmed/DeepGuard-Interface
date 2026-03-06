@@ -3,87 +3,112 @@ import numpy as np
 
 np.random.seed(42)
 
-# ─── How many samples ─────────────────────────────────────
-N_NORMAL = 8000
-N_ATTACK  = 500   # ~6% anomalies, realistic ratio
+records = []
 
-print("[*] Generating normal traffic...")
-normal = pd.DataFrame({
-    'Flow Duration':                  np.random.normal(50000,  10000, N_NORMAL).clip(0),
-    'Total Fwd Packets':              np.random.normal(10,     3,     N_NORMAL).clip(1),
-    'Total Backward Packets':         np.random.normal(8,      2,     N_NORMAL).clip(0),
-    'Total Length of Fwd Packets':    np.random.normal(5000,   1000,  N_NORMAL).clip(0),
-    'Total Length of Bwd Packets':    np.random.normal(8000,   2000,  N_NORMAL).clip(0),
-    'Fwd Packet Length Max':          np.random.normal(1400,   200,   N_NORMAL).clip(0),
-    'Bwd Packet Length Max':          np.random.normal(1400,   200,   N_NORMAL).clip(0),
-    'Flow Bytes/s':                   np.random.normal(2000,   500,   N_NORMAL).clip(0),
-    'Flow Packets/s':                 np.random.normal(10,     3,     N_NORMAL).clip(0),
-    'Flow IAT Mean':                  np.random.normal(5000,   1000,  N_NORMAL).clip(0),
-    'Destination Port':               np.random.choice([80, 443, 22, 53, 8080], N_NORMAL),
-    'Label':                          'NORMAL'
-})
+# ── Normal HTTPS (port 443) ─────────────────────────────────
+n = 3000
+records.append(pd.DataFrame({
+    'Flow Duration':               np.random.uniform(1, 60, n),
+    'Total Fwd Packets':           np.random.randint(5, 50, n).astype(float),
+    'Total Backward Packets':      np.random.randint(5, 50, n).astype(float),
+    'Total Length of Fwd Packets': np.random.randint(1000, 15000, n).astype(float),
+    'Total Length of Bwd Packets': np.random.randint(1000, 20000, n).astype(float),
+    'Fwd Packet Length Max':       np.random.randint(100, 1400, n).astype(float),
+    'Bwd Packet Length Max':       np.random.randint(100, 1400, n).astype(float),
+    'Flow Bytes/s':                np.random.uniform(100, 2000, n),
+    'Flow Packets/s':              np.random.uniform(0.5, 10, n),
+    'Flow IAT Mean':               np.random.uniform(100000, 2000000, n),
+    'Destination Port':            443,
+    'Label':                       'NORMAL'
+}))
 
-print("[*] Generating attack traffic...")
+# ── Normal DNS (port 53) ────────────────────────────────────
+n = 2000
+records.append(pd.DataFrame({
+    'Flow Duration':               np.random.uniform(0.01, 2, n),
+    'Total Fwd Packets':           np.random.randint(1, 4, n).astype(float),
+    'Total Backward Packets':      np.random.randint(1, 4, n).astype(float),
+    'Total Length of Fwd Packets': np.random.randint(30, 200, n).astype(float),
+    'Total Length of Bwd Packets': np.random.randint(50, 300, n).astype(float),
+    'Fwd Packet Length Max':       np.random.randint(40, 120, n).astype(float),
+    'Bwd Packet Length Max':       np.random.randint(60, 180, n).astype(float),
+    'Flow Bytes/s':                np.random.uniform(50, 5000, n),
+    'Flow Packets/s':              np.random.uniform(1, 20, n),
+    'Flow IAT Mean':               np.random.uniform(10000, 500000, n),
+    'Destination Port':            53,
+    'Label':                       'NORMAL'
+}))
 
-# DoS attack — huge flow bytes, very short duration
-dos = pd.DataFrame({
-    'Flow Duration':                  np.random.normal(500,    100,   150).clip(0),
-    'Total Fwd Packets':              np.random.normal(1000,   200,   150).clip(1),
-    'Total Backward Packets':         np.random.normal(0,      1,     150).clip(0),
-    'Total Length of Fwd Packets':    np.random.normal(150000, 20000, 150).clip(0),
-    'Total Length of Bwd Packets':    np.random.normal(0,      10,    150).clip(0),
-    'Fwd Packet Length Max':          np.random.normal(1500,   10,    150).clip(0),
-    'Bwd Packet Length Max':          np.random.normal(0,      5,     150).clip(0),
-    'Flow Bytes/s':                   np.random.normal(500000, 50000, 150).clip(0),
-    'Flow Packets/s':                 np.random.normal(2000,   300,   150).clip(0),
-    'Flow IAT Mean':                  np.random.normal(50,     10,    150).clip(0),
-    'Destination Port':               np.random.choice([80, 443], 150),
-    'Label':                          'DoS'
-})
+# ── Normal HTTP (port 80) ───────────────────────────────────
+n = 1000
+records.append(pd.DataFrame({
+    'Flow Duration':               np.random.uniform(0.5, 30, n),
+    'Total Fwd Packets':           np.random.randint(3, 30, n).astype(float),
+    'Total Backward Packets':      np.random.randint(3, 30, n).astype(float),
+    'Total Length of Fwd Packets': np.random.randint(500, 10000, n).astype(float),
+    'Total Length of Bwd Packets': np.random.randint(500, 50000, n).astype(float),
+    'Fwd Packet Length Max':       np.random.randint(100, 1400, n).astype(float),
+    'Bwd Packet Length Max':       np.random.randint(100, 1400, n).astype(float),
+    'Flow Bytes/s':                np.random.uniform(200, 5000, n),
+    'Flow Packets/s':              np.random.uniform(1, 15, n),
+    'Flow IAT Mean':               np.random.uniform(50000, 1000000, n),
+    'Destination Port':            80,
+    'Label':                       'NORMAL'
+}))
 
-# Port scan — many packets, tiny payloads, weird ports
-portscan = pd.DataFrame({
-    'Flow Duration':                  np.random.normal(100,    20,    150).clip(0),
-    'Total Fwd Packets':              np.random.normal(1,      0.1,   150).clip(1),
-    'Total Backward Packets':         np.random.normal(0,      0.1,   150).clip(0),
-    'Total Length of Fwd Packets':    np.random.normal(40,     5,     150).clip(0),
-    'Total Length of Bwd Packets':    np.random.normal(0,      1,     150).clip(0),
-    'Fwd Packet Length Max':          np.random.normal(40,     5,     150).clip(0),
-    'Bwd Packet Length Max':          np.random.normal(0,      1,     150).clip(0),
-    'Flow Bytes/s':                   np.random.normal(400,    50,    150).clip(0),
-    'Flow Packets/s':                 np.random.normal(10000,  1000,  150).clip(0),
-    'Flow IAT Mean':                  np.random.normal(10,     2,     150).clip(0),
-    'Destination Port':               np.random.randint(1, 65535, 150),
-    'Label':                          'PortScan'
-})
+# ── DoS Attack ──────────────────────────────────────────────
+n = 500
+records.append(pd.DataFrame({
+    'Flow Duration':               np.random.uniform(0.001, 2, n),
+    'Total Fwd Packets':           np.random.randint(500, 5000, n).astype(float),
+    'Total Backward Packets':      np.zeros(n),
+    'Total Length of Fwd Packets': np.random.randint(20000, 200000, n).astype(float),
+    'Total Length of Bwd Packets': np.zeros(n),
+    'Fwd Packet Length Max':       np.random.randint(40, 60, n).astype(float),
+    'Bwd Packet Length Max':       np.zeros(n),
+    'Flow Bytes/s':                np.random.uniform(100000, 1000000, n),
+    'Flow Packets/s':              np.random.uniform(1000, 10000, n),
+    'Flow IAT Mean':               np.random.uniform(10, 500, n),
+    'Destination Port':            np.random.choice([80, 443, 22], n).astype(float),
+    'Label':                       'DoS'
+}))
 
-# Brute force — repeated connections, same port
-bruteforce = pd.DataFrame({
-    'Flow Duration':                  np.random.normal(2000,   500,   100).clip(0),
-    'Total Fwd Packets':              np.random.normal(6,      1,     100).clip(1),
-    'Total Backward Packets':         np.random.normal(5,      1,     100).clip(0),
-    'Total Length of Fwd Packets':    np.random.normal(300,    50,    100).clip(0),
-    'Total Length of Bwd Packets':    np.random.normal(200,    50,    100).clip(0),
-    'Fwd Packet Length Max':          np.random.normal(100,    20,    100).clip(0),
-    'Bwd Packet Length Max':          np.random.normal(80,     20,    100).clip(0),
-    'Flow Bytes/s':                   np.random.normal(250,    50,    100).clip(0),
-    'Flow Packets/s':                 np.random.normal(5,      1,     100).clip(0),
-    'Flow IAT Mean':                  np.random.normal(400,    50,    100).clip(0),
-    'Destination Port':               np.random.choice([22, 3389], 100),
-    'Label':                          'BruteForce'
-})
+# ── Port Scan ───────────────────────────────────────────────
+n = 300
+records.append(pd.DataFrame({
+    'Flow Duration':               np.random.uniform(0.0001, 0.5, n),
+    'Total Fwd Packets':           np.ones(n),
+    'Total Backward Packets':      np.zeros(n),
+    'Total Length of Fwd Packets': np.random.randint(40, 80, n).astype(float),
+    'Total Length of Bwd Packets': np.zeros(n),
+    'Fwd Packet Length Max':       np.random.randint(40, 80, n).astype(float),
+    'Bwd Packet Length Max':       np.zeros(n),
+    'Flow Bytes/s':                np.random.uniform(100, 5000, n),
+    'Flow Packets/s':              np.random.uniform(2, 100, n),
+    'Flow IAT Mean':               np.random.uniform(100, 10000, n),
+    'Destination Port':            np.random.randint(1, 65535, n).astype(float),
+    'Label':                       'PortScan'
+}))
 
-# ─── Combine and shuffle ──────────────────────────────────
-df = pd.concat([normal, dos, portscan, bruteforce], ignore_index=True)
+# ── Brute Force ─────────────────────────────────────────────
+n = 200
+records.append(pd.DataFrame({
+    'Flow Duration':               np.random.uniform(0.5, 5, n),
+    'Total Fwd Packets':           np.random.randint(4, 10, n).astype(float),
+    'Total Backward Packets':      np.random.randint(3, 8, n).astype(float),
+    'Total Length of Fwd Packets': np.random.randint(100, 500, n).astype(float),
+    'Total Length of Bwd Packets': np.random.randint(100, 400, n).astype(float),
+    'Fwd Packet Length Max':       np.random.randint(50, 150, n).astype(float),
+    'Bwd Packet Length Max':       np.random.randint(50, 120, n).astype(float),
+    'Flow Bytes/s':                np.random.uniform(50, 500, n),
+    'Flow Packets/s':              np.random.uniform(2, 10, n),
+    'Flow IAT Mean':               np.random.uniform(50000, 500000, n),
+    'Destination Port':            np.random.choice([22, 3389, 21], n).astype(float),
+    'Label':                       'BruteForce'
+}))
+
+df = pd.concat(records, ignore_index=True)
 df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-
-# ─── Save ─────────────────────────────────────────────────
 df.to_csv('data/dataset.csv', index=False)
-
-print(f"[+] Dataset saved to data/dataset.csv")
-print(f"[+] Total rows  : {len(df)}")
-print(f"[+] Normal      : {len(normal)}")
-print(f"[+] DoS         : {len(dos)}")
-print(f"[+] PortScan    : {len(portscan)}")
-print(f"[+] BruteForce  : {len(bruteforce)}")
-print(f"[+] Columns     : {list(df.columns)}")
+print(f"[+] Dataset generated: {len(df)} rows")
+print(df['Label'].value_counts())
