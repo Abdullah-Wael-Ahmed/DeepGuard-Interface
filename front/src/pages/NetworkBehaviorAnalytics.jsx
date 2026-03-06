@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import AnimatedCounter from "../components/ui/AnimatedCounter";
 import { GlassStatCard } from "../components/ui/GlassCard";
+import axios from 'axios';
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
@@ -61,24 +62,24 @@ export default function NetworkBehaviorAnalytics() {
                 dnsRes,
                 durationsRes
             ] = await Promise.all([
-                fetch(`${API_BASE}/stats`).then((r) => r.json()),
-                fetch(`${API_BASE}/connections-over-time`).then((r) => r.json()),
-                fetch(`${API_BASE}/top-sources`).then((r) => r.json()),
-                fetch(`${API_BASE}/protocols`).then((r) => r.json()),
-                fetch(`${API_BASE}/top-domains`).then((r) => r.json()),
-                fetch(`${API_BASE}/recent-connections`).then((r) => r.json()),
-                fetch(`${API_BASE}/dns-activity`).then((r) => r.json()),
-                fetch(`${API_BASE}/durations`).then((r) => r.json()),
+                axios.get(`${API_BASE}/stats`),
+                axios.get(`${API_BASE}/connections-over-time`),
+                axios.get(`${API_BASE}/top-sources`),
+                axios.get(`${API_BASE}/protocols`),
+                axios.get(`${API_BASE}/top-domains`),
+                axios.get(`${API_BASE}/recent-connections`),
+                axios.get(`${API_BASE}/dns-activity`),
+                axios.get(`${API_BASE}/durations`),
             ]);
 
-            setStats(statsRes);
-            setConnectionsOverTime(timeRes);
-            setTopSources(sourcesRes);
-            setProtocols(protosRes);
-            setTopDomains(domainsRes);
-            setRecentConnections(recentConnRes);
-            setDnsActivity(dnsRes);
-            setDurations(durationsRes);
+            setStats(statsRes.data);
+            setConnectionsOverTime(timeRes.data);
+            setTopSources(sourcesRes.data);
+            setProtocols(protosRes.data);
+            setTopDomains(domainsRes.data);
+            setRecentConnections(recentConnRes.data);
+            setDnsActivity(dnsRes.data);
+            setDurations(durationsRes.data);
         } catch (err) {
             console.error("Failed to fetch Zeek analytics data", err);
         } finally {

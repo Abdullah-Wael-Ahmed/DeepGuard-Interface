@@ -8,14 +8,18 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
-  server:{
+  server: {
     port: 3000,
-    host: true,
-    watch:{
-      usePolling:true
+    host: '0.0.0.0',
+    watch: {
+      usePolling: true
+    },
+    hmr: {
+      clientPort: 3000,
+      host: 'localhost'
     },
     proxy: {
-      '/api' : {
+      '/api': {
         target: "http://backend:5000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
