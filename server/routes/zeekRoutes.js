@@ -4,10 +4,11 @@ const ZeekConnection = require("../models/ZeekConnection");
 const ZeekDNS = require("../models/ZeekDNS");
 const axios = require("axios")
 
-const router = express.Router();
+const zeekRouter = express.Router();
+const internalZeekRouter = express.Router();
 
 // Get summary stats
-router.get("/stats", async (req, res) => {
+zeekRouter.get("/stats", async (req, res) => {
     try {
         const totalConnections = await ZeekConnection.count();
 
@@ -37,7 +38,7 @@ router.get("/stats", async (req, res) => {
 
 // Line chart: Connections over time (last 24h, hourly buckets)
 
-router.get("/connections-over-time", async (req, res) => {
+zeekRouter.get("/connections-over-time", async (req, res) => {
     try {
         // 1. Calculate the time 24 hours ago
         const oneDayAgo = new Date(new Date() - 24 * 60 * 60 * 1000);
@@ -68,7 +69,7 @@ router.get("/connections-over-time", async (req, res) => {
 });
 
 // Bar chart: Top Source IPs
-router.get("/top-sources", async (req, res) => {
+zeekRouter.get("/top-sources", async (req, res) => {
     try {
         const data = await ZeekConnection.findAll({
             attributes: [
@@ -87,7 +88,7 @@ router.get("/top-sources", async (req, res) => {
 });
 
 // Pie chart: Protocols
-router.get("/protocols", async (req, res) => {
+zeekRouter.get("/protocols", async (req, res) => {
     try {
         const data = await ZeekConnection.findAll({
             attributes: [
@@ -104,7 +105,7 @@ router.get("/protocols", async (req, res) => {
 });
 
 // Bar chart: Top Domains
-router.get("/top-domains", async (req, res) => {
+zeekRouter.get("/top-domains", async (req, res) => {
     try {
         const data = await ZeekDNS.findAll({
             attributes: [
@@ -126,7 +127,7 @@ router.get("/top-domains", async (req, res) => {
 });
 
 // Histogram approximation: Durations
-router.get("/durations", async (req, res) => {
+zeekRouter.get("/durations", async (req, res) => {
     try {
         // Determine buckets purely in JS to avoid complex SQLite math
         const connections = await ZeekConnection.findAll({
@@ -145,7 +146,7 @@ router.get("/durations", async (req, res) => {
 });
 
 // Recent Connections Table
-router.get("/recent-connections", async (req, res) => {
+zeekRouter.get("/recent-connections", async (req, res) => {
     try {
         const data = await ZeekConnection.findAll({
             order: [["timestamp", "DESC"]],
@@ -159,7 +160,7 @@ router.get("/recent-connections", async (req, res) => {
 });
 
 // DNS Activity Table
-router.get("/dns-activity", async (req, res) => {
+zeekRouter.get("/dns-activity", async (req, res) => {
     try {
         const data = await ZeekDNS.findAll({
             order: [["timestamp", "DESC"]],
@@ -173,7 +174,7 @@ router.get("/dns-activity", async (req, res) => {
 });
 
 // Ingest Endpoints (Mock/Real ingestion)
-router.post("/ingest/conn", async (req, res) => {
+internalZeekRouter.post("/ingest/conn", async (req, res) => {
     try {
         const data = req.body;
 
@@ -243,7 +244,7 @@ router.post("/ingest/conn", async (req, res) => {
     }
 });
 
-router.post("/ingest/dns", async (req, res) => {
+internalZeekRouter.post("/ingest/dns", async (req, res) => {
     try {
         const data = req.body;
 
@@ -280,4 +281,4 @@ router.post("/ingest/dns", async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = {zeekRouter, internalZeekRouter};

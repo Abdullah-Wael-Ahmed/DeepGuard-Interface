@@ -3,9 +3,10 @@ const Alert = require("../models/Alert");
 const { broadcast } = require("../util/websocket");
 const { Op, col, literal, fn, where } = require("sequelize");
 
-const router = express.Router();
+const logRouter = express.Router();
+const internalLogRouter = express.Router();
 
-router.post("/filebeat", async (req, res) => {
+internalLogRouter.post("/filebeat", async (req, res) => {
     try {
 
         console.log(req.body);
@@ -33,7 +34,7 @@ router.post("/filebeat", async (req, res) => {
     }
 })
 
-router.get("/", async (req, res) => {
+logRouter.get("/", async (req, res) => {
     try {
         const page = req.query.page ?? 1
         const search = req.query.search ?? ""
@@ -76,4 +77,4 @@ router.get("/", async (req, res) => {
     }
 })
 
-module.exports = router;
+module.exports = {logRouter, internalLogRouter};
