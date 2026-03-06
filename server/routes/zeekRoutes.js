@@ -222,7 +222,7 @@ router.post("/ingest/dns", async (req, res) => {
         console.log(req.body)
         console.log("--------------------------------------")
 
-        axios.post("http://anomaly-detector:5001/detect", data)
+        axios.post("http://deepguard-anomaly:5001/analyze", data)
             .catch((err) => console.error("Anomaly detector error:", err));
 
         // 1. Handle Timestamp
