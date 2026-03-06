@@ -2,6 +2,7 @@ const express = require("express");
 const { Op, fn, col, literal } = require("sequelize");
 const ZeekConnection = require("../models/ZeekConnection");
 const ZeekDNS = require("../models/ZeekDNS");
+const axios = require("axios")
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ router.get("/connections-over-time", async (req, res) => {
             order: [[literal("time"), "ASC"]],
             // Limit is optional now because the time filter constrains it, 
             // but keeping it is safe.
-            limit: 24, 
+            limit: 24,
         });
 
         res.json(data);
@@ -221,6 +222,9 @@ router.post("/ingest/dns", async (req, res) => {
         console.log(req.body)
         console.log("--------------------------------------")
 
+        axios.post("http://anomaly-detector:5001/detect", data)
+            .catch((err) => console.error("Anomaly detector error:", err));
+
         // 1. Handle Timestamp
         const timestamp = data["@timestamp"] ? new Date(data["@timestamp"]) : new Date();
 
@@ -228,19 +232,19 @@ router.post("/ingest/dns", async (req, res) => {
         await ZeekDNS.create({
             timestamp: timestamp,
             uid: data.uid,                   // Requires 'uid' in Logstash prune whitelist!
-            
+
             // Map Logstash [source][ip] -> DB id_orig_h
             id_orig_h: data.source?.ip,
             id_orig_p: data.source?.port,
 
             // Map Logstash [dns_query] -> DB query
-            query: data.dns_query,           
-            
+            query: data.dns_query,
+
             // Map Logstash [dns_qtype] -> DB qtype_name
-            qtype_name: data.dns_qtype,      
-            
+            qtype_name: data.dns_qtype,
+
             // Map Logstash [dns_rcode] -> DB rcode_name
-            rcode_name: data.dns_rcode       
+            rcode_name: data.dns_rcode
         });
 
         res.json({ status: "ok" });
