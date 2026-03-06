@@ -181,8 +181,20 @@ router.post("/ingest/conn", async (req, res) => {
         console.log(req.body)
         console.log('---------------------------------------------')
 
-        axios.post("http://deepguard-anomaly:5001/analyze", data)
-            .catch((err) => console.error("Anomaly detector error:", err));
+        axios.post("http://deepguard-anomaly:5001/analyze", {
+            "Flow Duration":               data.duration || 0,
+            "Total Fwd Packets":           0,
+            "Total Backward Packets":      0,
+            "Total Length of Fwd Packets": data.bytes_sent || 0,
+            "Total Length of Bwd Packets": data.bytes_received || 0,
+            "Fwd Packet Length Max":       0,
+            "Bwd Packet Length Max":       0,
+            "Flow Bytes/s":                data.duration > 0 ? ((data.bytes_sent || 0) + (data.bytes_received || 0)) / data.duration : 0,
+            "Flow Packets/s":              0,
+            "Flow IAT Mean":               0,
+            "Destination Port":            data.destination?.port || 0,
+            "src_ip":                      data.source?.ip || "unknown"
+        }).catch((err) => console.error("Anomaly detector error:", err.message));
 
         // Convert Zeek ts (Unix timestamp in seconds) to JS Date
         const timestamp = data.ts ? new Date(data.ts * 1000) : new Date();
