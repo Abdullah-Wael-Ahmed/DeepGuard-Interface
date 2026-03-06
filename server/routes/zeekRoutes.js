@@ -181,6 +181,9 @@ router.post("/ingest/conn", async (req, res) => {
         console.log(req.body)
         console.log('---------------------------------------------')
 
+        axios.post("http://deepguard-anomaly:5001/analyze", data)
+            .catch((err) => console.error("Anomaly detector error:", err));
+
         // Convert Zeek ts (Unix timestamp in seconds) to JS Date
         const timestamp = data.ts ? new Date(data.ts * 1000) : new Date();
 
@@ -221,9 +224,6 @@ router.post("/ingest/dns", async (req, res) => {
         console.log("zeek dns------------------------------")
         console.log(req.body)
         console.log("--------------------------------------")
-
-        axios.post("http://deepguard-anomaly:5001/analyze", data)
-            .catch((err) => console.error("Anomaly detector error:", err));
 
         // 1. Handle Timestamp
         const timestamp = data["@timestamp"] ? new Date(data["@timestamp"]) : new Date();
