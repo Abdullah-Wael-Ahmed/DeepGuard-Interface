@@ -2,6 +2,7 @@ version: "3.9"
 services:
   backend:
     build: ./server
+    container_name: deepguard-backend
     restart: unless-stopped
     env_file:
       - ./server/.env
