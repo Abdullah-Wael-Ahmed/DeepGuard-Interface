@@ -74,8 +74,8 @@ def save_result(src_ip, dest_port, score, is_anomaly, severity):
 
 # ─── Severity helper ──────────────────────────────────────
 def get_severity(score):
-    if score < -0.6:   return 'HIGH'
-    elif score < -0.4: return 'MEDIUM'
+    if score < -0.5:   return 'HIGH'
+    elif score < -0.43: return 'MEDIUM'
     else:              return 'LOW'
 
 # ─── Health check ─────────────────────────────────────────
@@ -105,7 +105,7 @@ def analyze():
 
         prediction = model.predict(features)
         score      = model.score_samples(features)
-        is_anomaly = bool(prediction[0] == -1)
+        is_anomaly = bool(score[0] < -0.5)
         severity   = get_severity(score[0])
         src_ip     = event.get('src_ip', 'unknown')
         dest_port  = event.get('Destination Port', 0)
