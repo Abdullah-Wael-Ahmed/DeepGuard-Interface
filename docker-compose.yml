@@ -8,8 +8,6 @@ services:
       - ./server/.env
     environment:
       NODE_ENV: dep
-      PUBLIC_PORT: 5000
-      INTERNAL_PORT: 5010
     ports:
       - "5000:5000"
     cap_add:
