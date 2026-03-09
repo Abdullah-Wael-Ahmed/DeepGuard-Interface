@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, ReferenceLine
 } from 'recharts';
 import {
@@ -95,6 +95,8 @@ const AnomalyDetection = () => {
       .slice(-20)
       .map((r) => ({
         time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        normal: r.is_anomaly ? 0 : r.anomaly_score,
+        anomaly: r.is_anomaly ? r.anomaly_score : 0,
         score: r.anomaly_score,
         isAnomaly: r.is_anomaly,
         severity: r.severity,
@@ -129,8 +131,8 @@ const AnomalyDetection = () => {
           <button
             onClick={() => { setLive(!live); if (!live) fetchAll(); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors cursor-pointer ${live
-                ? 'bg-card-dark border-green-500/50 text-green-400'
-                : 'bg-card-dark border-gray-700 text-gray-500'
+              ? 'bg-card-dark border-green-500/50 text-green-400'
+              : 'bg-card-dark border-gray-700 text-gray-500'
               }`}
           >
             <div className={`w-2 h-2 rounded-full ${live ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
@@ -213,15 +215,15 @@ const AnomalyDetection = () => {
               <div className="h-[300px] w-full">
                 {timelineData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={timelineData} barCategoryGap="15%">
+                    <AreaChart data={timelineData}>
                       <defs>
-                        <linearGradient id="barNormal" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <linearGradient id="colorNormal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient id="barAnomaly" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
-                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.3} />
+                        <linearGradient id="colorAnomaly" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -237,18 +239,9 @@ const AnomalyDetection = () => {
                           label={{ value: 'Threshold', fill: '#64FFDA', fontSize: 11, position: 'right' }}
                         />
                       )}
-                      <Bar
-                        dataKey="score"
-                        name="Recon. Error"
-                        radius={[4, 4, 0, 0]}
-                        fill="url(#barNormal)"
-                        shape={(props) => {
-                          const { x, y, width, height, payload } = props;
-                          const fill = payload.isAnomaly ? 'url(#barAnomaly)' : 'url(#barNormal)';
-                          return <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} ry={4} />;
-                        }}
-                      />
-                    </BarChart>
+                      <Area type="monotone" dataKey="normal" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNormal)" name="Normal Score" />
+                      <Area type="monotone" dataKey="anomaly" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomaly)" name="Anomaly Score" />
+                    </AreaChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-gray-500">
