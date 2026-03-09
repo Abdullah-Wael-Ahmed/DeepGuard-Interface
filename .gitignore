@@ -144,3 +144,8 @@ vite.config.ts.timestamp-*
 *.db
 *.db-journal
 *.sqlite-journal
+
+
+*.csv
+*.keras
+*.pkl
