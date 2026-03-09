@@ -1,0 +1,19 @@
+{
+  "reconstruction_threshold": 0.06313000520755913,
+  "feature_names": [
+    "conn_count",
+    "unique_dst_ports",
+    "unique_dst_ips",
+    "syn_ratio",
+    "failed_ratio",
+    "bytes_total",
+    "packets_total",
+    "avg_duration",
+    "connections_per_sec",
+    "avg_bytes_per_flow"
+  ],
+  "window_size": 30,
+  "training_samples": 5000,
+  "mean_error": 0.03011619371395491,
+  "max_error": 0.11129687807305962
+}
