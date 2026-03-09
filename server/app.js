@@ -8,6 +8,7 @@ const threatIntelRouter = require("./routes/threatIntelRoutes")
 const auth = require("./routes/auth")
 const zeekRouter = require("./routes/zeekRoutes")
 const mitreRouter = require("./routes/mitreRoutes")
+const anomalyRouter = require("./routes/anomalyRoutes")
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
@@ -36,6 +37,7 @@ app.use("/firewall", fireWallRouter)
 app.use("/threat-intel", threatIntelRouter)
 app.use("/zeek", zeekRouter)
 app.use("/mitre", mitreRouter)
+app.use("/anomaly", anomalyRouter)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");

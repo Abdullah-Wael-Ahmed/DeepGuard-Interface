@@ -1,358 +1,392 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { AlertTriangle, Activity, Database, Brain, Cpu, LoaderCircle, Inbox } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, ReferenceLine
+} from 'recharts';
+import {
+  AlertTriangle, Activity, Brain, Shield, ShieldCheck, ShieldAlert,
+  LoaderCircle, Inbox, RefreshCw, Clock, Eye
+} from 'lucide-react';
 import axios from 'axios';
-import useWebSocket from 'react-use-websocket';
-import { toast } from 'react-toastify';
+
+const SEVERITY_COLORS = {
+  HIGH: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30', fill: '#ef4444' },
+  MEDIUM: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30', fill: '#eab308' },
+  LOW: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30', fill: '#22c55e' },
+};
+
+const POLL_INTERVAL = 15_000; // 15 seconds
+
+// ─── Custom Tooltip ──────────────────────────────────────
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-[#111827] border border-gray-700 rounded-lg px-3 py-2 text-sm shadow-xl">
+      <p className="text-gray-400 mb-1 font-mono text-xs">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="text-text-main">
+          <span style={{ color: p.color }} className="font-medium">{p.name}: </span>
+          {typeof p.value === 'number' ? p.value.toFixed(4) : p.value}
+        </p>
+      ))}
+    </div>
+  );
+};
+
+// ─── Stat Card ───────────────────────────────────────────
+const StatCard = ({ icon: Icon, label, value, color, sub }) => (
+  <div className="bg-card-dark rounded-xl border border-gray-800 p-5 shadow-lg hover:border-gray-700 transition-colors card-lift">
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-text-secondary text-sm font-medium">{label}</span>
+      <div className={`p-2 rounded-lg ${color}`}>
+        <Icon size={18} />
+      </div>
+    </div>
+    <p className="text-3xl font-bold text-text-main tabular-nums">{value}</p>
+    {sub && <p className="text-text-secondary text-xs mt-1">{sub}</p>}
+  </div>
+);
 
 const AnomalyDetection = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [alertCount, setAlertCount] = useState(0);
+  const [stats, setStats] = useState(null);
+  const [results, setResults] = useState([]);
+  const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(null);
 
-  // Fetch alerts from backend
-  const fetchAlerts = async () => {
+  // ─── Data fetching ───────────────────────────────────
+  const fetchAll = useCallback(async () => {
     try {
-      setLoading(true);
-      const res = await axios.get(`${import.meta.env.VITE_BACK}/logs`, {
-        withCredentials: true,
-        params: { page: 1 }
-      });
-      setAlerts(res.data.alerts || []);
-      setAlertCount(res.data.alertCount || 0);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching alerts:', error);
+      const [statsRes, resultsRes, healthRes] = await Promise.all([
+        axios.get(`${import.meta.env.VITE_BACK}/anomaly/stats`, { withCredentials: true }),
+        axios.get(`${import.meta.env.VITE_BACK}/anomaly/results`, { withCredentials: true }),
+        axios.get(`${import.meta.env.VITE_BACK}/anomaly/health`, { withCredentials: true }),
+      ]);
+      setStats(statsRes.data);
+      setResults(resultsRes.data.results || []);
+      setHealth(healthRes.data);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error fetching anomaly data:', err);
+    } finally {
       setLoading(false);
     }
-  };
-
-  // WebSocket for real-time updates
-  const { lastMessage } = useWebSocket(import.meta.env.VITE_WS, {
-    shouldReconnect: () => true,
-    reconnectAttempts: 10,
-    reconnectInterval: 3000
-  });
-
-  useEffect(() => {
-    fetchAlerts();
   }, []);
 
+  // Initial + polling
   useEffect(() => {
-    try {
-      if (!live || !lastMessage?.data) return;
-      const message = JSON.parse(lastMessage.data);
-      if (message.type === 'new_alert') {
-        setAlerts((prev) => [message.data, ...prev.slice(0, 9)]);
-        setAlertCount((prev) => prev + 1);
-        toast.info(`New anomaly: ${message.data.signature?.slice(0, 30)}...`);
-      }
-    } catch (error) {
-      console.error('Error parsing WebSocket message:', error);
-    }
-  }, [lastMessage, live]);
+    fetchAll();
+  }, [fetchAll]);
 
-  // Transform alerts data for Network Behavior Chart (group by hour)
-  const networkBehaviorData = useMemo(() => {
-    if (!alerts.length) return [];
-    
-    const hourlyData = {};
-    const now = new Date();
-    
-    // Initialize last 24 hours
-    for (let i = 23; i >= 0; i--) {
-      const hour = new Date(now.getTime() - i * 60 * 60 * 1000);
-      const key = `${hour.getHours().toString().padStart(2, '0')}:00`;
-      hourlyData[key] = { time: key, normal: 0, anomaly: 0 };
-    }
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(fetchAll, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [live, fetchAll]);
 
-    // Count alerts per hour
-    alerts.forEach(alert => {
-      const alertTime = new Date(alert.createdAt || alert.timestamp);
-      const hourKey = `${alertTime.getHours().toString().padStart(2, '0')}:00`;
-      if (hourlyData[hourKey]) {
-        if (alert.severity === 1) {
-          hourlyData[hourKey].anomaly += 1;
-        } else {
-          hourlyData[hourKey].normal += 1;
-        }
-      }
-    });
+  // ─── Derived chart data ──────────────────────────────
 
-    return Object.values(hourlyData).slice(-8); // Show last 8 hours
-  }, [alerts]);
+  // Timeline: use last 20 results, show score vs threshold
+  const timelineData = useMemo(() => {
+    if (!results.length) return [];
+    return [...results]
+      .reverse()
+      .slice(-20)
+      .map((r) => ({
+        time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        score: r.anomaly_score,
+        isAnomaly: r.is_anomaly,
+        severity: r.severity,
+        src_ip: r.src_ip,
+      }));
+  }, [results]);
 
-  // Transform alerts for Threat Prediction Radar (group by protocol/signature type)
-  const threatPredictionData = useMemo(() => {
-    if (!alerts.length) {
-      return [
-        { subject: 'TCP', A: 0, fullMark: 100 },
-        { subject: 'UDP', A: 0, fullMark: 100 },
-        { subject: 'ICMP', A: 0, fullMark: 100 },
-        { subject: 'High Sev', A: 0, fullMark: 100 },
-        { subject: 'Medium Sev', A: 0, fullMark: 100 },
-        { subject: 'Low Sev', A: 0, fullMark: 100 },
-      ];
-    }
-
-    const protocolCounts = { TCP: 0, UDP: 0, ICMP: 0, Other: 0 };
-    const severityCounts = { high: 0, medium: 0, low: 0 };
-
-    alerts.forEach(alert => {
-      const proto = alert.protocol?.toUpperCase();
-      if (protocolCounts.hasOwnProperty(proto)) {
-        protocolCounts[proto]++;
-      } else {
-        protocolCounts.Other++;
-      }
-
-      if (alert.severity === 1) severityCounts.high++;
-      else if (alert.severity === 2) severityCounts.medium++;
-      else severityCounts.low++;
-    });
-
-    const total = alerts.length || 1;
+  // Severity pie
+  const severityPieData = useMemo(() => {
+    if (!stats) return [];
     return [
-      { subject: 'TCP', A: Math.round((protocolCounts.TCP / total) * 100), fullMark: 100 },
-      { subject: 'UDP', A: Math.round((protocolCounts.UDP / total) * 100), fullMark: 100 },
-      { subject: 'ICMP', A: Math.round((protocolCounts.ICMP / total) * 100), fullMark: 100 },
-      { subject: 'High Sev', A: Math.round((severityCounts.high / total) * 100), fullMark: 100 },
-      { subject: 'Med Sev', A: Math.round((severityCounts.medium / total) * 100), fullMark: 100 },
-      { subject: 'Low Sev', A: Math.round((severityCounts.low / total) * 100), fullMark: 100 },
-    ];
-  }, [alerts]);
+      { name: 'HIGH', value: stats.high_severity || 0 },
+      { name: 'MEDIUM', value: stats.medium_severity || 0 },
+      { name: 'Normal', value: stats.normal_events || 0 },
+    ].filter((d) => d.value > 0);
+  }, [stats]);
 
-  // Detection Logs - use latest alerts
-  const detectionLogs = useMemo(() => {
-    return alerts.slice(0, 6).map((alert, idx) => ({
-      id: alert.id || idx,
-      time: new Date(alert.createdAt || alert.timestamp).toLocaleTimeString(),
-      type: alert.signature?.slice(0, 25) || 'Unknown',
-      source: `${alert.src_ip}:${alert.src_port}`,
-      confidence: alert.severity === 1 ? '95%' : alert.severity === 2 ? '75%' : '50%',
-      status: alert.severity === 1 ? 'Blocked' : alert.severity === 2 ? 'Flagged' : 'Analyzed'
-    }));
-  }, [alerts]);
+  const pieCellColors = ['#ef4444', '#eab308', '#22c55e'];
 
-  // System Resource Matrix - mock based on alert count
-  const systemNodes = useMemo(() => {
-    const highSeverityCount = alerts.filter(a => a.severity === 1).length;
-    return [...Array(8)].map((_, i) => ({
-      id: i,
-      isAlert: i === 3 && highSeverityCount > 0,
-      cpuLoad: Math.min(90, 30 + (alerts.length * 2) + (i * 5)),
-      memLoad: Math.min(85, 40 + (highSeverityCount * 10) + (i * 3))
-    }));
-  }, [alerts]);
-
-  const getSeverityColor = (status) => {
-    switch (status) {
-      case 'Blocked': return 'bg-red-500/10 text-red-500 border border-red-500/20';
-      case 'Flagged': return 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
-      default: return 'bg-green-500/10 text-green-500 border border-green-500/20';
-    }
-  };
-
+  // ─── Render ──────────────────────────────────────────
   return (
     <div className="flex-1 bg-background-dark p-8 overflow-y-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-gradient">Anomaly Detection</h1>
-          <p className="text-text-secondary mt-1">AI-Driven Behavioral Analysis & Threat Prediction</p>
+          <p className="text-text-secondary mt-1">Window-Based Behavioral Analysis &mdash; Autoencoder Engine</p>
         </div>
-        
-        <div className="flex gap-4">
+
+        <div className="flex gap-3 items-center">
+          {/* Live toggle */}
           <button
-            onClick={() => { setLive(!live); if (!live) fetchAlerts(); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              live 
-                ? 'bg-card-dark border-green-500/50 text-green-500' 
+            onClick={() => { setLive(!live); if (!live) fetchAll(); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors cursor-pointer ${live
+                ? 'bg-card-dark border-green-500/50 text-green-400'
                 : 'bg-card-dark border-gray-700 text-gray-500'
-            }`}
+              }`}
           >
-            <div className={`w-2 h-2 rounded-full ${live ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
-            <span className="text-sm font-medium">{live ? 'AI Engine Online' : 'Paused'}</span>
+            <div className={`w-2 h-2 rounded-full ${live ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
+            <span className="text-sm font-medium">{live ? 'Live' : 'Paused'}</span>
           </button>
-          <div className="flex items-center gap-2 px-4 py-2 bg-card-dark rounded-lg border border-gray-800">
-            <span className="text-text-secondary text-sm">Total Alerts:</span>
-            <span className="text-primary font-bold">{alertCount}</span>
-          </div>
+
+          {/* Refresh */}
+          <button
+            onClick={fetchAll}
+            className="p-2 bg-card-dark border border-gray-700 rounded-lg text-text-secondary hover:text-primary transition-colors cursor-pointer"
+            title="Refresh now"
+          >
+            <RefreshCw size={16} />
+          </button>
+
+          {/* Last refresh */}
+          {lastRefresh && (
+            <div className="flex items-center gap-1.5 text-text-secondary text-xs">
+              <Clock size={12} />
+              {lastRefresh.toLocaleTimeString()}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Grid Layout */}
-      <div className="grid grid-cols-12 gap-6">
-        
-        {/* Network Behavior Graph */}
-        <div className="col-span-12 lg:col-span-8 bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg backdrop-blur-md">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-text-main flex items-center gap-2">
-              <Activity className="size-5 text-primary" />
-              Network Behavior Analysis
-            </h2>
-            <span className="text-text-secondary text-sm">Last 8 hours</span>
-          </div>
-          <div className="h-[300px] w-full">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <LoaderCircle className="animate-spin text-primary" size={48} />
-              </div>
-            ) : networkBehaviorData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={networkBehaviorData}>
-                  <defs>
-                    <linearGradient id="colorNormal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorAnomaly" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }}
-                  />
-                  <Area type="monotone" dataKey="normal" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNormal)" name="Normal Traffic" />
-                  <Area type="monotone" dataKey="anomaly" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomaly)" name="Anomalies" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <Inbox size={48} />
-                <p className="mt-2">No data available</p>
-              </div>
-            )}
-          </div>
+      {/* Loading state */}
+      {loading ? (
+        <div className="flex items-center justify-center h-96">
+          <LoaderCircle className="animate-spin text-primary" size={48} />
         </div>
-
-        {/* AI Threat Prediction */}
-        <div className="col-span-12 lg:col-span-4 bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -z-10"></div>
-          
-          <h2 className="text-xl font-bold text-text-main flex items-center gap-2 mb-4">
-            <Brain className="size-5 text-purple-500" />
-            Threat Distribution
-          </h2>
-          <div className="h-[300px] w-full flex items-center justify-center">
-            {loading ? (
-              <LoaderCircle className="animate-spin text-purple-500" size={48} />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={threatPredictionData}>
-                  <PolarGrid stroke="#374151" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Threat %" dataKey="A" stroke="#8b5cf6" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.4} />
-                  <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            )}
+      ) : (
+        <>
+          {/* ─── Stat Cards ─────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6 stagger-children">
+            <StatCard
+              icon={Eye}
+              label="Windows Analyzed"
+              value={stats?.total_events ?? 0}
+              color="bg-blue-500/10 text-blue-400"
+              sub="Total behavioral windows scored"
+            />
+            <StatCard
+              icon={ShieldAlert}
+              label="Anomalies Detected"
+              value={stats?.total_anomalies ?? 0}
+              color="bg-red-500/10 text-red-400"
+              sub={stats?.total_events
+                ? `${((stats.total_anomalies / stats.total_events) * 100).toFixed(1)}% anomaly rate`
+                : '—'}
+            />
+            <StatCard
+              icon={AlertTriangle}
+              label="High Severity"
+              value={stats?.high_severity ?? 0}
+              color="bg-orange-500/10 text-orange-400"
+              sub="Critical behavioral anomalies"
+            />
+            <StatCard
+              icon={ShieldCheck}
+              label="Normal Windows"
+              value={stats?.normal_events ?? 0}
+              color="bg-green-500/10 text-green-400"
+              sub="Below reconstruction threshold"
+            />
           </div>
-          <div className="text-center">
-            <p className="text-text-secondary text-sm">
-              Based on <span className="text-purple-400 font-bold">{alerts.length}</span> recent alerts
-            </p>
-          </div>
-        </div>
 
-        {/* System Resource Matrix */}
-        <div className="col-span-12 lg:col-span-6 bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg">
-          <h2 className="text-xl font-bold text-text-main flex items-center gap-2 mb-6">
-            <Cpu className="size-5 text-cyan-400" />
-            System Resource Matrix
-          </h2>
-          <div className="grid grid-cols-4 gap-4 h-[200px]">
-            {systemNodes.map((node) => (
-              <div key={node.id} className="bg-background-dark rounded-lg p-3 border border-gray-700 hover:border-cyan-500/50 transition-colors group cursor-pointer">
-                <div className="flex justify-between items-start mb-2">
-                  <div className={`w-2 h-2 rounded-full ${node.isAlert ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
-                  <span className="text-xs text-text-secondary">Node-{node.id + 1}</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all ${node.isAlert ? 'bg-red-500' : 'bg-cyan-500'}`}
-                      style={{ width: `${node.cpuLoad}%` }}
-                    ></div>
+          {/* ─── Charts Row ─────────────────────────────── */}
+          <div className="grid grid-cols-12 gap-6 mb-6">
+            {/* Anomaly Timeline */}
+            <div className="col-span-12 lg:col-span-8 bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-xl font-bold text-text-main flex items-center gap-2">
+                  <Activity className="size-5 text-primary" />
+                  Anomaly Score Timeline
+                </h2>
+                <span className="text-text-secondary text-xs">
+                  Threshold: <span className="text-primary font-mono font-bold">{health?.threshold?.toFixed(4) ?? '—'}</span>
+                </span>
+              </div>
+              <div className="h-[300px] w-full">
+                {timelineData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={timelineData} barCategoryGap="15%">
+                      <defs>
+                        <linearGradient id="barNormal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        </linearGradient>
+                        <linearGradient id="barAnomaly" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.3} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                      <XAxis dataKey="time" stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />
+                      <Tooltip content={<ChartTooltip />} />
+                      {health?.threshold && (
+                        <ReferenceLine
+                          y={health.threshold}
+                          stroke="#64FFDA"
+                          strokeDasharray="6 4"
+                          strokeWidth={2}
+                          label={{ value: 'Threshold', fill: '#64FFDA', fontSize: 11, position: 'right' }}
+                        />
+                      )}
+                      <Bar
+                        dataKey="score"
+                        name="Recon. Error"
+                        radius={[4, 4, 0, 0]}
+                        fill="url(#barNormal)"
+                        shape={(props) => {
+                          const { x, y, width, height, payload } = props;
+                          const fill = payload.isAnomaly ? 'url(#barAnomaly)' : 'url(#barNormal)';
+                          return <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} ry={4} />;
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <Inbox size={48} />
+                    <p className="mt-2">No scored windows yet</p>
+                    <p className="text-xs mt-1">Windows flush every {health?.window_seconds ?? 30}s</p>
                   </div>
-                  <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-purple-500 rounded-full transition-all"
-                      style={{ width: `${node.memLoad}%` }}
-                    ></div>
-                  </div>
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Detection Logs */}
-        <div className="col-span-12 lg:col-span-6 bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg">
-          <h2 className="text-xl font-bold text-text-main flex items-center gap-2 mb-4">
-            <Database className="size-5 text-yellow-500" />
-            Live Detection Feed
-          </h2>
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-40">
-                <LoaderCircle className="animate-spin text-yellow-500" size={48} />
+            {/* Severity Distribution */}
+            <div className="col-span-12 lg:col-span-4 bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -z-10" />
+              <h2 className="text-xl font-bold text-text-main flex items-center gap-2 mb-4">
+                <Brain className="size-5 text-purple-500" />
+                Severity Distribution
+              </h2>
+              <div className="h-[280px] w-full flex items-center justify-center">
+                {severityPieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={severityPieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={4}
+                        strokeWidth={0}
+                      >
+                        {severityPieData.map((entry, i) => (
+                          <Cell key={i} fill={pieCellColors[i % pieCellColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#111827',
+                          border: '1px solid #374151',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-500">
+                    <Shield size={40} />
+                    <p className="mt-2 text-sm">No data yet</p>
+                  </div>
+                )}
               </div>
-            ) : detectionLogs.length > 0 ? (
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-text-secondary text-sm border-b border-gray-800">
-                    <th className="pb-3 font-medium">Time</th>
-                    <th className="pb-3 font-medium">Type</th>
-                    <th className="pb-3 font-medium">Source</th>
-                    <th className="pb-3 font-medium">Confidence</th>
-                    <th className="pb-3 font-medium text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {detectionLogs.map((log) => (
-                    <tr key={log.id} className="border-b border-gray-800 last:border-0 hover:bg-white/5 transition-colors">
-                      <td className="py-3 text-text-secondary font-mono">{log.time}</td>
-                      <td className="py-3 text-text-main font-medium">
-                        <span className={`flex items-center gap-1 ${log.status === 'Blocked' ? 'text-red-400' : 'text-text-main'}`}>
-                          {log.status === 'Blocked' && <AlertTriangle size={12} />}
-                          {log.type}...
-                        </span>
-                      </td>
-                      <td className="py-3 text-cyan-400">{log.source}</td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 bg-gray-800 h-1 rounded-full overflow-hidden">
-                            <div style={{ width: log.confidence }} className="h-full bg-blue-500"></div>
-                          </div>
-                          <span className="text-xs text-text-secondary">{log.confidence}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 text-right">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(log.status)}`}>
-                          {log.status}
-                        </span>
-                      </td>
+            </div>
+          </div>
+
+          {/* ─── Detection Results Table ────────────────── */}
+          <div className="bg-card-dark rounded-xl border border-gray-800 p-6 shadow-lg">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-text-main flex items-center gap-2">
+                <Shield className="size-5 text-yellow-500" />
+                Detection Results
+              </h2>
+              <span className="text-text-secondary text-sm">{results.length} recent windows</span>
+            </div>
+            <div className="overflow-x-auto">
+              {results.length > 0 ? (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-text-secondary text-sm border-b border-gray-800">
+                      <th className="pb-3 font-medium">Time</th>
+                      <th className="pb-3 font-medium">Source IP</th>
+                      <th className="pb-3 font-medium">Port</th>
+                      <th className="pb-3 font-medium">Score</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium text-right">Severity</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-                <Inbox size={36} />
-                <p className="mt-2">No alerts to display</p>
-              </div>
-            )}
+                  </thead>
+                  <tbody className="text-sm">
+                    {results.map((r, idx) => {
+                      const sev = SEVERITY_COLORS[r.severity] || SEVERITY_COLORS.LOW;
+                      return (
+                        <tr key={idx} className="border-b border-gray-800/50 last:border-0 hover:bg-white/5 transition-colors">
+                          <td className="py-3 text-text-secondary font-mono text-xs">
+                            {new Date(r.timestamp).toLocaleString([], {
+                              month: 'short', day: 'numeric',
+                              hour: '2-digit', minute: '2-digit', second: '2-digit'
+                            })}
+                          </td>
+                          <td className="py-3 text-cyan-400 font-mono">{r.src_ip}</td>
+                          <td className="py-3 text-text-main tabular-nums">{r.dest_port}</td>
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${r.is_anomaly ? 'bg-red-500' : 'bg-blue-500'}`}
+                                  style={{ width: `${Math.min(100, (r.anomaly_score / (health?.threshold || 0.1)) * 50)}%` }}
+                                />
+                              </div>
+                              <span className="text-text-secondary font-mono text-xs">{r.anomaly_score?.toFixed(4)}</span>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            {r.is_anomaly ? (
+                              <span className="flex items-center gap-1 text-red-400 font-medium">
+                                <AlertTriangle size={13} /> Anomaly
+                              </span>
+                            ) : (
+                              <span className="text-green-400">Normal</span>
+                            )}
+                          </td>
+                          <td className="py-3 text-right">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${sev.bg} ${sev.text} ${sev.border}`}>
+                              {r.severity}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                  <Inbox size={36} />
+                  <p className="mt-2">No detection results yet</p>
+                  <p className="text-xs mt-1 text-gray-600">Results appear after windows are scored</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-      </div>
+        </>
+      )}
     </div>
   );
 };
