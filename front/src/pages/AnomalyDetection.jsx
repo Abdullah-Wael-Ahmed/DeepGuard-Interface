@@ -87,21 +87,33 @@ const AnomalyDetection = () => {
 
   // ─── Derived chart data ──────────────────────────────
 
-  // Timeline: use last 20 results, show score vs threshold
+  // Timeline: group by minute to show count of normal/anomaly events over the last 20 minutes
   const timelineData = useMemo(() => {
     if (!results.length) return [];
-    return [...results]
-      .reverse()
-      .slice(-20)
-      .map((r) => ({
-        time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        normal: r.is_anomaly ? 0 : r.anomaly_score,
-        anomaly: r.is_anomaly ? r.anomaly_score : 0,
-        score: r.anomaly_score,
-        isAnomaly: r.is_anomaly,
-        severity: r.severity,
-        src_ip: r.src_ip,
-      }));
+
+    const timeData = {};
+    const now = new Date();
+
+    // Initialize last 20 minutes
+    for (let i = 19; i >= 0; i--) {
+      const t = new Date(now.getTime() - i * 60 * 1000);
+      const key = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+      timeData[key] = { time: key, normal: 0, anomaly: 0 };
+    }
+
+    results.forEach((r) => {
+      const t = new Date(r.timestamp);
+      const key = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+      if (timeData[key]) {
+        if (r.is_anomaly) {
+          timeData[key].anomaly += 1;
+        } else {
+          timeData[key].normal += 1;
+        }
+      }
+    });
+
+    return Object.values(timeData);
   }, [results]);
 
   // Severity pie
@@ -206,11 +218,9 @@ const AnomalyDetection = () => {
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-xl font-bold text-text-main flex items-center gap-2">
                   <Activity className="size-5 text-primary" />
-                  Anomaly Score Timeline
+                  Network Behavior Timeline
                 </h2>
-                <span className="text-text-secondary text-xs">
-                  Threshold: <span className="text-primary font-mono font-bold">{health?.threshold?.toFixed(4) ?? '—'}</span>
-                </span>
+                <span className="text-text-secondary text-xs">Last 20 minutes</span>
               </div>
               <div className="h-[300px] w-full">
                 {timelineData.length > 0 ? (
@@ -230,17 +240,8 @@ const AnomalyDetection = () => {
                       <XAxis dataKey="time" stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />
                       <Tooltip content={<ChartTooltip />} />
-                      {health?.threshold && (
-                        <ReferenceLine
-                          y={health.threshold}
-                          stroke="#64FFDA"
-                          strokeDasharray="6 4"
-                          strokeWidth={2}
-                          label={{ value: 'Threshold', fill: '#64FFDA', fontSize: 11, position: 'right' }}
-                        />
-                      )}
-                      <Area type="monotone" dataKey="normal" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNormal)" name="Normal Score" />
-                      <Area type="monotone" dataKey="anomaly" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomaly)" name="Anomaly Score" />
+                      <Area type="monotone" dataKey="normal" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNormal)" name="Normal Count" />
+                      <Area type="monotone" dataKey="anomaly" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomaly)" name="Anomaly Count" />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
