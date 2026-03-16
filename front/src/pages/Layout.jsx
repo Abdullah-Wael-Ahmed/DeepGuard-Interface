@@ -4,6 +4,7 @@ import DeepGuard from '../assets/DeepGaurdDark.svg';
 import TopBar from '../components/TopBar';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import GlobalCopilot from '../components/GlobalCopilot';
 
 const Layout = () => {
     const location = useLocation();
@@ -105,6 +106,7 @@ const Layout = () => {
                     <TopBar />
                     <div className="flex-1 overflow-auto">
                     <Outlet />
+                    <GlobalCopilot />
                     </div>
                 </div>
             </div>

@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
     Crosshair, ShieldAlert, BrainCircuit, Activity, ServerCrash,
-    Bot, Send, MapPin, ChevronDown, ChevronUp, ExternalLink,
-    Shield, Zap, AlertTriangle, LoaderCircle, Inbox, RefreshCw,
-    Ban, Search, Eye, X, Cpu, Info, ChevronRight, Clock, Target
+    MapPin, Eye, X, Clock, Target, LoaderCircle, Inbox, RefreshCw,
+    Ban
 } from 'lucide-react';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import { SkeletonCard } from '../components/ui/Skeleton';
@@ -58,15 +57,6 @@ const MitreAttack = () => {
     const [techniqueDetail, setTechniqueDetail] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
 
-    // Chatbot state
-    const [copilotOpen, setCopilotOpen] = useState(false); // Default closed for floating icon
-    const [chatInput, setChatInput] = useState('');
-    const [chatLoading, setChatLoading] = useState(false);
-    const [chatHistory, setChatHistory] = useState([
-        { role: 'bot', text: 'DeepGuard Security Copilot online. I can help you investigate ATT&CK detections, explain alert mappings, suggest mitigations, and generate firewall rules. Try asking:\n\n• "Why was T1046 triggered?"\n• "Show lateral movement attempts"\n• "Is this a false positive?"', payload: null }
-    ]);
-    const chatEndRef = useRef(null);
-
     const BACK = import.meta.env.VITE_BACK || 'http://localhost:5000';
 
     // ─────────────── Data Fetching ───────────────
@@ -109,38 +99,12 @@ const MitreAttack = () => {
         fetchRecentAlerts();
     }, []);
 
-    useEffect(() => {
-        if (copilotOpen) {
-            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [chatHistory, copilotOpen]);
-
     // ─────────────── Technique Drill-Down ───────────────
 
     const handleTechniqueClick = (tech) => {
         if (!tech.detected) return;
         setSelectedTechnique(tech);
         fetchTechniqueDetail(tech.id);
-    };
-
-    // ─────────────── Chatbot ───────────────
-
-    const handleChatSubmit = async (e) => {
-        e.preventDefault();
-        if (!chatInput.trim() || chatLoading) return;
-
-        const userMsg = chatInput.trim();
-        setChatHistory(prev => [...prev, { role: 'user', text: userMsg, payload: null }]);
-        setChatInput('');
-        setChatLoading(true);
-
-        try {
-            const res = await axios.post(`${BACK}/mitre/chatbot/query`, { prompt: userMsg }, { withCredentials: true });
-            setChatHistory(prev => [...prev, { role: 'bot', text: res.data.analysis, payload: res.data }]);
-        } catch (error) {
-            setChatHistory(prev => [...prev, { role: 'bot', text: '⚠ Failed to reach the DeepGuard Copilot inference engine. Ensure the backend is online.', payload: null }]);
-        }
-        setChatLoading(false);
     };
 
     // ─────────────── Quick-action: block IP ───────────────
@@ -160,7 +124,7 @@ const MitreAttack = () => {
 
     return (
         <div className="flex-1 bg-background-dark p-4 sm:p-8 overflow-y-auto relative">
-            <div className="flex flex-col gap-8 max-w-[1800px] mx-auto pb-24"> {/* Added pb-24 for floating button clearance */}
+            <div className="flex flex-col gap-8 max-w-[1800px] mx-auto pb-24"> 
 
                 {/* ═══════════════ Header ═══════════════ */}
                 <div className="flex flex-wrap justify-between items-center gap-4 animate-fade-in">
@@ -343,9 +307,6 @@ const MitreAttack = () => {
                                                         <button onClick={() => handleBlockIP(alert.src_ip)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded text-xs font-medium hover:bg-red-500/20 transition-colors">
                                                             <Ban size={12} /> Block IP
                                                         </button>
-                                                        <button onClick={() => { setChatInput(`Explain ${alert.alert_id} detection for ${selectedTechnique.id}`); setCopilotOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded text-xs font-medium hover:bg-primary/20 transition-colors">
-                                                            <Bot size={12} /> Ask Copilot
-                                                        </button>
                                                     </div>
                                                 </div>
                                             );
@@ -408,138 +369,6 @@ const MitreAttack = () => {
                     </div>
                 </div>
             </div>
-
-            {/* ═══════════════ Floating Security Copilot Panel ═══════════════ */}
-            
-            {/* Floating Action Button (FAB) */}
-            <button
-                onClick={() => setCopilotOpen(!copilotOpen)}
-                className={`fixed bottom-6 right-6 sm:bottom-8 sm:right-8 p-4 rounded-full shadow-2xl z-[60] transition-all duration-300 flex items-center justify-center ${
-                    copilotOpen 
-                    ? 'bg-gray-700 text-white hover:bg-gray-600 rotate-90' 
-                    : 'bg-primary text-background-dark hover:bg-primary-dark hover:-translate-y-1 hover:shadow-glow-primary'
-                }`}
-            >
-                {copilotOpen ? <X size={24} /> : <Bot size={24} />}
-            </button>
-
-            {/* Copilot Overlay Window */}
-            {copilotOpen && (
-                <div 
-                    className="fixed bottom-24 right-4 sm:right-8 w-[calc(100vw-2rem)] sm:w-[420px] flex flex-col bg-card-dark rounded-xl border border-gray-700 shadow-2xl z-50 overflow-hidden animate-slide-up origin-bottom-right" 
-                    style={{ maxHeight: 'calc(100vh - 140px)', height: '600px' }}
-                >
-                    {/* Copilot Header */}
-                    <div className="p-4 bg-gradient-to-r from-card-dark to-background-dark border-b border-gray-700 flex justify-between items-center flex-shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/20 rounded-lg">
-                                <Bot className="text-primary" size={20} />
-                            </div>
-                            <div>
-                                <h3 className="text-sm sm:text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">DeepGuard Copilot</h3>
-                                <p className="text-[10px] sm:text-xs text-text-secondary">RAG-Enhanced • ATT&CK-Aware</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Chat History */}
-                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                        {chatHistory.map((msg, idx) => (
-                            <div key={idx} className={`animate-fade-in flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`rounded-xl p-3 sm:p-4 text-xs sm:text-sm max-w-[85%] ${msg.role === 'user'
-                                    ? 'bg-primary/10 border border-primary/20 text-text-main rounded-tr-sm'
-                                    : 'bg-background-dark border border-gray-700 rounded-tl-sm'}`}>
-
-                                    {msg.role === 'bot' && (
-                                        <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-gray-800">
-                                            <Cpu size={14} className="text-primary" />
-                                            <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Analysis</span>
-                                            {msg.payload?.severity && (
-                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ml-auto ${getSeverityBadge(msg.payload.severity)}`}>
-                                                    {msg.payload.severity}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <p className="leading-relaxed whitespace-pre-line text-gray-200">{msg.text}</p>
-
-                                    {msg.payload && (
-                                        <div className="mt-4 space-y-3">
-                                            {/* Technical Details */}
-                                            <div className="text-[10px] sm:text-xs bg-black/40 p-2.5 rounded font-mono border border-gray-800 text-gray-400 space-y-1.5">
-                                                <div className="flex justify-between"><span className="text-gray-500">Tactic:</span><span className="text-primary font-bold">{msg.payload.mapped_tactic}</span></div>
-                                                <div className="flex justify-between"><span className="text-gray-500">Confidence:</span><span className="text-purple-400">{(msg.payload.confidence * 100).toFixed(0)}%</span></div>
-                                            </div>
-
-                                            {/* Action Buttons */}
-                                            {msg.payload.recommended_action?.length > 0 && (
-                                                <div className="space-y-2 pt-2">
-                                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Recommended Actions</span>
-                                                    {msg.payload.recommended_action.map((act, i) => (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => act.action === 'block_ip' ? handleBlockIP(act.target) : toast.info(act.description)}
-                                                            className={`w-full text-left p-2.5 rounded text-[11px] sm:text-xs border transition-colors flex items-center justify-between group ${act.action === 'block_ip'
-                                                                ? 'bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/15'
-                                                                : 'bg-primary/5 border-primary/20 text-primary hover:bg-primary/15'}`}
-                                                        >
-                                                            <span className="truncate pr-2">{act.description}</span>
-                                                            <ChevronRight size={14} className="flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                        {chatLoading && (
-                            <div className="self-start animate-fade-in max-w-[85%]">
-                                <div className="flex items-center gap-3 text-text-secondary text-xs sm:text-sm p-4 bg-background-dark rounded-xl rounded-tl-sm border border-gray-700">
-                                    <LoaderCircle className="animate-spin text-primary" size={16} />
-                                    Synthesizing response...
-                                </div>
-                            </div>
-                        )}
-                        <div ref={chatEndRef} />
-                    </div>
-
-                    {/* Chat Input */}
-                    <form onSubmit={handleChatSubmit} className="p-3 sm:p-4 border-t border-gray-700 bg-background-dark flex-shrink-0">
-                        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-                            {['Why T1046?', 'Lateral movement', 'False positive?'].map(q => (
-                                <button
-                                    key={q}
-                                    type="button"
-                                    onClick={() => { setChatInput(q); }}
-                                    className="flex-shrink-0 px-2.5 py-1 text-[11px] bg-gray-800 border border-gray-700 text-text-secondary rounded-full hover:bg-gray-700 hover:text-text-main hover:border-gray-500 transition-colors"
-                                >
-                                    {q}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="relative flex items-center">
-                            <input
-                                type="text"
-                                value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
-                                placeholder="Ask DeepGuard Copilot..."
-                                className="w-full bg-card-dark border border-gray-600 rounded-lg py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 placeholder-gray-500 transition-all shadow-inner"
-                                disabled={chatLoading}
-                            />
-                            <button
-                                type="submit"
-                                disabled={chatLoading || !chatInput.trim()}
-                                className="absolute right-2 p-2 bg-primary text-background-dark hover:bg-primary-dark rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                                <Send size={16} />
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            )}
         </div>
     );
 };
