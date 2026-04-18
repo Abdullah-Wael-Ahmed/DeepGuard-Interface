@@ -24,12 +24,26 @@ server = http.createServer(app)
 
 initWebSocket(server)
 
-db.sync().then(async () => {
-    console.log("Database synced");
-    await seedSuperAdmin();
-}).catch((e) => {
-    console.log(e);
-})
+async function connectWithRetry(retries = 10, delay = 3000) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await db.authenticate();
+            await db.sync();
+            console.log(`Database synced (attempt ${attempt})`);
+            await seedSuperAdmin();
+            return;
+        } catch (e) {
+            console.log(`DB connection attempt ${attempt}/${retries} failed: ${e.message}`);
+            if (attempt === retries) {
+                console.error("Could not connect to the database after maximum retries. Exiting.");
+                process.exit(1);
+            }
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
+
+connectWithRetry();
 app.use("/auth", auth)
 // if (process.env.NODE_ENV === "dep") app.use(verifyJWT)
 app.use("/logs", logRouter)
