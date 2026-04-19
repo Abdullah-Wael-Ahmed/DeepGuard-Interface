@@ -41,7 +41,7 @@ const Layout = () => {
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-text-main text-lg font-bold">DeepGuard</h1>
-                                <p className="text-text-secondary text-xs">Multi-Layer Threat Defense Gateway</p>
+                                <p className="text-text-secondary text-xs">Next-Generation SOC Platform Powered By AI</p>
                             </div>
                         </div>
                         <nav className="flex flex-col gap-2">
