@@ -5,11 +5,15 @@ const router = express.Router();
 
 // ── POST /add-rule ────────────────────────────────────────────────────────────
 router.post("/add-rule", async (req, res) => {
-  const {
+  let {
     chain, action, protocol, srcIp, destIp,
     srcPort, dstPort, inInterface, outInterface,
     logEnabled, description,
   } = req.body;
+
+  // Convert 0.0.0.0 to 0.0.0.0/0 (CIDR notation for "everywhere")
+  if (srcIp?.trim() === "0.0.0.0") srcIp = "0.0.0.0/0";
+  if (destIp?.trim() === "0.0.0.0") destIp = "0.0.0.0/0";
 
   try {
     const result = await addRule({
