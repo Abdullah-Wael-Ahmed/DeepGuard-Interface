@@ -228,7 +228,7 @@ const GlobalCopilot = () => {
             const res = await axios.post(
                 `${BACK}/copilot/query`,
                 { prompt: userMsg, pageContext: pageCtx },
-                { withCredentials: true, timeout: 35000 }
+                { withCredentials: true, timeout: 60000 }
             );
 
             const botEntry = {
@@ -243,10 +243,13 @@ const GlobalCopilot = () => {
             const isTimeout = error.code === 'ECONNABORTED';
             const responseData = error.response?.data;
             const isRateLimit = error.response?.status === 429 || responseData?.isRateLimit;
+            const isOverloaded = error.response?.status === 503 || responseData?.isOverloaded;
             const retryAfter = responseData?.retryAfter || null;
 
             let errText;
-            if (isRateLimit) {
+            if (isOverloaded) {
+                errText = `Gemini models are experiencing **high demand** on Google's servers. The backend tried multiple models with retries but all returned 503. This is temporary — please try again in a few seconds.`;
+            } else if (isRateLimit) {
                 errText = `Rate limit reached — Gemini free tier quota exhausted.${retryAfter ? ` Cooling down for **${retryAfter}s**...` : ' Please wait a moment and try again.'}`;
                 // Start countdown timer
                 if (retryAfter) {
@@ -263,7 +266,7 @@ const GlobalCopilot = () => {
                     }, 1000);
                 }
             } else if (isTimeout) {
-                errText = 'Request timed out. The AI inference engine is taking too long. Please try again.';
+                errText = 'Request timed out. The backend retried multiple models but none responded in time. Please try again.';
             } else {
                 errText = responseData?.error || 'Failed to reach the DeepGuard Copilot inference engine. Check that the backend is running.';
             }
@@ -275,6 +278,7 @@ const GlobalCopilot = () => {
                 severity: null,
                 isError: true,
                 isRateLimit,
+                isOverloaded,
                 retryAfter,
             }]);
         } finally {
