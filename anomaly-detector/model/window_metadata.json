@@ -1,7 +1,5 @@
 {
-  "reconstruction_threshold": 0.06408227414672589,
-  "mean_error": 0.020132392948913582,
-  "std_error": 0.014649960399270771,
+  "reconstruction_threshold": 0.030583884153960676,
   "feature_names": [
     "conn_count",
     "unique_dst_ports",
@@ -14,7 +12,13 @@
     "connections_per_sec",
     "avg_bytes_per_flow"
   ],
+  "log_features": [
+    "bytes_total",
+    "packets_total",
+    "avg_bytes_per_flow"
+  ],
   "window_size": 30,
   "training_samples": 8000,
-  "threshold_method": "mean + 3*std"
+  "mean_error": 0.004175343888473043,
+  "max_error": 0.1471715900794679
 }
