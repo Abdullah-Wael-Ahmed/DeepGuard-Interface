@@ -43,7 +43,9 @@ app = Flask(__name__)
 
 # ─── Load model artifacts ────────────────────────────────
 if not os.path.exists(MODEL_PATH):
-    log.error("No trained model found at %s. Run train_window_autoencoder.py first.", MODEL_PATH)
+    log.error("No trained model found at %s.", MODEL_PATH)
+    log.error("Please run 'train_window_autoencoder.py' locally OR")
+    log.error("train in Google Colab and place the .keras, .pkl, and .json files in the 'model/' directory.")
     exit(1)
 
 model  = keras.models.load_model(MODEL_PATH, compile=False)
