@@ -147,5 +147,5 @@ vite.config.ts.timestamp-*
 
 
 *.csv
-*.keras
-*.pkl
+.keras
+.pkl
