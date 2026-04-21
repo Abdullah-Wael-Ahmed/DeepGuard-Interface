@@ -92,14 +92,16 @@ init_db()
 
 # ─── Helpers ──────────────────────────────────────────────
 def _severity(error: float) -> str:
-    """Map reconstruction error to severity using ratio vs threshold."""
-    ratio = error / THRESHOLD if THRESHOLD > 0 else 0
-    if ratio > 3.0:
-        return 'HIGH'
-    elif ratio > 1.5:
+    """Graduated severity: LOW 1-2x, MEDIUM 2-10x, HIGH >10x threshold."""
+    if error <= THRESHOLD:
+        return 'LOW'
+    ratio = error / THRESHOLD
+    if ratio <= 2.0:
+        return 'LOW'
+    elif ratio <= 10.0:
         return 'MEDIUM'
     else:
-        return 'LOW'
+        return 'HIGH'
 
 
 def _save_result(src_ip: str, dest_port: int, score: float,
