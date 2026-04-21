@@ -188,10 +188,15 @@ def flush_windows():
                 dtype=np.float32,
             )
 
-            # Scale
-            feature_scaled = scaler.transform(feature_vec)
+            # Apply log-scaling for heavy-tailed features (matching training)
+            log_features = metadata.get('log_features', [])
+            for feature in log_features:
+                if feature in FEATURE_NAMES:
+                    idx = FEATURE_NAMES.index(feature)
+                    feature_vec[0, idx] = np.log1p(feature_vec[0, idx])
 
-            # Predict (autoencoder reconstruct)
+            # Scale and Predict
+            feature_scaled = scaler.transform(feature_vec)
             reconstructed = model.predict(feature_scaled, verbose=0)
 
             # Reconstruction error (MSE)
