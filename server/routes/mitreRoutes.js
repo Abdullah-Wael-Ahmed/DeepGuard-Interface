@@ -352,4 +352,10 @@ router.post('/chatbot/query', async (req, res) => {
 });
 
 
+
+// Export ACTIVE_DETECTIONS so the AI Copilot can access live MITRE data
+router.ACTIVE_DETECTIONS = ACTIVE_DETECTIONS;
+router.MITRE_TACTICS = MITRE_TACTICS;
+router.MITRE_TECHNIQUES = MITRE_TECHNIQUES;
+
 module.exports = router;

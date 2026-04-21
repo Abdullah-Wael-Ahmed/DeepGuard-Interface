@@ -1,0 +1,33 @@
+{
+  "threshold": 0.0036643525192818307,
+  "medium_threshold": 0.0019113120075926534,
+  "high_threshold": 0.000344979041611644,
+  "features": [
+    "Destination Port",
+    "Flow Duration",
+    "Total Fwd Packets",
+    "Total Backward Packets",
+    "Total Length of Fwd Packets",
+    "Total Length of Bwd Packets",
+    "Fwd Packet Length Max",
+    "Bwd Packet Length Max",
+    "Flow Bytes/s",
+    "Flow Packets/s",
+    "Flow IAT Mean"
+  ],
+  "feature_weights": [
+    1.3199999999999998,
+    0.44,
+    0.44,
+    0.44,
+    1.3199999999999998,
+    0.88,
+    1.76,
+    1.76,
+    1.3199999999999998,
+    0.88,
+    0.44
+  ],
+  "normal_mean_error": 0.0005730772614997945,
+  "normal_std_error": 0.0027351318672525888
+}
