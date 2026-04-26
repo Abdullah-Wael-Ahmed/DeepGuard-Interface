@@ -8,6 +8,7 @@ const ZeekConnection = require('../models/ZeekConnection');
 const ZeekDNS = require('../models/ZeekDNS');
 const BlockedIP = require('../models/BlockedIP');
 const IOC = require('../models/IOC');
+const Incident = require('../models/Incident');
 
 // ── Shared MITRE ATT&CK data (lives in mitreRoutes memory)
 const mitreRouter = require('./mitreRoutes');
@@ -42,6 +43,8 @@ async function buildLiveContext() {
         recentDNS,
         blockedIPs,
         iocs,
+        activeIncidents,
+        incidentCount,
     ] = await Promise.all([
         Alert.findAll({ order: [['createdAt', 'DESC']], limit: 20 }).catch(() => []),
         Alert.count().catch(() => 0),
@@ -50,6 +53,8 @@ async function buildLiveContext() {
         ZeekDNS.findAll({ order: [['timestamp', 'DESC']], limit: 10 }).catch(() => []),
         BlockedIP.findAll({ where: { active: true } }).catch(() => []),
         IOC.findAll({ limit: 20, order: [['createdAt', 'DESC']] }).catch(() => []),
+        Incident.findAll({ where: { status: { [require('sequelize').Op.notIn]: ['closed'] } }, order: [['createdAt', 'DESC']], limit: 15 }).catch(() => []),
+        Incident.count().catch(() => 0),
     ]);
 
     // Firewall rules — only works in Linux Docker container
@@ -137,13 +142,24 @@ async function buildLiveContext() {
         sections.push('No firewall rules available (iptables-proxy may not be running).');
     }
 
+    // — Active Incidents
+    sections.push(`\n═══ ACTIVE INCIDENTS (${activeIncidents.length} active / ${incidentCount} total) ═══`);
+    if (activeIncidents.length > 0) {
+        activeIncidents.forEach(inc => {
+            const tags = inc.tags ? (typeof inc.tags === 'string' ? JSON.parse(inc.tags) : inc.tags) : [];
+            sections.push(`INC-${String(inc.id).padStart(5, '0')} | ${inc.severity?.toUpperCase()} ${inc.priority} | ${inc.status} | ${inc.title} | assignee: ${inc.assignee || 'unassigned'} | category: ${inc.category || 'N/A'} | tags: ${tags.join(', ') || 'none'}`);
+        });
+    } else {
+        sections.push('No active incidents.');
+    }
+
     const context = `\nLIVE DEEPGUARD PLATFORM STATE (queried at ${new Date().toISOString()}):\n${sections.join('\n')}\n`;
 
     // Cache it
     _cachedContext = context;
     _cacheTimestamp = Date.now();
 
-    console.log(`[Copilot] Live context built: ${recentAlerts.length} alerts, ${recentConnections.length} connections, ${blockedIPs.length} blocked IPs, ${mitreDetections.length} MITRE detections`);
+    console.log(`[Copilot] Live context built: ${recentAlerts.length} alerts, ${recentConnections.length} connections, ${blockedIPs.length} blocked IPs, ${mitreDetections.length} MITRE detections, ${activeIncidents.length} incidents`);
 
     return context;
 }
@@ -252,6 +268,7 @@ You have access to LIVE platform data injected before every query:
 5. **Blocked IPs** — Currently blocked IPs with reasons and timestamps
 6. **IOCs** — Indicators of Compromise stored in the platform database
 7. **Firewall Rules** — Current iptables rules (when available)
+8. **Active Incidents** — Open and in-progress incident cases with severity, priority, assignee, and status
 
 When answering questions about the platform state, ALWAYS reference the actual data provided. Do not make up data. If a section says "No data" or is empty, say so honestly.
 
@@ -464,7 +481,7 @@ router.get('/health', (req, res) => {
         primary_model: MODEL_CHAIN[0],
         gemini_configured: !!process.env.GEMINI_API_KEY,
         active_mitre_detections: getMitreDetections().length,
-        data_sources: ['Alert', 'ZeekConnection', 'ZeekDNS', 'BlockedIP', 'IOC', 'MITRE', 'iptables'],
+        data_sources: ['Alert', 'ZeekConnection', 'ZeekDNS', 'BlockedIP', 'IOC', 'MITRE', 'iptables', 'Incident'],
         cache_ttl_seconds: CACHE_TTL_MS / 1000,
         timestamp: new Date().toISOString(),
     });

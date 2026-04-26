@@ -23,6 +23,8 @@ import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 import MitreAttack from './pages/MitreAttack'
+import Incidents from './pages/Incidents'
+import IncidentDetail from './pages/IncidentDetail'
 import { useEffect } from 'react';
 import axios from 'axios'
 const AxiosInterceptorSetup = ({ children }) => {
@@ -82,7 +84,9 @@ function App() {
                 { path: 'mitre-attack', element: <MitreAttack /> },
                 { path: 'threat-intel', element: <ThreatIntelligence /> },
                 { path: 'settings', element: <Settings /> },
-                { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> }
+                { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> },
+                { path: 'incidents', element: <Incidents /> },
+                { path: 'incidents/:id', element: <IncidentDetail /> }
               ]
             }
           ]
