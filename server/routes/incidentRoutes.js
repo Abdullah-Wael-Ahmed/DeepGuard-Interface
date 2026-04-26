@@ -4,6 +4,7 @@ const Incident = require("../models/Incident");
 const IncidentEvent = require("../models/IncidentEvent");
 const Evidence = require("../models/Evidence");
 const Alert = require("../models/Alert");
+const playbookEngine = require("../services/playbookEngine");
 const IOC = require("../models/IOC");
 
 const router = express.Router();
@@ -266,6 +267,12 @@ router.post("/", async (req, res) => {
                 { assignee },
             );
         }
+
+        const { broadcast } = require("../util/websocket");
+        broadcast({ type: "new_incident", data: incident });
+
+        // SOAR: Trigger automated playbooks
+        playbookEngine.triggerOnIncident(incident);
 
         res.status(201).json({
             incident,
