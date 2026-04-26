@@ -4,7 +4,7 @@ const correlationEngine = require("../services/correlationEngine");
 
 const router = express.Router();
 
-router.get("/rules", async (req, res) => {
+router.get("/", async (req, res) => {
     try {
         const rules = await CorrelationRule.findAll({ order: [['createdAt', 'DESC']] });
         res.json(rules);
@@ -14,7 +14,7 @@ router.get("/rules", async (req, res) => {
     }
 });
 
-router.post("/rules", async (req, res) => {
+router.post("/", async (req, res) => {
     try {
         const rule = await CorrelationRule.create(req.body);
         await correlationEngine.reloadRules();
@@ -25,7 +25,7 @@ router.post("/rules", async (req, res) => {
     }
 });
 
-router.patch("/rules/:id", async (req, res) => {
+router.patch("/:id", async (req, res) => {
     try {
         const rule = await CorrelationRule.findByPk(req.params.id);
         if (!rule) return res.status(404).json({ error: "Rule not found" });
@@ -38,7 +38,7 @@ router.patch("/rules/:id", async (req, res) => {
     }
 });
 
-router.delete("/rules/:id", async (req, res) => {
+router.delete("/:id", async (req, res) => {
     try {
         const rule = await CorrelationRule.findByPk(req.params.id);
         if (!rule) return res.status(404).json({ error: "Rule not found" });
@@ -51,7 +51,7 @@ router.delete("/rules/:id", async (req, res) => {
     }
 });
 
-router.post("/rules/:id/toggle", async (req, res) => {
+router.post("/:id/toggle", async (req, res) => {
     try {
         const rule = await CorrelationRule.findByPk(req.params.id);
         if (!rule) return res.status(404).json({ error: "Rule not found" });
