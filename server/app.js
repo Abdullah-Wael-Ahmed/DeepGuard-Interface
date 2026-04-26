@@ -11,6 +11,8 @@ const mitreRouter = require("./routes/mitreRoutes")
 const anomalyRouter = require("./routes/anomalyRoutes")
 const copilotRouter = require("./routes/copilotRoutes") // Gemini AI Copilot — loaded 2026-04-20
 const incidentRouter = require("./routes/incidentRoutes")
+const correlationRouter = require("./routes/correlationRoutes")
+const correlationEngine = require("./services/correlationEngine")
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
@@ -32,6 +34,7 @@ async function connectWithRetry(retries = 10, delay = 3000) {
             await db.authenticate();
             await db.sync();
             console.log(`Database synced (attempt ${attempt})`);
+            await correlationEngine.init(); // Init backend correlation
             await seedSuperAdmin();
             return;
         } catch (e) {
@@ -56,6 +59,7 @@ app.use("/mitre", mitreRouter)
 app.use("/anomaly", anomalyRouter)
 app.use("/copilot", copilotRouter)
 app.use("/incidents", incidentRouter)
+app.use("/rules", correlationRouter)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");
