@@ -4,7 +4,7 @@ Before starting the containers on the VM, generate the Velociraptor server confi
 
 ```bash
 docker run --rm -v $(pwd)/velociraptor/config:/etc/velociraptor \
-  wlambert/velociraptor /velociraptor config generate \
+  wlambert/velociraptor /opt/velociraptor/linux/velociraptor config generate \
   > ./velociraptor/config/server.config.yaml
 ```
 
