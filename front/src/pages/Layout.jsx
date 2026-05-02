@@ -1,4 +1,4 @@
-import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe, ChartNetwork, Crosshair, ClipboardList, GitPullRequestDraft } from 'lucide-react';
+import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe, ChartNetwork, Crosshair, MonitorSmartphone, ClipboardList, GitPullRequestDraft } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
 import DeepGuard from '../assets/DeepGaurdDark.svg';
 import TopBar from '../components/TopBar';
@@ -52,6 +52,10 @@ const Layout = () => {
                             <Link className={activeTab("detection")} to="/detection">
                                 <Shield />
                                 <p className="text-sm font-medium">Detection</p>
+                            </Link>
+                            <Link className={activeTab("endpoints")} to="/endpoints">
+                                <MonitorSmartphone />
+                                <p className="text-sm font-medium">Endpoints</p>
                             </Link>
                             <Link className={activeTab("correlation")} to="/correlation">
                                 <Share2 />

@@ -23,6 +23,7 @@ import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 import MitreAttack from './pages/MitreAttack'
+import Endpoints from './components/Endpoints'
 import Incidents from './pages/Incidents'
 import IncidentDetail from './pages/IncidentDetail'
 import Playbooks from './pages/Playbooks'
@@ -85,6 +86,7 @@ function App() {
                 { path: 'users', element: <UserManagement /> },
                 { path: 'correlation', element: <Correlation /> },
                 { path: 'mitre-attack', element: <MitreAttack /> },
+                { path: 'endpoints', element: <Endpoints /> },
                 { path: 'threat-intel', element: <ThreatIntelligence /> },
                 { path: 'settings', element: <Settings /> },
                 { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> },

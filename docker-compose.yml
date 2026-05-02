@@ -62,6 +62,7 @@ services:
       - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs/suricata:/var/log/suricata:ro
       - ./logs/zeek:/usr/local/zeek/logs/current:ro
+      - ./velociraptor/data:/var/lib/velociraptor:ro
     command: ["--strict.perms=false"]
     restart: unless-stopped
 
@@ -115,6 +116,20 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+  velociraptor:
+    image: velocidex/velociraptor:latest
+    container_name: deepguard-velociraptor
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8889:8889"
+    volumes:
+      - ./velociraptor/config:/etc/velociraptor
+      - ./velociraptor/data:/var/lib/velociraptor
+    env_file:
+      - ./server/.env
 
 volumes:
   mysql_data:
