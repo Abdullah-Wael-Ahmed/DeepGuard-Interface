@@ -16,9 +16,9 @@ const getApiClient = () => {
 // GET /api/velociraptor/clients — fetch all enrolled endpoint agents
 router.get('/clients', async (req, res) => {
     try {
-        const client = getApiClient();
-        const response = await client.get('/api/v1/clients');
-        res.json(response.data);
+        // Velociraptor uses a gRPC API. 
+        // This is a placeholder until the gRPC client is fully implemented.
+        res.json({ items: [] });
     } catch (error) {
         console.error('Error fetching velociraptor clients:', error.message);
         res.status(500).json({ error: 'Failed to fetch clients from Velociraptor' });
@@ -90,9 +90,8 @@ router.get('/hunts', async (req, res) => {
 // GET /api/velociraptor/status — health check
 router.get('/status', async (req, res) => {
     try {
-        const client = getApiClient();
-        // Just fetching root or ping endpoint
-        await client.get('/api/v1/ping'); // Or another lightweight endpoint if /ping doesn't exist
+        // Ping the Velociraptor GUI port to check if the container is up and running
+        await axios.get(`http://velociraptor:${process.env.VR_GUI_PORT || 8000}/`);
         res.json({ status: 'Online', reachable: true });
     } catch (error) {
         console.error('Velociraptor health check failed:', error.message);
