@@ -126,8 +126,7 @@ services:
       - "8001:8001"
       - "8889:8889"
     volumes:
-      - ./velociraptor/config:/etc/velociraptor
-      - ./velociraptor/data:/var/lib/velociraptor
+      - ./velociraptor/data:/velociraptor
     env_file:
       - ./server/.env
 
