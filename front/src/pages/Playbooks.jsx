@@ -15,13 +15,18 @@ const STATUS_CONFIG = {
 const Playbooks = () => {
     const [playbooks, setPlaybooks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({ totalExecutions: 0, last24h: 0, successRate: 0, awaitingApproval: 0 });
     const navigate = useNavigate();
 
     const fetchPlaybooks = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${BACK}/playbooks`, { withCredentials: true });
-            setPlaybooks(res.data);
+            const [pbRes, statsRes] = await Promise.all([
+                axios.get(`${BACK}/playbooks`, { withCredentials: true }),
+                axios.get(`${BACK}/playbooks/stats`, { withCredentials: true }).catch(() => ({ data: {} }))
+            ]);
+            setPlaybooks(pbRes.data);
+            setStats(statsRes.data);
         } catch (error) {
             toast.error("Failed to load playbooks");
         } finally {
@@ -35,7 +40,6 @@ const Playbooks = () => {
 
     const createPlaybook = async () => {
         try {
-             // Create draft playbook
              const res = await axios.post(`${BACK}/playbooks`, {
                  name: 'New Playbook',
                  description: 'A new automated workflow',
@@ -58,45 +62,69 @@ const Playbooks = () => {
         }
     };
 
+    const seedTemplates = async () => {
+        try {
+            const res = await axios.post(`${BACK}/playbooks/seed`, {}, { withCredentials: true });
+            toast.success(`Seeded ${res.data.created} playbook templates`);
+            fetchPlaybooks();
+        } catch (error) {
+            toast.error("Failed to seed templates");
+        }
+    };
+
     return (
         <div className="flex-1 bg-background-dark p-8 overflow-y-auto font-display text-text-main">
             <div className="flex justify-between items-center mb-8 max-w-7xl mx-auto">
                 <div>
                     <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
-                        SOAR Playbooks <span className="text-sm px-2 py-0.5 bg-primary/20 text-primary rounded border border-primary/30">BETA</span>
+                        SOAR Playbooks <span className="text-sm px-2 py-0.5 bg-primary/20 text-primary rounded border border-primary/30">V2</span>
                     </h1>
                     <p className="text-text-secondary mt-2">Security Orchestration, Automation, and Response Workflows</p>
                 </div>
-                <button 
-                    onClick={createPlaybook}
-                    className="bg-primary hover:bg-primary-dark text-background-dark font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors glow-sm"
-                >
-                    <Plus size={18} /> New Playbook
-                </button>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={seedTemplates}
+                        className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-gray-700"
+                    >
+                        <Layers size={18} /> Seed Templates
+                    </button>
+                    <button 
+                        onClick={createPlaybook}
+                        className="bg-primary hover:bg-primary-dark text-background-dark font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors glow-sm"
+                    >
+                        <Plus size={18} /> New Playbook
+                    </button>
+                </div>
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Stats Cards */}
-                <div className="bg-card-dark border border-gray-700 p-5 rounded-xl shadow-lg flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-text-secondary">Total Playbooks</p>
-                        <p className="text-3xl font-bold text-white mt-1">{playbooks.length}</p>
-                    </div>
-                    <div className="p-3 bg-gray-800 rounded-lg text-gray-400"><Layers size={24}/></div>
-                </div>
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-card-dark border border-gray-700 p-5 rounded-xl shadow-lg flex items-center justify-between">
                     <div>
                         <p className="text-sm text-text-secondary">Active Workflows</p>
-                        <p className="text-3xl font-bold text-white mt-1">{playbooks.filter(p=>p.status==='active').length}</p>
+                        <p className="text-3xl font-bold text-white mt-1">{stats.activePlaybooks || playbooks.filter(p=>p.status==='active').length}</p>
                     </div>
                     <div className="p-3 bg-green-500/10 rounded-lg text-green-400"><Zap size={24}/></div>
                 </div>
                 <div className="bg-card-dark border border-gray-700 p-5 rounded-xl shadow-lg flex items-center justify-between">
                     <div>
                         <p className="text-sm text-text-secondary">Executions (24h)</p>
-                         <p className="text-3xl font-bold text-white mt-1">24</p>
+                        <p className="text-3xl font-bold text-white mt-1">{stats.last24h || 0}</p>
                     </div>
                     <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400"><Play size={24}/></div>
+                </div>
+                <div className="bg-card-dark border border-gray-700 p-5 rounded-xl shadow-lg flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-text-secondary">Success Rate</p>
+                        <p className="text-3xl font-bold text-white mt-1">{stats.successRate || 0}%</p>
+                    </div>
+                    <div className="p-3 bg-purple-500/10 rounded-lg text-purple-400"><CheckCircle2 size={24}/></div>
+                </div>
+                <div className="bg-card-dark border border-gray-700 p-5 rounded-xl shadow-lg flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-text-secondary">Pending Approval</p>
+                        <p className="text-3xl font-bold text-white mt-1">{stats.awaitingApproval || 0}</p>
+                    </div>
+                    <div className="p-3 bg-yellow-500/10 rounded-lg text-yellow-400"><ShieldAlert size={24}/></div>
                 </div>
             </div>
 

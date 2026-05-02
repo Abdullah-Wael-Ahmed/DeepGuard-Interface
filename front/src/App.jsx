@@ -27,6 +27,7 @@ import Incidents from './pages/Incidents'
 import IncidentDetail from './pages/IncidentDetail'
 import Playbooks from './pages/Playbooks'
 import PlaybookBuilder from './pages/PlaybookBuilder'
+import ExecutionHistory from './pages/ExecutionHistory'
 import { useEffect } from 'react';
 import axios from 'axios'
 const AxiosInterceptorSetup = ({ children }) => {
@@ -90,6 +91,7 @@ function App() {
                 { path: 'incidents', element: <Incidents /> },
                 { path: 'incidents/:id', element: <IncidentDetail /> },
                 { path: 'playbooks', element: <Playbooks /> },
+                { path: 'playbooks/history', element: <ExecutionHistory /> },
                 { path: 'playbooks/:id', element: <PlaybookBuilder /> }
               ]
             }

@@ -282,7 +282,7 @@ const PlaybookBuilder = () => {
                                             >
                                                 <option value="manual">Manual Execution</option>
                                                 <option value="on_incident_created">On Incident Created</option>
-                                                <option value="on_alert">On Raw Alert (High Noise)</option>
+                                                <option value="on_alert">On Suricata Alert</option>
                                             </select>
                                         </div>
                                     </div>
@@ -297,9 +297,28 @@ const PlaybookBuilder = () => {
                                                 value={selectedNode.data.actionType || 'block_ip'}
                                                 onChange={(e) => updateNodeData('actionType', e.target.value)}
                                             >
-                                                <option value="block_ip">Block Source IP (Firewall)</option>
-                                                <option value="close_incident">Close Incident</option>
-                                                <option value="notify_slack">Send Notification</option>
+                                                <optgroup label="Response">
+                                                    <option value="block_ip">Block IP (Firewall)</option>
+                                                    <option value="unblock_ip">Unblock IP</option>
+                                                    <option value="isolate_host">Isolate Host (Velociraptor)</option>
+                                                    <option value="release_host">Release Host Isolation</option>
+                                                    <option value="kill_process">Kill Process (Velociraptor)</option>
+                                                </optgroup>
+                                                <optgroup label="Enrichment">
+                                                    <option value="enrich_ip">Enrich IP (Threat Intel)</option>
+                                                    <option value="enrich_domain">Enrich Domain</option>
+                                                    <option value="tag_mitre">Tag MITRE ATT&CK</option>
+                                                    <option value="add_watchlist">Add to IOC Watchlist</option>
+                                                    <option value="remove_watchlist">Remove from Watchlist</option>
+                                                </optgroup>
+                                                <optgroup label="Case Management">
+                                                    <option value="create_incident">Create Incident</option>
+                                                    <option value="close_incident">Close Incident</option>
+                                                </optgroup>
+                                                <optgroup label="Notification">
+                                                    <option value="notify_dashboard">Notify Dashboard</option>
+                                                    <option value="send_webhook">Send Webhook</option>
+                                                </optgroup>
                                             </select>
                                         </div>
                                         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
@@ -329,8 +348,14 @@ const PlaybookBuilder = () => {
                                             >
                                                 <option value="==">Equals (==)</option>
                                                 <option value="!=">Not Equals (!=)</option>
+                                                <option value=">">Greater Than (&gt;)</option>
+                                                <option value="<">Less Than (&lt;)</option>
+                                                <option value=">=">Greater or Equal (&gt;=)</option>
+                                                <option value="<=">Less or Equal (&lt;=)</option>
                                                 <option value="contains">Contains</option>
+                                                <option value="not_contains">Not Contains</option>
                                                 <option value="exists">Exists</option>
+                                                <option value="regex">Regex Match</option>
                                             </select>
                                         </div>
                                         <div>

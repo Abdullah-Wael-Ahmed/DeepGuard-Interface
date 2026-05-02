@@ -3,6 +3,7 @@ const Alert = require("../models/Alert");
 const { broadcast } = require("../util/websocket");
 const { Op, col, literal, fn, where } = require("sequelize");
 const correlationEngine = require("../services/correlationEngine");
+const soarEngine = require("../services/soar/engine");
 
 const router = express.Router();
 
@@ -24,6 +25,9 @@ router.post("/filebeat", async (req, res) => {
         
         // Pass to backend correlation engine
         correlationEngine.processEvent("suricata_alert", alert);
+        
+        // Pass to SOAR engine for alert-triggered playbooks
+        soarEngine.triggerOnAlert(alert);
         
         res.json("ok")
     } catch (error) {

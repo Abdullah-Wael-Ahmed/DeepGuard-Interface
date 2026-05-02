@@ -8,9 +8,9 @@ const PlaybookExecution = db.define("PlaybookExecution", {
     },
     status: {
         type: DataTypes.STRING,
-        defaultValue: "running", // running, success, failed, partial
+        defaultValue: "running", // running, success, failed, partial, awaiting_approval, rejected
         validate: {
-            isIn: [["running", "success", "failed", "partial"]]
+            isIn: [["running", "success", "failed", "partial", "awaiting_approval", "rejected"]]
         }
     },
     triggerSource: {
