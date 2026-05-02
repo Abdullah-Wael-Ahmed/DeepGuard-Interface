@@ -118,7 +118,7 @@ services:
         max-file: "5"
 
   velociraptor:
-    image: velocidex/velociraptor:latest
+    image: wlambert/velociraptor:latest
     container_name: deepguard-velociraptor
     restart: unless-stopped
     ports:
