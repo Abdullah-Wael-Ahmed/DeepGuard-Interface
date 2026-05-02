@@ -10,6 +10,7 @@ const zeekRouter = require("./routes/zeekRoutes")
 const mitreRouter = require("./routes/mitreRoutes")
 const anomalyRouter = require("./routes/anomalyRoutes")
 const copilotRouter = require("./routes/copilotRoutes") // Gemini AI Copilot — loaded 2026-04-20
+const velociraptorRoutes = require('./routes/velociraptor');
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
@@ -54,6 +55,7 @@ app.use("/zeek", zeekRouter)
 app.use("/mitre", mitreRouter)
 app.use("/anomaly", anomalyRouter)
 app.use("/copilot", copilotRouter)
+app.use("/api/velociraptor", velociraptorRoutes)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");
