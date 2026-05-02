@@ -3,6 +3,7 @@ const { Op, fn, col, literal } = require("sequelize");
 const ZeekConnection = require("../models/ZeekConnection");
 const ZeekDNS = require("../models/ZeekDNS");
 const axios = require("axios")
+const correlationEngine = require("../services/correlationEngine");
 
 const router = express.Router();
 
@@ -242,6 +243,10 @@ router.post("/ingest/conn", async (req, res) => {
 
             conn_state: data.conn_state         // Note: Ensure this isn't pruned!
         });
+
+        // Pass to backend correlation engine
+        correlationEngine.processEvent("zeek_connection", data);
+
         res.json({ status: "ok" });
     } catch (error) {
         console.log(error)
