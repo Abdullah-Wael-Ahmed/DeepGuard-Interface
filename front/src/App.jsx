@@ -23,7 +23,7 @@ import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 import MitreAttack from './pages/MitreAttack'
-import Endpoints from './components/Endpoints'
+import Endpoints from './pages/Endpoints'
 import Incidents from './pages/Incidents'
 import IncidentDetail from './pages/IncidentDetail'
 import Playbooks from './pages/Playbooks'
