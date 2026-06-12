@@ -182,13 +182,14 @@ router.put("/:id", async (req, res) => {
             nodes: req.body.nodes,
             edges: req.body.edges,
             triggerType: req.body.triggerType,
-            triggerConditions: req.body.triggerConditions
+            triggerConditions: req.body.triggerConditions,
+            mitreTags: req.body.mitreTags
         });
 
         res.json(playbook);
     } catch (error) {
         console.error("[SOAR Routes] Update error:", error);
-        res.status(400).json({ error: "Invalid update payload" });
+        res.status(400).json({ error: error.message, stack: error.stack });
     }
 });
 
@@ -218,7 +219,7 @@ router.post("/:id/execute", async (req, res) => {
         res.json(execution);
     } catch (error) {
         console.error("[SOAR Routes] Execute error:", error);
-        res.status(500).json({ error: "Execution failed" });
+        res.status(500).json({ error: error.message, stack: error.stack });
     }
 });
 

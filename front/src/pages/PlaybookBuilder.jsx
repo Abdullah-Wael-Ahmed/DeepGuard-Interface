@@ -147,7 +147,8 @@ const PlaybookBuilder = () => {
             
             toast.success("Playbook saved!");
         } catch (error) {
-            toast.error("Failed to save playbook");
+            toast.error(error.response?.data?.error || "Failed to save playbook");
+            console.error("Save error:", error.response?.data);
         }
     };
 
@@ -198,7 +199,7 @@ const PlaybookBuilder = () => {
                 toast.warning(`Execution finished with status: ${res.data.status}`);
             }
         } catch (error) {
-            toast.error("Execution failed!");
+            toast.error(error.response?.data?.error || "Execution failed!");
         }
     };
 
