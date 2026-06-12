@@ -479,7 +479,7 @@ const ACTIONS = {
             return { success: res.success, result: { target, released: res.success }, rollbackData: null };
         },
         async rollback() { return { success: true }; }
-    },,
+    },
 
         kill_process: {
         label: "Kill Process (Velociraptor)",
@@ -502,7 +502,7 @@ const ACTIONS = {
             return { success: res.success, result: { target, process: proc, killed: res.success }, rollbackData: null };
         },
         async rollback() { return { success: true }; }
-    },,
+    },
 
     disable_user_account: {
         label: "Disable User Account",
