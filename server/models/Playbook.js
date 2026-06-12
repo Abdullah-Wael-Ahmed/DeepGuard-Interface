@@ -20,7 +20,6 @@ const Playbook = db.define("Playbook", {
     mitreTags: {
         type: DataTypes.TEXT,
         allowNull: true,
-        defaultValue: "[]",
         get() {
             const v = this.getDataValue("mitreTags");
             return v ? JSON.parse(v) : [];
@@ -36,7 +35,6 @@ const Playbook = db.define("Playbook", {
     nodes: {
         type: DataTypes.TEXT,
         allowNull: false,
-        defaultValue: "[]",
         get() {
             const v = this.getDataValue("nodes");
             return v ? JSON.parse(v) : [];
@@ -48,7 +46,6 @@ const Playbook = db.define("Playbook", {
     edges: {
         type: DataTypes.TEXT,
         allowNull: false,
-        defaultValue: "[]",
         get() {
             const v = this.getDataValue("edges");
             return v ? JSON.parse(v) : [];

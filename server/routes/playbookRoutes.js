@@ -137,7 +137,7 @@ router.post("/seed", async (req, res) => {
         res.json({ message: "Playbook templates seeded", ...result });
     } catch (error) {
         console.error("[SOAR Routes] Seed error:", error);
-        res.status(500).json({ error: "Failed to seed playbooks" });
+        res.status(500).json({ error: error.message, stack: error.stack });
     }
 });
 
@@ -163,7 +163,7 @@ router.post("/", async (req, res) => {
         res.status(201).json(pb);
     } catch (error) {
         console.error("[SOAR Routes] Create error:", error);
-        res.status(400).json({ error: "Invalid playbook data" });
+        res.status(400).json({ error: error.message, stack: error.stack });
     }
 });
 
