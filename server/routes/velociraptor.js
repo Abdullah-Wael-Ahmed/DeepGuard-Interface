@@ -154,7 +154,10 @@ router.get('/status', async (req, res) => {
     try {
         // Ping the Velociraptor GUI port to check if the container is up and running
         const agent = new https.Agent({ rejectUnauthorized: false });
-        await axios.get(process.env.VR_SERVER_URL || 'https://localhost:8889', { httpsAgent: agent });
+        const response = await axios.get(process.env.VR_SERVER_URL || 'https://localhost:8889', { 
+            httpsAgent: agent,
+            validateStatus: (status) => status === 200 || status === 401 // 401 means server is up and asking for auth
+        });
         res.json({ status: 'Online', reachable: true });
     } catch (error) {
         console.error('Velociraptor health check failed:', error.message);
