@@ -18,8 +18,8 @@ const queryVelociraptor = async (vqlQuery) => {
         // Escape single quotes for the shell command
         const safeQuery = vqlQuery.replace(/'/g, "'\\''");
         
-        // Execute the VQL query directly inside the velociraptor container
-        const cmd = `docker exec deepguard-velociraptor /opt/velociraptor --config /etc/velociraptor/server.config.yaml query '${safeQuery}' --format json`;
+        // Execute the VQL query directly against the live server by generating and using a temporary API client
+        const cmd = `docker exec deepguard-velociraptor sh -c "/opt/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name deepguard --role administrator /tmp/api_client.yaml > /dev/null 2>&1; /opt/velociraptor --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
         const { stdout, stderr } = await execPromise(cmd);
         
         if (stderr && stderr.trim()) {
