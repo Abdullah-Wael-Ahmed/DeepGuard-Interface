@@ -8,49 +8,37 @@ const router = express.Router();
 
 const https = require('https');
 
-// Helper to query Velociraptor via its GUI REST API (using VQL)
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+// Helper to query Velociraptor via local docker exec
 const queryVelociraptor = async (vqlQuery) => {
-    const agent = new https.Agent({ rejectUnauthorized: false });
-    const auth = { 
-        username: process.env.VR_ADMIN_USER || 'admin', 
-        password: process.env.VR_ADMIN_PASSWORD || 'Password#1' 
-    };
-    
-    // 1. Fetch CSRF token
-    const res1 = await axios.get(process.env.VR_SERVER_URL || 'https://localhost:8889', { 
-        auth, 
-        httpsAgent: agent,
-        validateStatus: () => true 
-    });
-
-    if (res1.status === 401) {
-        throw new Error('Authentication failed: Incorrect Velociraptor admin password in .env');
+    try {
+        // Escape single quotes for the shell command
+        const safeQuery = vqlQuery.replace(/'/g, "'\\''");
+        
+        // Execute the VQL query directly inside the velociraptor container
+        const cmd = `docker exec deepguard-velociraptor /opt/velociraptor --config /etc/velociraptor/server.config.yaml query '${safeQuery}' --format json`;
+        const { stdout } = await execPromise(cmd);
+        
+        if (!stdout || !stdout.trim()) {
+            return { Responses: [{ Response: [] }] };
+        }
+        
+        let rows = [];
+        try {
+            rows = JSON.parse(stdout);
+        } catch (e) {
+            // Try parsing line-delimited JSON
+            rows = stdout.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+        }
+        
+        return { Responses: [{ Response: rows }] };
+    } catch (error) {
+        console.error('Docker exec query failed:', error.message);
+        throw new Error('Failed to query velociraptor datastore locally');
     }
-
-    const cookies = res1.headers['set-cookie'] || [];
-    let csrfToken = '';
-    const cookieString = cookies.map(c => {
-        const parts = c.split(';');
-        if (parts[0].startsWith('csrf_token=')) {
-            csrfToken = parts[0].split('=')[1];
-        }
-        return parts[0];
-    }).join('; ');
-
-    // 2. Execute VQL Query
-    const url = `${process.env.VR_SERVER_URL || 'https://localhost:8889'}/api/v1/Query`;
-    const res2 = await axios.post(url, {
-        Query: [{ Name: 'Query', VQL: vqlQuery }]
-    }, {
-        auth,
-        httpsAgent: agent,
-        headers: {
-            'Cookie': cookieString,
-            'X-CSRF-Token': csrfToken
-        }
-    });
-
-    return res2.data;
 };
 
 // GET /api/velociraptor/clients — fetch all enrolled endpoint agents
