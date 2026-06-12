@@ -17,6 +17,17 @@ const Playbook = require("../../models/Playbook");
 const PlaybookExecution = require("../../models/PlaybookExecution");
 const { getAction, listActions } = require("./actionPlugins");
 const { broadcast } = require("../../util/websocket");
+const fs = require('fs');
+const path = require('path');
+
+function writeElkLog(eventData) {
+    try {
+        const logDir = path.join(__dirname, '../../../logs');
+        if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+        const logFile = path.join(logDir, 'soar.log');
+        fs.appendFileSync(logFile, JSON.stringify({ '@timestamp': new Date().toISOString(), engine: 'soar', ...eventData }) + '\n');
+    } catch (e) { console.error('ELK SOAR Log error:', e.message); }
+}
 
 // Execution timeout per step (ms)
 const STEP_TIMEOUT_MS = 30000;
@@ -56,7 +67,11 @@ class SOAREngine {
         };
 
         try {
+            playbook.runCounter = (playbook.runCounter || 0) + 1;
+            await playbook.save();
+
             log("info", `▶ Starting playbook: ${playbook.name} (trigger: ${triggerSource})`);
+            writeElkLog({ event: 'playbook_started', playbookId, playbookName: playbook.name, triggerSource });
 
             const nodesMap = new Map(playbook.nodes.map(n => [n.id, n]));
             const adjList = new Map();
@@ -111,6 +126,24 @@ class SOAREngine {
                                 execution.logs = logs;
                                 execution.contextData = payload;
                                 await execution.save();
+                                
+                                writeElkLog({ event: 'approval_requested', playbookId, playbookName: playbook.name, actionType });
+
+                                // 15 minute auto deny
+                                setTimeout(async () => {
+                                    try {
+                                        const execCheck = await PlaybookExecution.findByPk(execution.id);
+                                        if (execCheck && execCheck.status === "awaiting_approval") {
+                                            execCheck.status = "rejected";
+                                            execCheck.completedAt = new Date();
+                                            const logs = execCheck.logs || [];
+                                            logs.push({ timestamp: new Date().toISOString(), level: "warn", message: "Execution auto-rejected due to 15-minute timeout" });
+                                            execCheck.logs = logs;
+                                            await execCheck.save();
+                                            writeElkLog({ event: 'approval_timeout', playbookId, playbookName: playbook.name, executionId: execution.id });
+                                        }
+                                    } catch (e) {}
+                                }, 15 * 60 * 1000);
 
                                 broadcast({
                                     type: "soar_approval_required",
@@ -136,6 +169,7 @@ class SOAREngine {
 
                             if (result.success) {
                                 log("info", `✅ Action "${actionType}" succeeded`, result.result);
+                                writeElkLog({ event: 'action_success', playbookName: playbook.name, actionType, result: result.result });
                                 if (result.rollbackData) {
                                     rollbackStack.push({ actionType, rollbackData: result.rollbackData });
                                 }
@@ -145,6 +179,7 @@ class SOAREngine {
                                 }
                             } else {
                                 log("error", `❌ Action "${actionType}" failed after retries`, result.result);
+                                writeElkLog({ event: 'action_failed', playbookName: playbook.name, actionType, error: result.result });
                                 // Rollback all previous actions
                                 await this._rollbackAll(rollbackStack, log);
                                 execution.status = "failed";
@@ -185,6 +220,7 @@ class SOAREngine {
                 execution.status = "success";
                 log("info", `✅ Playbook "${playbook.name}" completed successfully.`);
             }
+            writeElkLog({ event: 'playbook_completed', playbookName: playbook.name, status: execution.status, stepCount });
 
         } catch (error) {
             log("error", `💥 Fatal error: ${error.message}`);

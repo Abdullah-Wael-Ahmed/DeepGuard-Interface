@@ -51,6 +51,7 @@ const MitreAttack = () => {
     const [coverage, setCoverage] = useState({ detected: 0, total: 0, score: 0 });
     const [matrix, setMatrix] = useState([]);
     const [recentAlerts, setRecentAlerts] = useState([]);
+    const [playbooks, setPlaybooks] = useState([]);
 
     // Drill-down state
     const [selectedTechnique, setSelectedTechnique] = useState(null);
@@ -94,10 +95,28 @@ const MitreAttack = () => {
         setLoadingDetail(false);
     };
 
+    const fetchPlaybooks = async () => {
+        try {
+            const res = await axios.get(`${BACK}/playbooks`, { withCredentials: true });
+            setPlaybooks(res.data);
+        } catch (error) {
+            console.error('Failed to load playbooks:', error);
+        }
+    };
+
     useEffect(() => {
         fetchMatrix();
         fetchRecentAlerts();
+        fetchPlaybooks();
     }, []);
+
+    const coveredTechniques = useMemo(() => {
+        const covered = new Set();
+        playbooks.forEach(pb => {
+            if (pb.mitreTags) pb.mitreTags.forEach(t => covered.add(t));
+        });
+        return covered;
+    }, [playbooks]);
 
     // ─────────────── Technique Drill-Down ───────────────
 
@@ -238,16 +257,22 @@ const MitreAttack = () => {
                                             {/* Techniques */}
                                             {tactic.techniques.map(tech => {
                                                 const style = getSourceStyle(tech.source, tech.ai_inferred);
+                                                const hasPlaybook = coveredTechniques.has(tech.id);
                                                 return (
                                                     <div
                                                         key={tech.id}
                                                         onClick={() => handleTechniqueClick(tech)}
-                                                        className={`p-2 rounded text-[11px] border flex justify-between items-center transition-all duration-200 ${tech.detected
+                                                        className={`p-2 rounded text-[11px] border flex flex-col justify-center transition-all duration-200 ${tech.detected
                                                             ? `${style.border} ${style.glow} hover:bg-white/5 cursor-pointer`
                                                             : 'border-gray-800 bg-gray-800/20 text-gray-600'}`}
                                                     >
-                                                        <span className={`truncate mr-2 ${tech.detected ? 'text-text-main font-medium' : 'text-gray-600'}`} title={tech.name}>{tech.id}</span>
-                                                        <span className={`w-2 h-2 rounded-full ${style.dot} flex-shrink-0`}></span>
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <span className={`truncate mr-2 ${tech.detected ? 'text-text-main font-medium' : 'text-gray-600'}`} title={tech.name}>{tech.id}</span>
+                                                            <span className={`w-2 h-2 rounded-full ${style.dot} flex-shrink-0`}></span>
+                                                        </div>
+                                                        {hasPlaybook && (
+                                                            <span className="text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded px-1 py-0.5 w-fit mt-1 inline-block">SOAR Protect</span>
+                                                        )}
                                                     </div>
                                                 );
                                             })}

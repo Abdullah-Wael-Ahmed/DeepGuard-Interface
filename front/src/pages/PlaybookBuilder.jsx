@@ -303,6 +303,7 @@ const PlaybookBuilder = () => {
                                                     <option value="isolate_host">Isolate Host (Velociraptor)</option>
                                                     <option value="release_host">Release Host Isolation</option>
                                                     <option value="kill_process">Kill Process (Velociraptor)</option>
+                                                    <option value="disable_user_account">Disable User Account</option>
                                                 </optgroup>
                                                 <optgroup label="Enrichment">
                                                     <option value="enrich_ip">Enrich IP (Threat Intel)</option>
@@ -310,10 +311,14 @@ const PlaybookBuilder = () => {
                                                     <option value="tag_mitre">Tag MITRE ATT&CK</option>
                                                     <option value="add_watchlist">Add to IOC Watchlist</option>
                                                     <option value="remove_watchlist">Remove from Watchlist</option>
+                                                    <option value="collect_forensic_snapshot">Collect Forensic Snapshot</option>
+                                                    <option value="run_nmap_scan">Run Nmap Scan</option>
+                                                    <option value="query_elk">Query ELK</option>
                                                 </optgroup>
                                                 <optgroup label="Case Management">
                                                     <option value="create_incident">Create Incident</option>
                                                     <option value="close_incident">Close Incident</option>
+                                                    <option value="create_jira_ticket">Create Jira/ServiceNow Ticket</option>
                                                 </optgroup>
                                                 <optgroup label="Notification">
                                                     <option value="notify_dashboard">Notify Dashboard</option>
@@ -376,6 +381,16 @@ const PlaybookBuilder = () => {
                             <>
                                 <div>
                                     <h4 className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-3">Global Settings</h4>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">MITRE ATT&CK Tags</label>
+                                    <input 
+                                        type="text"
+                                        className="w-full bg-[#0f0f13] border border-gray-700 rounded-md p-2 text-white focus:border-primary focus:outline-none text-sm mb-4"
+                                        value={(playbook?.mitreTags || []).join(', ')}
+                                        onChange={(e) => setPlaybook({...playbook, mitreTags: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})}
+                                        placeholder="e.g. T1566, T1041"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-1">Description</label>

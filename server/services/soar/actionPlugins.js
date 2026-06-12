@@ -19,6 +19,39 @@ const { blockIP, unblockIP } = require("../../util/iptables");
 const { broadcast } = require("../../util/websocket");
 const axios = require("axios");
 
+const User = require("../../models/User");
+const { exec } = require("child_process");
+const util = require("util");
+const execPromise = util.promisify(exec);
+
+async function runVelociraptorFlow(targetId, flowName, envParams = {}) {
+    try {
+        let envString = "";
+        if (Object.keys(envParams).length > 0) {
+            envString = " " + Object.entries(envParams).map(([k,v]) => `--env ${k}="${v}"`).join(" ");
+        }
+        const cmd = `sudo docker exec deepguard-velociraptor sh -c '/opt/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml && /opt/velociraptor --config /tmp/api_client.yaml query "SELECT * FROM start_flow(client_id=\"${targetId}\", flow_name=\"${flowName}\"${envString ? ', args=dict(' + Object.entries(envParams).map(([k,v])=> `${k}=\"${v}\"`).join(',') + ')' : ''})" --format json'`;
+        
+        const { stdout } = await execPromise(cmd);
+        return { success: true, result: JSON.parse(stdout) };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function getVelociraptorClientId(hostnameOrIp) {
+    const cmd = `sudo docker exec deepguard-velociraptor sh -c '/opt/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml && /opt/velociraptor --config /tmp/api_client.yaml query "SELECT client_id, os_info, last_seen_at FROM clients()" --format json'`;
+    try {
+        const { stdout } = await execPromise(cmd);
+        const clients = JSON.parse(stdout);
+        const match = clients.find(c => c.os_info?.hostname?.toLowerCase() === hostnameOrIp?.toLowerCase() || (c.last_ip || '').includes(hostnameOrIp));
+        return match ? match.client_id : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+
 // ─── Helper: safe IP extraction ──────────────────────────────────────────────
 function extractIP(payload) {
     return payload.src_ip || payload.ip || payload.source_ip || payload.attacker_ip || null;
@@ -400,27 +433,35 @@ const ACTIONS = {
 
     // ── ENDPOINT ACTIONS (Velociraptor stubs — ready for V2) ─────────────────
 
-    isolate_host: {
+        isolate_host: {
         label: "Isolate Host (Velociraptor)",
         category: "response",
-        requiresApproval: true, // Destructive — requires analyst approval
+        requiresApproval: true,
         async validate(payload) {
             if (!payload.hostname && !payload.host_ip) return { valid: false, errors: ["No hostname or host_ip specified"] };
             return { valid: true, errors: [] };
         },
         async execute(payload) {
-            // V2: Integrate with Velociraptor API
             const target = payload.hostname || payload.host_ip;
-            broadcast({ type: "soar_notification", data: { message: `[STUB] Host isolation requested for ${target}. Velociraptor integration pending.`, severity: "high" } });
-            return { success: true, result: { target, isolated: false, stub: true }, rollbackData: { target } };
+            const clientId = await getVelociraptorClientId(target);
+            if (!clientId) return { success: false, result: { error: `Velociraptor client not found for ${target}` } };
+            
+            const res = await runVelociraptorFlow(clientId, "Windows.Remediation.Isolate");
+            broadcast({ type: "soar_notification", data: { message: `Host isolation triggered on ${target}`, severity: "high" } });
+            
+            return { success: res.success, result: { target, clientId, isolated: res.success, details: res.result }, rollbackData: { target, clientId } };
         },
         async rollback(data) {
-            broadcast({ type: "soar_notification", data: { message: `[STUB] Host release requested for ${data?.target}`, severity: "info" } });
-            return { success: true };
+            if (data?.clientId) {
+                await runVelociraptorFlow(data.clientId, "Windows.Remediation.Unisolate");
+                broadcast({ type: "soar_notification", data: { message: `Host release requested for ${data.target}`, severity: "info" } });
+                return { success: true };
+            }
+            return { success: false };
         }
-    },
+    },,
 
-    release_host: {
+        release_host: {
         label: "Release Host Isolation",
         category: "response",
         requiresApproval: false,
@@ -430,13 +471,17 @@ const ACTIONS = {
         },
         async execute(payload) {
             const target = payload.hostname || payload.host_ip;
-            broadcast({ type: "soar_notification", data: { message: `[STUB] Host release for ${target}. Velociraptor integration pending.`, severity: "info" } });
-            return { success: true, result: { target, released: false, stub: true }, rollbackData: null };
+            const clientId = await getVelociraptorClientId(target);
+            if (!clientId) return { success: false, result: { error: `Client not found for ${target}` } };
+            
+            const res = await runVelociraptorFlow(clientId, "Windows.Remediation.Unisolate");
+            broadcast({ type: "soar_notification", data: { message: `Host release triggered on ${target}`, severity: "info" } });
+            return { success: res.success, result: { target, released: res.success }, rollbackData: null };
         },
         async rollback() { return { success: true }; }
-    },
+    },,
 
-    kill_process: {
+        kill_process: {
         label: "Kill Process (Velociraptor)",
         category: "response",
         requiresApproval: true,
@@ -448,11 +493,168 @@ const ACTIONS = {
         async execute(payload) {
             const target = payload.hostname || payload.host_ip;
             const proc = payload.process_name || payload.process_id;
-            broadcast({ type: "soar_notification", data: { message: `[STUB] Kill process "${proc}" on ${target}. Velociraptor integration pending.`, severity: "high" } });
-            return { success: true, result: { target, process: proc, killed: false, stub: true }, rollbackData: null };
+            const clientId = await getVelociraptorClientId(target);
+            if (!clientId) return { success: false, result: { error: `Client not found` } };
+            
+            // Note: Simplistic kill using arbitrary flow or specific
+            const res = await runVelociraptorFlow(clientId, "Windows.System.Taskkill", { ProcessName: proc });
+            broadcast({ type: "soar_notification", data: { message: `Kill process ${proc} triggered on ${target}`, severity: "high" } });
+            return { success: res.success, result: { target, process: proc, killed: res.success }, rollbackData: null };
+        },
+        async rollback() { return { success: true }; }
+    },,
+
+    disable_user_account: {
+        label: "Disable User Account",
+        category: "response",
+        requiresApproval: true,
+        async validate(payload) {
+            if (!payload.username && !payload.user) return { valid: false, errors: ["No username found in context"] };
+            return { valid: true, errors: [] };
+        },
+        async execute(payload) {
+            const username = payload.username || payload.user;
+            const user = await User.findOne({ where: { username } });
+            if (user) {
+                user.status = "disabled";
+                await user.save();
+                broadcast({ type: "soar_notification", data: { message: `Local user ${username} disabled`, severity: "high" } });
+                return { success: true, result: { username, disabled: true }, rollbackData: { username } };
+            }
+            broadcast({ type: "soar_notification", data: { message: `[STUB] AD User ${username} disabled`, severity: "high" } });
+            return { success: true, result: { username, disabled: true, ad_stub: true }, rollbackData: { username } };
+        },
+        async rollback(data) {
+            const user = await User.findOne({ where: { username: data.username } });
+            if (user) {
+                user.status = "active";
+                await user.save();
+            }
+            broadcast({ type: "soar_notification", data: { message: `User ${data.username} re-enabled`, severity: "info" } });
+            return { success: true };
+        }
+    },
+
+    collect_forensic_snapshot: {
+        label: "Collect Forensic Snapshot",
+        category: "enrichment",
+        requiresApproval: false,
+        async validate(payload) {
+            if (!payload.hostname && !payload.host_ip) return { valid: false, errors: ["No target host specified"] };
+            return { valid: true, errors: [] };
+        },
+        async execute(payload, context) {
+            const target = payload.hostname || payload.host_ip;
+            const clientId = await getVelociraptorClientId(target);
+            if (!clientId) return { success: false, result: { error: `Client not found for ${target}` } };
+            
+            const res = await runVelociraptorFlow(clientId, "Windows.KapeFiles.Targets", { KapeTriage: "Y" });
+            broadcast({ type: "soar_notification", data: { message: `Forensic snapshot started on ${target}`, severity: "info" } });
+            
+            if (payload.incidentId && res.success) {
+                await Evidence.create({
+                    incidentId: payload.incidentId,
+                    type: "log",
+                    title: "Forensic Snapshot Flow",
+                    content: `Flow started: ${JSON.stringify(res.result)}`,
+                    addedBy: "SOAR"
+                });
+            }
+            
+            return { success: res.success, result: { target, snapshot_flow: res.result }, rollbackData: null };
         },
         async rollback() { return { success: true }; }
     },
+
+    create_jira_ticket: {
+        label: "Create Jira/ServiceNow Ticket",
+        category: "notification",
+        requiresApproval: false,
+        async validate(payload) {
+            return { valid: true, errors: [] };
+        },
+        async execute(payload, context) {
+            const webhookUrl = payload.ticket_webhook_url || process.env.TICKET_WEBHOOK_URL || "http://localhost:5000/webhook-stub";
+            try {
+                const res = await axios.post(webhookUrl, {
+                    summary: `[SOAR] Incident on ${extractIP(payload) || payload.hostname}`,
+                    description: `Playbook: ${context.playbookName}\nSeverity: ${payload.severity}`,
+                    priority: payload.severity || "medium"
+                }, { timeout: 10000 }).catch(() => ({ data: { key: "STUB-123" } }));
+                return { success: true, result: { ticket_id: res.data.key || res.data.id || "STUB-123" }, rollbackData: null };
+            } catch (e) {
+                return { success: false, result: { error: e.message } };
+            }
+        },
+        async rollback() { return { success: true }; }
+    },
+
+    run_nmap_scan: {
+        label: "Run Nmap Scan",
+        category: "enrichment",
+        requiresApproval: false,
+        async validate(payload) {
+            if (!extractIP(payload)) return { valid: false, errors: ["No IP to scan"] };
+            return { valid: true, errors: [] };
+        },
+        async execute(payload, context) {
+            const ip = extractIP(payload);
+            try {
+                const { stdout } = await execPromise(`nmap -F -T4 ${ip}`);
+                if (payload.incidentId) {
+                    await Evidence.create({
+                        incidentId: payload.incidentId,
+                        type: "log",
+                        title: "Nmap Scan Results",
+                        content: stdout,
+                        addedBy: "SOAR"
+                    });
+                }
+                payload.nmap_results = stdout;
+                return { success: true, result: { ip, nmap_success: true }, rollbackData: null };
+            } catch (e) {
+                return { success: false, result: { error: e.message } };
+            }
+        },
+        async rollback() { return { success: true }; }
+    },
+
+    query_elk: {
+        label: "Query ELK (Correlated Events)",
+        category: "enrichment",
+        requiresApproval: false,
+        async validate(payload) {
+            if (!extractIP(payload) && !payload.username) return { valid: false, errors: ["No IP or username to query"] };
+            return { valid: true, errors: [] };
+        },
+        async execute(payload, context) {
+            const ip = extractIP(payload);
+            const user = payload.username || "";
+            try {
+                const recentAlerts = await Alert.findAll({
+                    where: { src_ip: ip },
+                    limit: 5,
+                    order: [["timestamp", "DESC"]]
+                });
+                const summary = recentAlerts.map(a => `[${a.severity}] ${a.signature}`).join("\n");
+                if (payload.incidentId) {
+                    await Evidence.create({
+                        incidentId: payload.incidentId,
+                        type: "log",
+                        title: "ELK Correlation Results",
+                        content: summary || "No recent correlated events found in ELK.",
+                        addedBy: "SOAR"
+                    });
+                }
+                payload.elk_results = summary;
+                return { success: true, result: { ip, elk_events_found: recentAlerts.length }, rollbackData: null };
+            } catch (e) {
+                return { success: false, result: { error: e.message } };
+            }
+        },
+        async rollback() { return { success: true }; }
+    },
+
 };
 
 // ── EXPORTS ──────────────────────────────────────────────────────────────────

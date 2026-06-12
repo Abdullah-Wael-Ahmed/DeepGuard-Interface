@@ -16,17 +16,20 @@ const Playbooks = () => {
     const [playbooks, setPlaybooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ totalExecutions: 0, last24h: 0, successRate: 0, awaitingApproval: 0 });
+    const [pendingApprovals, setPendingApprovals] = useState([]);
     const navigate = useNavigate();
 
     const fetchPlaybooks = async () => {
         setLoading(true);
         try {
-            const [pbRes, statsRes] = await Promise.all([
+            const [pbRes, statsRes, pendingRes] = await Promise.all([
                 axios.get(`${BACK}/playbooks`, { withCredentials: true }),
-                axios.get(`${BACK}/playbooks/stats`, { withCredentials: true }).catch(() => ({ data: {} }))
+                axios.get(`${BACK}/playbooks/stats`, { withCredentials: true }).catch(() => ({ data: {} })),
+                axios.get(`${BACK}/playbooks/executions/pending`, { withCredentials: true }).catch(() => ({ data: [] }))
             ]);
             setPlaybooks(pbRes.data);
             setStats(statsRes.data);
+            setPendingApprovals(pendingRes.data);
         } catch (error) {
             toast.error("Failed to load playbooks");
         } finally {
@@ -69,6 +72,16 @@ const Playbooks = () => {
             fetchPlaybooks();
         } catch (error) {
             toast.error("Failed to seed templates");
+        }
+    };
+
+    const handleApproval = async (execId, approved) => {
+        try {
+            await axios.post(`${BACK}/playbooks/executions/${execId}/approve`, { approved }, { withCredentials: true });
+            toast.success(approved ? "Execution approved" : "Execution rejected");
+            fetchPlaybooks();
+        } catch (error) {
+            toast.error("Failed to process approval");
         }
     };
 
@@ -128,6 +141,30 @@ const Playbooks = () => {
                 </div>
             </div>
 
+            {pendingApprovals.length > 0 && (
+                <div className="max-w-7xl mx-auto mt-8 bg-card-dark border border-yellow-500/50 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.15)] overflow-hidden">
+                    <div className="p-5 border-b border-gray-700 flex justify-between items-center bg-yellow-500/5">
+                        <h2 className="text-lg font-bold text-yellow-400 flex items-center gap-2"><ShieldAlert size={20}/> Pending Approvals</h2>
+                    </div>
+                    <div className="divide-y divide-gray-800">
+                        {pendingApprovals.map(exec => (
+                            <div key={exec.id} className="p-5 flex items-center justify-between hover:bg-white/5 transition">
+                                <div>
+                                    <p className="font-bold text-white text-base">Execution #{exec.id} — {exec.playbookName}</p>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        Paused awaiting analyst approval. Target: {exec.contextData?.src_ip || exec.contextData?.hostname || "Unknown"}
+                                    </p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => handleApproval(exec.id, false)} className="px-4 py-2 border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-lg text-sm font-medium transition">Reject</button>
+                                    <button onClick={() => handleApproval(exec.id, true)} className="px-4 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 rounded-lg text-sm font-medium transition">Approve & Continue</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto mt-8 bg-card-dark border border-gray-700 rounded-xl shadow-lg overflow-hidden">
                 <div className="p-5 border-b border-gray-700 flex justify-between items-center">
                      <h2 className="text-lg font-bold">Configured Playbooks</h2>
@@ -150,6 +187,7 @@ const Playbooks = () => {
                                     <th className="py-4 px-6 font-medium">Playbook Name</th>
                                     <th className="py-4 px-6 font-medium">Status</th>
                                     <th className="py-4 px-6 font-medium">Trigger</th>
+                                    <th className="py-4 px-6 font-medium">Runs</th>
                                     <th className="py-4 px-6 font-medium">Last Updated</th>
                                     <th className="py-4 px-6 font-medium text-right">Actions</th>
                                 </tr>
@@ -173,9 +211,14 @@ const Playbooks = () => {
                                         <td className="py-4 px-6">
                                             {pb.triggerType === 'on_incident_created' ? (
                                                 <span className="flex items-center gap-1.5 text-purple-400 bg-purple-500/10 px-2 py-1 rounded w-fit border border-purple-500/20"><ShieldAlert size={14}/> Incident</span>
+                                            ) : pb.triggerType === 'on_alert' ? (
+                                                <span className="flex items-center gap-1.5 text-orange-400 bg-orange-500/10 px-2 py-1 rounded w-fit border border-orange-500/20"><Zap size={14}/> Alert</span>
                                             ) : (
                                                  <span className="flex items-center gap-1.5 text-gray-400 bg-gray-800 px-2 py-1 rounded w-fit"><Play size={14}/> Manual</span>
                                             )}
+                                        </td>
+                                        <td className="py-4 px-6 text-gray-300 font-mono">
+                                            {pb.runCounter || 0}
                                         </td>
                                         <td className="py-4 px-6 text-gray-400 flex items-center gap-2">
                                             <Clock size={14}/> {new Date(pb.updatedAt).toLocaleDateString()}

@@ -17,6 +17,22 @@ const Playbook = db.define("Playbook", {
             isIn: [["draft", "active", "disabled"]]
         }
     },
+    mitreTags: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        defaultValue: "[]",
+        get() {
+            const v = this.getDataValue("mitreTags");
+            return v ? JSON.parse(v) : [];
+        },
+        set(v) {
+            this.setDataValue("mitreTags", JSON.stringify(v));
+        }
+    },
+    runCounter: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+    },
     nodes: {
         type: DataTypes.TEXT,
         allowNull: false,

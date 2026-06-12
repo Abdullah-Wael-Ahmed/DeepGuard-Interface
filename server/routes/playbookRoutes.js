@@ -282,4 +282,32 @@ router.get("/executions/pending", async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// POST /playbooks/executions/:execId/rollback/:stepId — Rollback a specific step
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/executions/:execId/rollback/:stepId", async (req, res) => {
+    try {
+        const execution = await PlaybookExecution.findByPk(req.params.execId);
+        if (!execution) return res.status(404).json({ error: "Execution not found" });
+
+        const { actionType, rollbackData } = req.body;
+        
+        const { getAction } = require("../services/soar/actionPlugins");
+        const plugin = getAction(actionType);
+        if (!plugin) return res.status(400).json({ error: "Unknown action plugin" });
+
+        const result = await plugin.rollback(rollbackData);
+        
+        const logs = execution.logs || [];
+        logs.push({ timestamp: new Date().toISOString(), level: "info", message: `Manual rollback triggered for ${actionType}`, result });
+        execution.logs = logs;
+        await execution.save();
+
+        res.json({ success: true, result });
+    } catch (error) {
+        console.error("[SOAR Routes] Rollback error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 module.exports = router;
