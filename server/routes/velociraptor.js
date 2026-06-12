@@ -20,24 +20,38 @@ const queryVelociraptor = async (vqlQuery) => {
         
         // Execute the VQL query directly inside the velociraptor container
         const cmd = `docker exec deepguard-velociraptor /opt/velociraptor --config /etc/velociraptor/server.config.yaml query '${safeQuery}' --format json`;
-        const { stdout } = await execPromise(cmd);
+        const { stdout, stderr } = await execPromise(cmd);
         
+        if (stderr && stderr.trim()) {
+            console.error('[Velociraptor CLI Stderr]:', stderr);
+        }
+
         if (!stdout || !stdout.trim()) {
             return { Responses: [{ Response: [] }] };
         }
         
         let rows = [];
         try {
+            // First try parsing the whole thing as a single JSON array
             rows = JSON.parse(stdout);
         } catch (e) {
-            // Try parsing line-delimited JSON
-            rows = stdout.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+            // If it fails, parse line by line (Velociraptor often outputs line-delimited JSON)
+            const lines = stdout.split('\n').filter(l => l.trim());
+            for (const line of lines) {
+                try {
+                    rows.push(JSON.parse(line));
+                } catch (err) {
+                    console.log('[Velociraptor ignored non-JSON line]:', line);
+                }
+            }
         }
         
         return { Responses: [{ Response: rows }] };
     } catch (error) {
         console.error('Docker exec query failed:', error.message);
-        throw new Error('Failed to query velociraptor datastore locally');
+        if (error.stdout) console.error('Stdout:', error.stdout);
+        if (error.stderr) console.error('Stderr:', error.stderr);
+        throw new Error('Failed to query velociraptor datastore locally: ' + error.message);
     }
 };
 
