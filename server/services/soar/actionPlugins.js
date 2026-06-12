@@ -459,7 +459,7 @@ const ACTIONS = {
             }
             return { success: false };
         }
-    },,
+    },
 
         release_host: {
         label: "Release Host Isolation",
