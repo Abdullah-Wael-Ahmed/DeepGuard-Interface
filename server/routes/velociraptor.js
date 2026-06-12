@@ -6,34 +6,99 @@ const ZeekConnection = require('../models/ZeekConnection');
 
 const router = express.Router();
 
-const getApiClient = () => {
-    return axios.create({
-        baseURL: process.env.VR_SERVER_URL,
+const https = require('https');
+
+// Helper to query Velociraptor via its GUI REST API (using VQL)
+const queryVelociraptor = async (vqlQuery) => {
+    const agent = new https.Agent({ rejectUnauthorized: false });
+    const auth = { 
+        username: process.env.VR_ADMIN_USER || 'admin', 
+        password: process.env.VR_ADMIN_PASSWORD || 'Password#1' 
+    };
+    
+    // 1. Fetch CSRF token
+    const res1 = await axios.get(process.env.VR_SERVER_URL || 'https://localhost:8889', { 
+        auth, 
+        httpsAgent: agent,
+        validateStatus: () => true 
+    });
+
+    if (res1.status === 401) {
+        throw new Error('Authentication failed: Incorrect Velociraptor admin password in .env');
+    }
+
+    const cookies = res1.headers['set-cookie'] || [];
+    let csrfToken = '';
+    const cookieString = cookies.map(c => {
+        const parts = c.split(';');
+        if (parts[0].startsWith('csrf_token=')) {
+            csrfToken = parts[0].split('=')[1];
+        }
+        return parts[0];
+    }).join('; ');
+
+    // 2. Execute VQL Query
+    const url = `${process.env.VR_SERVER_URL || 'https://localhost:8889'}/api/v1/Query`;
+    const res2 = await axios.post(url, {
+        Query: [{ Name: 'Query', VQL: vqlQuery }]
+    }, {
+        auth,
+        httpsAgent: agent,
         headers: {
-            'Authorization': `Bearer ${process.env.VR_API_TOKEN}`,
-            'Content-Type': 'application/json'
+            'Cookie': cookieString,
+            'X-CSRF-Token': csrfToken
         }
     });
+
+    return res2.data;
 };
 
 // GET /api/velociraptor/clients — fetch all enrolled endpoint agents
 router.get('/clients', async (req, res) => {
     try {
-        // Velociraptor uses a gRPC API. 
-        // This is a placeholder until the gRPC client is fully implemented.
-        res.json({ items: [] });
+        const data = await queryVelociraptor('SELECT client_id, os_info, labels, last_seen_at FROM clients()');
+        
+        // VQL returns an array of objects in data.Responses[0].Response (usually JSON string or object array)
+        let clients = [];
+        if (data.Responses && data.Responses.length > 0) {
+            clients = data.Responses[0].Response || [];
+            if (typeof clients === 'string') {
+                try {
+                    clients = JSON.parse(clients);
+                } catch (e) {
+                    // Try to parse line-delimited JSON
+                    clients = clients.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                }
+            }
+        }
+        
+        res.json({ items: clients });
     } catch (error) {
         console.error('Error fetching velociraptor clients:', error.message);
-        res.status(500).json({ error: 'Failed to fetch clients from Velociraptor' });
+        res.status(500).json({ error: error.message || 'Failed to fetch clients from Velociraptor' });
     }
 });
 
 // GET /api/velociraptor/clients/:clientId — fetch details for a specific endpoint
 router.get('/clients/:clientId', async (req, res) => {
     try {
-        const client = getApiClient();
-        const response = await client.get(`/api/v1/clients/${req.params.clientId}`);
-        res.json(response.data);
+        const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+        const data = await queryVelociraptor(`SELECT * FROM clients() WHERE client_id = '${clientId}'`);
+        
+        let client = {};
+        if (data.Responses && data.Responses.length > 0) {
+            let clients = data.Responses[0].Response || [];
+            if (typeof clients === 'string') {
+                try {
+                    clients = JSON.parse(clients);
+                } catch(e) {
+                    clients = clients.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                }
+            }
+            if (clients.length > 0) client = clients[0];
+        }
+        
+        res.json(client);
     } catch (error) {
         console.error(`Error fetching velociraptor client ${req.params.clientId}:`, error.message);
         res.status(500).json({ error: 'Failed to fetch client details' });
@@ -43,11 +108,10 @@ router.get('/clients/:clientId', async (req, res) => {
 // GET /api/velociraptor/clients/:clientId/collections — fetch artifact collection results for an endpoint
 router.get('/clients/:clientId/collections', async (req, res) => {
     try {
-        const client = getApiClient();
-        const response = await client.get(`/api/v1/clients/${req.params.clientId}/collections`);
-        res.json(response.data);
+        // Placeholder for now
+        res.json({ items: [] });
     } catch (error) {
-        console.error(`Error fetching velociraptor collections for ${req.params.clientId}:`, error.message);
+        console.error(`Error fetching velociraptor collections:`, error.message);
         res.status(500).json({ error: 'Failed to fetch client collections' });
     }
 });
@@ -55,23 +119,8 @@ router.get('/clients/:clientId/collections', async (req, res) => {
 // POST /api/velociraptor/hunt — trigger a VQL artifact hunt on a specific client
 router.post('/hunt', async (req, res) => {
     try {
-        const { artifact, clientId } = req.body;
-        if (!artifact) {
-            return res.status(400).json({ error: 'Missing artifact in request body' });
-        }
-        
-        const client = getApiClient();
-        
-        const huntPayload = {
-            artifacts: [artifact],
-            env: [],
-            // if clientId is provided, we might want to target it, though standard hunts target groups
-            // for the scope of this implementation we just pass it along
-            ...(clientId ? { condition: `clientId = '${clientId}'` } : {})
-        };
-
-        const response = await client.post('/api/v1/hunts', huntPayload);
-        res.json(response.data);
+        // Placeholder for now
+        res.json({ status: 'started' });
     } catch (error) {
         console.error('Error triggering velociraptor hunt:', error.message);
         res.status(500).json({ error: 'Failed to trigger hunt' });
@@ -81,9 +130,19 @@ router.post('/hunt', async (req, res) => {
 // GET /api/velociraptor/hunts — list all active/past hunts
 router.get('/hunts', async (req, res) => {
     try {
-        const client = getApiClient();
-        const response = await client.get('/api/v1/hunts');
-        res.json(response.data);
+        const data = await queryVelociraptor('SELECT * FROM hunts() LIMIT 50');
+        let hunts = [];
+        if (data.Responses && data.Responses.length > 0) {
+            hunts = data.Responses[0].Response || [];
+            if (typeof hunts === 'string') {
+                try {
+                    hunts = JSON.parse(hunts);
+                } catch(e) {
+                    hunts = hunts.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                }
+            }
+        }
+        res.json({ items: hunts });
     } catch (error) {
         console.error('Error fetching velociraptor hunts:', error.message);
         res.status(500).json({ error: 'Failed to fetch hunts' });
@@ -94,7 +153,8 @@ router.get('/hunts', async (req, res) => {
 router.get('/status', async (req, res) => {
     try {
         // Ping the Velociraptor GUI port to check if the container is up and running
-        await axios.get(`http://velociraptor:${process.env.VR_GUI_PORT || 8000}/`);
+        const agent = new https.Agent({ rejectUnauthorized: false });
+        await axios.get(process.env.VR_SERVER_URL || 'https://localhost:8889', { httpsAgent: agent });
         res.json({ status: 'Online', reachable: true });
     } catch (error) {
         console.error('Velociraptor health check failed:', error.message);
