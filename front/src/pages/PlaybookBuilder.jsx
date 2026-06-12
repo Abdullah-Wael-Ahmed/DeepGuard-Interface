@@ -4,54 +4,73 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { ReactFlow, MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge, Handle, Position, Panel } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Save, Play, ArrowLeft, Plus, Settings2, Trash2 } from 'lucide-react';
+import { Save, Play, ArrowLeft, Plus, Settings2, Trash2, Zap, ShieldAlert, Activity, GitCommit, Search, Shield, Bell } from 'lucide-react';
 
 const BACK = import.meta.env.VITE_BACK;
 
 // ── CUSTOM NODES ──
 const TriggerNode = ({ data, isConnectable }) => (
-  <div className="bg-[#1e1e2e] border-2 border-purple-500 rounded-lg p-4 w-60 shadow-lg relative">
-    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-700">
-      <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-      <div className="text-white font-bold text-sm uppercase tracking-wider">Trigger</div>
+  <div className="bg-[#1e1e2e] border-2 border-purple-500 rounded-xl p-4 w-64 shadow-[0_0_15px_rgba(168,85,247,0.15)] relative">
+    <div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-700/50">
+      <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
+          <Zap size={18} />
+      </div>
+      <div>
+        <div className="text-purple-400 font-bold text-xs uppercase tracking-wider">Trigger</div>
+        <div className="text-white text-sm font-medium">{data.label || 'On Incident Created'}</div>
+      </div>
     </div>
-    <div className="text-gray-300 text-sm">{data.label || 'On Incident Created'}</div>
-    <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
+    <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500 border-2 border-[#1e1e2e]" />
   </div>
 );
 
-const ActionNode = ({ data, isConnectable }) => (
-  <div className="bg-[#1e1e2e] border-2 border-blue-500 rounded-lg p-4 w-60 shadow-lg relative">
-    <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500" />
-    <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-700">
-      <div className="flex items-center gap-2">
-         <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
-         <div className="text-white font-bold text-sm uppercase tracking-wider">Action</div>
+const ActionNode = ({ data, isConnectable }) => {
+  const getIcon = (cat) => {
+    if(cat === 'response') return <ShieldAlert size={16} />;
+    if(cat === 'enrichment') return <Search size={16} />;
+    if(cat === 'notification') return <Bell size={16} />;
+    return <Activity size={16} />;
+  };
+  return (
+  <div className="bg-[#1e1e2e] border-2 border-blue-500 rounded-xl p-4 w-64 shadow-[0_0_15px_rgba(59,130,246,0.15)] relative group">
+    <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500 border-2 border-[#1e1e2e]" />
+    <div className="flex justify-between items-start mb-3 pb-3 border-b border-gray-700/50">
+      <div className="flex items-center gap-3">
+         <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+             {getIcon(data.category)}
+         </div>
+         <div>
+            <div className="text-blue-400 font-bold text-xs uppercase tracking-wider">Action</div>
+            <div className="text-white text-sm font-medium truncate w-32" title={data.actionLabel || data.actionType || 'Block IP'}>{data.actionLabel || data.actionType || 'Block IP'}</div>
+         </div>
       </div>
-      <button onClick={data.onDelete} className="text-gray-500 hover:text-red-400"><Trash2 size={14}/></button>
+      <button onClick={data.onDelete} className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16}/></button>
     </div>
-    <div className="text-blue-300 font-mono text-xs bg-blue-500/10 p-2 rounded">{data.actionType || 'block_ip'}</div>
-    <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500" />
+    <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500 border-2 border-[#1e1e2e]" />
   </div>
-);
+)};
 
 const ConditionNode = ({ data, isConnectable }) => (
-  <div className="bg-[#1e1e2e] border-2 border-yellow-500 rounded-lg p-4 w-60 shadow-lg relative diamond-shape">
-    <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-yellow-500" />
-    <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-700">
-      <div className="flex items-center gap-2">
-         <div className="w-0 h-0 border-l-[6px] border-l-transparent border-b-[10px] border-b-yellow-500 border-r-[6px] border-r-transparent"></div>
-         <div className="text-white font-bold text-sm uppercase tracking-wider">Condition</div>
+  <div className="bg-[#1e1e2e] border-2 border-yellow-500 rounded-xl p-4 w-64 shadow-[0_0_15px_rgba(234,179,8,0.15)] relative group">
+    <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-yellow-500 border-2 border-[#1e1e2e]" />
+    <div className="flex justify-between items-start mb-3 pb-3 border-b border-gray-700/50">
+      <div className="flex items-center gap-3">
+         <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center text-yellow-400">
+             <GitCommit size={18} className="rotate-90" />
+         </div>
+         <div>
+            <div className="text-yellow-400 font-bold text-xs uppercase tracking-wider">Condition</div>
+            <div className="text-white text-sm font-medium truncate w-32" title={`${data.conditionField} ${data.conditionOperator} ${data.conditionValue}`}>{data.conditionField} {data.conditionOperator} {data.conditionValue}</div>
+         </div>
       </div>
-      <button onClick={data.onDelete} className="text-gray-500 hover:text-red-400"><Trash2 size={14}/></button>
+      <button onClick={data.onDelete} className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16}/></button>
     </div>
-    <div className="text-yellow-300 font-mono text-xs text-center">{data.conditionField} {data.conditionOperator} {data.conditionValue}</div>
     
-    <Handle type="source" position={Position.Bottom} id="true" isConnectable={isConnectable} className="w-3 h-3 bg-green-500 left-1/3" />
-    <div className="absolute -bottom-5 left-1/3 -ml-3 text-xs text-green-500 font-bold">True</div>
+    <Handle type="source" position={Position.Bottom} id="true" isConnectable={isConnectable} className="w-3 h-3 bg-green-500 border-2 border-[#1e1e2e] left-1/3" />
+    <div className="absolute -bottom-6 left-1/3 -ml-3 text-xs text-green-500 font-bold">True</div>
     
-    <Handle type="source" position={Position.Bottom} id="false" isConnectable={isConnectable} className="w-3 h-3 bg-red-500 left-2/3" />
-    <div className="absolute -bottom-5 left-2/3 -ml-3 text-xs text-red-500 font-bold">False</div>
+    <Handle type="source" position={Position.Bottom} id="false" isConnectable={isConnectable} className="w-3 h-3 bg-red-500 border-2 border-[#1e1e2e] left-2/3" />
+    <div className="absolute -bottom-6 left-2/3 -ml-3 text-xs text-red-500 font-bold">False</div>
   </div>
 );
 
@@ -66,14 +85,19 @@ const PlaybookBuilder = () => {
     
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [availableActions, setAvailableActions] = useState([]);
     
     // Sidebar forms
     const [selectedNode, setSelectedNode] = useState(null);
 
     const loadPlaybook = async () => {
         try {
-            const res = await axios.get(`${BACK}/playbooks/${id}`, { withCredentials: true });
-            const pb = res.data;
+            const [pbRes, actionsRes] = await Promise.all([
+                axios.get(`${BACK}/playbooks/${id}`, { withCredentials: true }),
+                axios.get(`${BACK}/playbooks/actions`, { withCredentials: true })
+            ]);
+            const pb = pbRes.data;
+            setAvailableActions(actionsRes.data);
             setPlaybook(pb);
             
             // Re-attach delete handlers to loaded nodes
@@ -129,11 +153,12 @@ const PlaybookBuilder = () => {
 
     const addActionNode = () => {
         const newNodeId = `action_${Date.now()}`;
+        const defaultAction = availableActions[0] || { value: 'block_ip', label: 'Block IP', category: 'response' };
         const newNode = {
             id: newNodeId,
             type: 'actionNode',
             position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 200 },
-            data: { actionType: 'block_ip', onDelete: () => handleDeleteNode(newNodeId) }
+            data: { actionType: defaultAction.value, actionLabel: defaultAction.label, category: defaultAction.category, onDelete: () => handleDeleteNode(newNodeId) }
         };
         setNodes((nds) => nds.concat(newNode));
     };
@@ -295,35 +320,27 @@ const PlaybookBuilder = () => {
                                             <select 
                                                 className="w-full bg-[#0f0f13] border border-gray-700 rounded-md p-2 text-white focus:border-primary focus:outline-none text-sm"
                                                 value={selectedNode.data.actionType || 'block_ip'}
-                                                onChange={(e) => updateNodeData('actionType', e.target.value)}
+                                                onChange={(e) => {
+                                                    const selectedAction = availableActions.find(a => a.value === e.target.value);
+                                                    updateNodeData('actionType', e.target.value);
+                                                    updateNodeData('actionLabel', selectedAction?.label);
+                                                    updateNodeData('category', selectedAction?.category);
+                                                }}
                                             >
-                                                <optgroup label="Response">
-                                                    <option value="block_ip">Block IP (Firewall)</option>
-                                                    <option value="unblock_ip">Unblock IP</option>
-                                                    <option value="isolate_host">Isolate Host (Velociraptor)</option>
-                                                    <option value="release_host">Release Host Isolation</option>
-                                                    <option value="kill_process">Kill Process (Velociraptor)</option>
-                                                    <option value="disable_user_account">Disable User Account</option>
-                                                </optgroup>
-                                                <optgroup label="Enrichment">
-                                                    <option value="enrich_ip">Enrich IP (Threat Intel)</option>
-                                                    <option value="enrich_domain">Enrich Domain</option>
-                                                    <option value="tag_mitre">Tag MITRE ATT&CK</option>
-                                                    <option value="add_watchlist">Add to IOC Watchlist</option>
-                                                    <option value="remove_watchlist">Remove from Watchlist</option>
-                                                    <option value="collect_forensic_snapshot">Collect Forensic Snapshot</option>
-                                                    <option value="run_nmap_scan">Run Nmap Scan</option>
-                                                    <option value="query_elk">Query ELK</option>
-                                                </optgroup>
-                                                <optgroup label="Case Management">
-                                                    <option value="create_incident">Create Incident</option>
-                                                    <option value="close_incident">Close Incident</option>
-                                                    <option value="create_jira_ticket">Create Jira/ServiceNow Ticket</option>
-                                                </optgroup>
-                                                <optgroup label="Notification">
-                                                    <option value="notify_dashboard">Notify Dashboard</option>
-                                                    <option value="send_webhook">Send Webhook</option>
-                                                </optgroup>
+                                                {Object.entries(
+                                                    availableActions.reduce((acc, action) => {
+                                                        const cat = action.category || 'other';
+                                                        if (!acc[cat]) acc[cat] = [];
+                                                        acc[cat].push(action);
+                                                        return acc;
+                                                    }, {})
+                                                ).map(([category, actions]) => (
+                                                    <optgroup key={category} label={category.toUpperCase().replace('_', ' ')}>
+                                                        {actions.map(action => (
+                                                            <option key={action.value} value={action.value}>{action.label}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
                                             </select>
                                         </div>
                                         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">

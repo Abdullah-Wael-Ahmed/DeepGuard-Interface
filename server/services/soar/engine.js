@@ -84,11 +84,10 @@ class SOAREngine {
             const startNodes = playbook.nodes.filter(n => n.type === "triggerNode");
             if (startNodes.length === 0) throw new Error("No trigger node found in playbook");
 
-            let currentNode = startNodes[0];
-            let payload = { ...contextData };
+            let queue = [{ node: startNodes[0], payload: { ...contextData } }];
 
-            // ── DAG Traversal ────────────────────────────────────────────────
-            while (currentNode) {
+            // ── DAG Traversal (Queue-based BFS) ──────────────────────────────
+            while (queue.length > 0) {
                 stepCount++;
                 if (stepCount > MAX_STEPS) {
                     log("error", `Anti-loop protection: exceeded ${MAX_STEPS} steps. Aborting.`);
@@ -96,20 +95,24 @@ class SOAREngine {
                     break;
                 }
 
+                const { node: currentNode, payload } = queue.shift();
+
                 const nodeLabel = currentNode.data?.label || currentNode.data?.actionType || currentNode.type;
                 log("info", `Step ${stepCount}: Executing node "${nodeLabel}" (${currentNode.type})`);
 
-                let nextHandle = null;
+                let nextHandles = [];
 
                 // ── TRIGGER NODE ─────────────────────────────────────────────
                 if (currentNode.type === "triggerNode") {
                     log("info", `Trigger type: ${currentNode.data?.triggerType || playbook.triggerType}`);
+                    nextHandles = [null, undefined, "source"]; // Matches any default source handles
                 }
 
                 // ── ACTION NODE ──────────────────────────────────────────────
                 else if (currentNode.type === "actionNode") {
                     const actionType = currentNode.data?.actionType;
                     const plugin = getAction(actionType);
+                    let success = false;
 
                     if (!plugin) {
                         log("warn", `Unknown action type: "${actionType}". Skipping.`);
@@ -124,7 +127,7 @@ class SOAREngine {
                                 log("info", `⏸ Action "${actionType}" requires approval. Pausing execution.`);
                                 execution.status = "awaiting_approval";
                                 execution.logs = logs;
-                                execution.contextData = payload;
+                                execution.contextData = payload; // Note: In full parallel, pausing drops sibling branches.
                                 await execution.save();
                                 
                                 writeElkLog({ event: 'approval_requested', playbookId, playbookName: playbook.name, actionType });
@@ -156,7 +159,6 @@ class SOAREngine {
                                     }
                                 });
 
-                                // Return execution in paused state — will be resumed via /approve endpoint
                                 return execution;
                             }
 
@@ -177,15 +179,20 @@ class SOAREngine {
                                 if (result.result && typeof result.result === "object") {
                                     Object.assign(payload, result.result);
                                 }
+                                success = true;
                             } else {
                                 log("error", `❌ Action "${actionType}" failed after retries`, result.result);
                                 writeElkLog({ event: 'action_failed', playbookName: playbook.name, actionType, error: result.result });
                                 // Rollback all previous actions
                                 await this._rollbackAll(rollbackStack, log);
                                 execution.status = "failed";
+                                queue = []; // Empty queue to abort remaining parallel branches
                                 break;
                             }
                         }
+                    }
+                    if (success) {
+                        nextHandles = [null, undefined, "source"];
                     }
                 }
 
@@ -193,26 +200,34 @@ class SOAREngine {
                 else if (currentNode.type === "conditionNode") {
                     const condResult = this._evaluateCondition(currentNode.data, payload);
                     log("info", `Condition: ${currentNode.data.conditionField} ${currentNode.data.conditionOperator} ${currentNode.data.conditionValue} → ${condResult}`);
-                    nextHandle = condResult ? "true" : "false";
+                    nextHandles = [condResult ? "true" : "false"];
                 }
 
-                // ── Find next node ───────────────────────────────────────────
+                // ── Find next nodes and push to queue ─────────────────────────
                 const outEdges = adjList.get(currentNode.id) || [];
                 if (outEdges.length === 0) {
-                    log("info", "⏹ Workflow reached terminal node.");
-                    break;
+                    log("info", `⏹ Branch reached terminal node after ${nodeLabel}.`);
+                    continue;
                 }
 
-                if (currentNode.type === "conditionNode") {
-                    const edge = outEdges.find(e => e.handle === nextHandle);
-                    if (edge) {
-                        currentNode = nodesMap.get(edge.target);
-                    } else {
-                        log("info", `No path for condition result "${nextHandle}". Workflow ended.`);
-                        break;
+                let branchesAdded = 0;
+                for (const edge of outEdges) {
+                    // If the node emits specific handles (Condition), filter by it.
+                    // If it's a generic action/trigger, accept edges with null/undefined/"source" handles
+                    if (currentNode.type === "conditionNode") {
+                        if (!nextHandles.includes(edge.handle)) continue;
                     }
-                } else {
-                    currentNode = nodesMap.get(outEdges[0].target);
+                    
+                    const targetNode = nodesMap.get(edge.target);
+                    if (targetNode) {
+                        // Deep clone payload so parallel branches have independent state
+                        queue.push({ node: targetNode, payload: JSON.parse(JSON.stringify(payload)) });
+                        branchesAdded++;
+                    }
+                }
+
+                if (branchesAdded === 0) {
+                    log("info", `No matching path to continue branch after ${nodeLabel}.`);
                 }
             }
 
