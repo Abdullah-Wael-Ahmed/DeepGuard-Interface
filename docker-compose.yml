@@ -118,7 +118,7 @@ services:
         max-file: "5"
 
   velociraptor:
-    image: wlambert/velociraptor:latest
+    build: ./velociraptor
     container_name: deepguard-velociraptor
     restart: unless-stopped
     ports:
@@ -128,7 +128,6 @@ services:
     volumes:
       - ./velociraptor/data:/velociraptor
       - ./velociraptor/config/server.config.yaml:/etc/velociraptor/server.config.yaml:ro
-    command: /opt/velociraptor/linux/velociraptor frontend -v --config /etc/velociraptor/server.config.yaml
     env_file:
       - ./server/.env
 
