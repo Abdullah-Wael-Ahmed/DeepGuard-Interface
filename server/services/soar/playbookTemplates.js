@@ -148,9 +148,14 @@ async function seedPlaybooks() {
     let created = 0;
     for (const template of PLAYBOOK_TEMPLATES) {
         const exists = await Playbook.findOne({ where: { name: template.name } });
-        if (exists) continue;
-
         const { nodes, edges } = template.build();
+        
+        if (exists) {
+            await exists.update({ nodes, edges });
+            created++;
+            continue;
+        }
+
         await Playbook.create({
             name: template.name,
             description: template.description,
