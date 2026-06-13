@@ -35,14 +35,21 @@ const queryVelociraptor = async (vqlQuery) => {
             // First try parsing the whole thing as a single JSON array
             rows = JSON.parse(stdout);
         } catch (e) {
-            // If it fails, parse line by line (Velociraptor often outputs line-delimited JSON)
-            const lines = stdout.split('\n').filter(l => l.trim());
-            for (const line of lines) {
-                try {
-                    rows.push(JSON.parse(line));
-                } catch (err) {
-                    console.log('[Velociraptor ignored non-JSON line]:', line);
+            // If it fails, try to extract just the JSON array portion (handles docker warnings)
+            try {
+                const startIndex = stdout.indexOf('[');
+                const endIndex = stdout.lastIndexOf(']') + 1;
+                if (startIndex !== -1 && endIndex !== 0) {
+                    rows = JSON.parse(stdout.substring(startIndex, endIndex));
+                } else {
+                    // Fallback to line-by-line parsing
+                    const lines = stdout.split('\n').filter(l => l.trim());
+                    for (const line of lines) {
+                        try { rows.push(JSON.parse(line)); } catch (err) {}
+                    }
                 }
+            } catch (err) {
+                console.error('[Velociraptor JSON extraction failed]:', err.message);
             }
         }
         
@@ -110,8 +117,21 @@ router.get('/clients/:clientId', async (req, res) => {
 // GET /api/velociraptor/clients/:clientId/collections — fetch artifact collection results for an endpoint
 router.get('/clients/:clientId/collections', async (req, res) => {
     try {
-        // Placeholder for now
-        res.json({ items: [] });
+        const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+        const data = await queryVelociraptor(`SELECT client_id, flow_id, artifacts, create_time, active_time, state FROM flows(client_id='${clientId}') ORDER BY create_time DESC LIMIT 50`);
+        
+        let collections = [];
+        if (data.Responses && data.Responses.length > 0) {
+            collections = data.Responses[0].Response || [];
+            if (typeof collections === 'string') {
+                try {
+                    collections = JSON.parse(collections);
+                } catch(e) {
+                    collections = collections.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                }
+            }
+        }
+        res.json({ items: collections });
     } catch (error) {
         console.error(`Error fetching velociraptor collections:`, error.message);
         res.status(500).json({ error: 'Failed to fetch client collections' });
@@ -121,8 +141,25 @@ router.get('/clients/:clientId/collections', async (req, res) => {
 // POST /api/velociraptor/hunt — trigger a VQL artifact hunt on a specific client
 router.post('/hunt', async (req, res) => {
     try {
-        // Placeholder for now
-        res.json({ status: 'started' });
+        const { artifact, clientId } = req.body;
+        if (!artifact || !clientId) {
+            return res.status(400).json({ error: 'Missing artifact or clientId' });
+        }
+        const safeArtifact = artifact.replace(/[^a-zA-Z0-9.-_]/g, '');
+        const safeClientId = clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+
+        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts='${safeArtifact}')`);
+        
+        let result = {};
+        if (data.Responses && data.Responses.length > 0) {
+            let flows = data.Responses[0].Response || [];
+            if (typeof flows === 'string') {
+                try { flows = JSON.parse(flows); } catch(e) {}
+            }
+            if (Array.isArray(flows) && flows.length > 0) result = flows[0];
+        }
+        
+        res.json({ status: 'started', flow: result });
     } catch (error) {
         console.error('Error triggering velociraptor hunt:', error.message);
         res.status(500).json({ error: 'Failed to trigger hunt' });

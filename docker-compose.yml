@@ -3,6 +3,7 @@ services:
   backend:
     build: ./server
     container_name: deepguard-backend
+    privileged: true
     restart: unless-stopped
     env_file:
       - ./server/.env

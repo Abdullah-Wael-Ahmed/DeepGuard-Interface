@@ -74,6 +74,7 @@ const Endpoints = () => {
     // Hunt modal
     const [showHuntModal, setShowHuntModal] = useState(false);
     const [huntTarget, setHuntTarget] = useState(null);
+    const [manualTargetId, setManualTargetId] = useState('');
     const [selectedArtifact, setSelectedArtifact] = useState('Generic.Client.Info');
     const [huntCategory, setHuntCategory] = useState('all');
 
@@ -209,12 +210,21 @@ const Endpoints = () => {
     const handleRunHunt = async (e) => {
         e.preventDefault();
         try {
+            const targetId = huntTarget?.client_id || manualTargetId;
+            if (!targetId) {
+                toast.error('Please select a target endpoint');
+                return;
+            }
             await axios.post(`${import.meta.env.VITE_BACK}/api/velociraptor/hunt`, {
                 artifact: selectedArtifact,
-                clientId: huntTarget?.client_id
+                clientId: targetId
             }, { withCredentials: true });
-            toast.success(`Hunt "${selectedArtifact}" started on ${huntTarget?.os_info?.hostname || huntTarget?.client_id}`);
+            toast.success(`Hunt "${selectedArtifact}" started on ${huntTarget?.os_info?.hostname || targetId}`);
             setShowHuntModal(false);
+            setManualTargetId('');
+            if (targetId && selectedEndpoint?.client_id === targetId) {
+                fetchCollections(targetId);
+            }
         } catch (error) {
             toast.error('Failed to trigger hunt');
         }
@@ -712,7 +722,7 @@ const Endpoints = () => {
                                                         collections.map((col, i) => (
                                                             <div key={i} className="p-4 bg-background-dark/50 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">
                                                                 <div className="flex justify-between items-start mb-1">
-                                                                    <span className="text-sm font-medium text-primary">{col.artifact}</span>
+                                                                    <span className="text-sm font-medium text-primary">{col.artifacts ? col.artifacts.join(', ') : col.artifact || 'Custom Hunt'}</span>
                                                                     <span className={`text-xs px-2 py-0.5 rounded border ${
                                                                         col.state === 'FINISHED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                                                                         col.state === 'RUNNING' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
@@ -868,12 +878,29 @@ const Endpoints = () => {
                             <button onClick={() => setShowHuntModal(false)} className="text-text-secondary hover:text-white transition-colors"><X size={20} /></button>
                         </div>
                         <form onSubmit={handleRunHunt} className="p-6 flex flex-col gap-4">
-                            {huntTarget && (
+                            {huntTarget ? (
                                 <div>
                                     <p className="text-sm text-text-secondary mb-1">Target Endpoint:</p>
                                     <p className="font-mono text-sm bg-background-dark p-2.5 rounded-lg text-text-main border border-gray-800">
                                         {huntTarget.os_info?.hostname || 'Unknown'} ({huntTarget.client_id})
                                     </p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Target Endpoint:</label>
+                                    <select
+                                        value={manualTargetId}
+                                        onChange={(e) => setManualTargetId(e.target.value)}
+                                        className="w-full bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5"
+                                        required
+                                    >
+                                        <option value="">-- Select an endpoint --</option>
+                                        {clients.map(c => (
+                                            <option key={c.client_id} value={c.client_id}>
+                                                {c.os_info?.hostname || 'Unknown'} ({c.client_id})
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             )}
                             <div>
