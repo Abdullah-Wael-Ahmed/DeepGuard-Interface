@@ -20,13 +20,17 @@ const Playbook = db.define("Playbook", {
     mitreTags: {
         type: DataTypes.TEXT,
         allowNull: true,
-        defaultValue: "[]",
         get() {
             const v = this.getDataValue("mitreTags");
-            return v ? JSON.parse(v) : [];
+            if (!v) return [];
+            try {
+                let parsed = JSON.parse(v);
+                if (typeof parsed === "string") parsed = JSON.parse(parsed);
+                return parsed;
+            } catch(e) { return []; }
         },
         set(v) {
-            this.setDataValue("mitreTags", JSON.stringify(v));
+            this.setDataValue("mitreTags", typeof v === "string" ? v : JSON.stringify(v));
         }
     },
     runCounter: {
@@ -36,25 +40,33 @@ const Playbook = db.define("Playbook", {
     nodes: {
         type: DataTypes.TEXT,
         allowNull: false,
-        defaultValue: "[]",
         get() {
             const v = this.getDataValue("nodes");
-            return v ? JSON.parse(v) : [];
+            if (!v) return [];
+            try {
+                let parsed = JSON.parse(v);
+                if (typeof parsed === "string") parsed = JSON.parse(parsed);
+                return parsed;
+            } catch(e) { return []; }
         },
         set(v) {
-            this.setDataValue("nodes", JSON.stringify(v));
+            this.setDataValue("nodes", typeof v === "string" ? v : JSON.stringify(v));
         }
     },
     edges: {
         type: DataTypes.TEXT,
         allowNull: false,
-        defaultValue: "[]",
         get() {
             const v = this.getDataValue("edges");
-            return v ? JSON.parse(v) : [];
+            if (!v) return [];
+            try {
+                let parsed = JSON.parse(v);
+                if (typeof parsed === "string") parsed = JSON.parse(parsed);
+                return parsed;
+            } catch(e) { return []; }
         },
         set(v) {
-            this.setDataValue("edges", JSON.stringify(v));
+            this.setDataValue("edges", typeof v === "string" ? v : JSON.stringify(v));
         }
     },
     triggerType: {
@@ -68,10 +80,15 @@ const Playbook = db.define("Playbook", {
         allowNull: true,
         get() {
             const v = this.getDataValue("triggerConditions");
-            return v ? JSON.parse(v) : null;
+            if (!v) return null;
+            try {
+                let parsed = JSON.parse(v);
+                if (typeof parsed === "string") parsed = JSON.parse(parsed);
+                return parsed;
+            } catch(e) { return null; }
         },
         set(v) {
-            this.setDataValue("triggerConditions", v ? JSON.stringify(v) : null);
+            this.setDataValue("triggerConditions", (typeof v === "string" || !v) ? v : JSON.stringify(v));
         }
     },
     author: {

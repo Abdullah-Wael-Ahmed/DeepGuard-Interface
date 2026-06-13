@@ -61,7 +61,7 @@ const Playbooks = () => {
              
              navigate(`/playbooks/${res.data.id}`);
         } catch (error) {
-            toast.error("Failed to create playbook");
+            toast.error(error.response?.data?.error || "Failed to create playbook");
         }
     };
 
@@ -71,7 +71,7 @@ const Playbooks = () => {
             toast.success(`Seeded ${res.data.created} playbook templates`);
             fetchPlaybooks();
         } catch (error) {
-            toast.error("Failed to seed templates");
+            toast.error(error.response?.data?.error || "Failed to seed templates");
         }
     };
 
