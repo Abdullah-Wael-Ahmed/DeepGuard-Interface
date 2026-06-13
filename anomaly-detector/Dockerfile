@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 # Use a cache mount to speed up pip installs across builds
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+    pip install --default-timeout=1000 -r requirements.txt
 
 COPY . .
 
