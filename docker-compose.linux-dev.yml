@@ -134,7 +134,6 @@ services:
       - ./logs/zeek:/usr/local/zeek/logs/current
       - /opt/zeek/share/zeek/site:/usr/local/zeek/share/zeek/site
     command: sh -c "mkdir -p /usr/local/zeek/logs/current && zeek -i ens33 local -C Log::default_logdir=/usr/local/zeek/logs/current"
-    restart: unless-stopped
 
   velociraptor:
     build: ./velociraptor
