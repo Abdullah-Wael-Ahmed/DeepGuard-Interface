@@ -108,7 +108,7 @@ const TopBar = () => {
         if (!query) return;
 
         const currentPath = window.location.pathname.split("/")[1] || "";
-        const searchablePages = ["traffic", "incidents", "playbooks", "users", "correlation"];
+        const searchablePages = ["traffic", "incidents", "playbooks", "users", "correlation", "mitre-attack"];
         
         if (searchablePages.includes(currentPath)) {
             navigate(`/${currentPath}?search=${encodeURIComponent(query)}`);

@@ -13,8 +13,8 @@ const Layout = () => {
     const userRole = auth?.user?.role;
     const currentTab = location.pathname.split("/")[1];
     const activeTab = (tab) => {
-        if (currentTab == tab) return "flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 text-primary shadow-glow-primary border border-primary/50";
-        else return "flex items-center gap-3 px-3 py-2 text-text-secondary hover:text-text-main hover:bg-card-dark rounded-lg transition-colors";
+        if (currentTab == tab) return "flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-primary/20 text-primary shadow-glow-primary border border-primary/50";
+        else return "flex items-center gap-2.5 px-3 py-1.5 text-text-secondary hover:text-text-main hover:bg-card-dark rounded-lg transition-colors";
     };
 
 
@@ -23,8 +23,8 @@ const Layout = () => {
         <div className="bg-background-dark font-display text-text-main">
             <div className="flex h-screen overflow-hidden">
                 {/* SideNavBar */}
-                <aside className="w-64 bg-background-dark p-4 flex flex-col justify-between border-r border-gray-800 h-full flex-shrink-0">
-                    <div className="flex flex-col gap-8">
+                <aside className="w-64 bg-background-dark p-4 flex flex-col border-r border-gray-800 h-full flex-shrink-0 overflow-hidden">
+                    <div className="flex flex-col gap-5 h-full overflow-hidden">
                         <div className="flex gap-3 items-center px-2">
                             <div className="bg-center bg-no-repeat bg-cover size-12" data-alt="DeepGuard logo">
                                 <img src={DeepGuard} alt="deepguard" />
@@ -34,68 +34,68 @@ const Layout = () => {
                                 <p className="text-text-secondary text-xs">Next-Generation SOC Platform Powered By AI</p>
                             </div>
                         </div>
-                        <nav className="flex flex-col gap-2">
+                        <nav className="flex flex-col gap-1.5 flex-1 overflow-y-auto pr-1 scrollbar-thin">
                             <Link className={activeTab("")} to="/">
-                                <Gauge />
+                                <Gauge size={18} />
                                 <p className="text-sm font-medium">Dashboard</p>
                             </Link>
                             <Link className={activeTab("detection")} to="/detection">
-                                <Shield />
+                                <Shield size={18} />
                                 <p className="text-sm font-medium">Detection</p>
                             </Link>
                             
                             {(userRole === "admin" || userRole === "operator") && (
                                 <>
                                     <Link className={activeTab("endpoints")} to="/endpoints">
-                                        <MonitorSmartphone />
+                                        <MonitorSmartphone size={18} />
                                         <p className="text-sm font-medium">Endpoints</p>
                                     </Link>
                                     <Link className={activeTab("correlation")} to="/correlation">
-                                        <Share2 />
+                                        <Share2 size={18} />
                                         <p className="text-sm font-medium">Correlation</p>
                                     </Link>
                                     <Link className={activeTab("mitre-attack")} to="/mitre-attack">
-                                        <Crosshair />
+                                        <Crosshair size={18} />
                                         <p className="text-sm font-medium">MITRE ATT&CK</p>
                                     </Link>
                                 </>
                             )}
 
                             <Link className={activeTab("incidents")} to="/incidents">
-                                <ClipboardList />
+                                <ClipboardList size={18} />
                                 <p className="text-sm font-medium">Incidents</p>
                             </Link>
 
                             {(userRole === "admin" || userRole === "operator") && (
                                 <>
                                     <Link className={activeTab("playbooks")} to="/playbooks">
-                                        <GitPullRequestDraft />
+                                        <GitPullRequestDraft size={18} />
                                         <p className="text-sm font-medium">Playbooks</p>
                                     </Link>
                                     <Link className={activeTab("firewall")} to={"/firewall"}>
-                                        <BrickWallFire />
+                                        <BrickWallFire size={18} />
                                         <p className="text-sm font-medium">Firewall</p>
                                     </Link>
                                 </>
                             )}
 
                             <Link className={activeTab("traffic")} to={"/traffic"}>
-                                <HatGlasses />
+                                <HatGlasses size={18} />
                                 <p className="text-sm font-medium">Inspection</p>
                             </Link>
                             <Link className={activeTab("reports")} to={"/reports"}>
-                                <ChartLine />
+                                <ChartLine size={18} />
                                 <p className="text-sm font-bold">Reports</p>
                             </Link>
 
                             {(userRole === "admin" || userRole === "operator") && (
                                 <>
                                     <Link className={activeTab("threat-intel")} to="/threat-intel">
-                                        <Globe />
+                                        <Globe size={18} />
                                         <p className="text-sm font-medium">Threat Intel</p>
                                     </Link>
                                     <Link className={activeTab("network-analytics")} to="/network-analytics">
-                                        <ChartNetwork />
+                                        <ChartNetwork size={18} />
                                         <p className="text-sm font-medium">Network Analytics</p>
                                     </Link>
                                 </>
@@ -103,13 +103,13 @@ const Layout = () => {
 
                             {userRole === "admin" && (
                                 <Link className={activeTab("users")} to="/users">
-                                    <Users />
+                                    <Users size={18} />
                                     <p className="text-sm font-medium">User Management</p>
                                 </Link>
                             )}
 
                             <Link className={activeTab("settings")} to="/settings">
-                                <Settings />
+                                <Settings size={18} />
                                 <p className="text-sm font-medium">Settings</p>
                             </Link>
                         </nav>
