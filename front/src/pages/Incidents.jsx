@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import {
     AlertTriangle, Shield, Clock, Users, Plus, Search, Filter,
     ChevronDown, RefreshCw, ArrowUpRight, Loader, Inbox,
@@ -50,6 +51,8 @@ const CATEGORY_OPTIONS = [
 ];
 
 const Incidents = () => {
+    const { auth } = useAuth();
+    const user = auth?.user;
     const navigate = useNavigate();
     const [incidents, setIncidents] = useState([]);
     const [stats, setStats] = useState({});
@@ -170,13 +173,15 @@ const Incidents = () => {
                             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                             <span className="text-sm">Refresh</span>
                         </button>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 px-5 py-2 bg-primary text-background-dark font-medium rounded-lg hover:brightness-110 transition-all"
-                        >
-                            <Plus size={18} />
-                            <span className="text-sm">New Incident</span>
-                        </button>
+                        {user?.role !== 'analyst' && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="flex items-center gap-2 px-5 py-2 bg-primary text-background-dark font-medium rounded-lg hover:brightness-110 transition-all"
+                            >
+                                <Plus size={18} />
+                                <span className="text-sm">New Incident</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 

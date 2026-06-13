@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const router = express.Router();
 const verifyJWT = require("../middleware/verifyJWT");
+const { requireAdmin } = require("../middleware/authorize");
 
 const generateAccessToken = (user) => {
     return jwt.sign(
@@ -21,7 +22,7 @@ const generateRefreshToken = (user) => {
     );
 };
 
-router.get("/users", async (req, res) => {
+router.get("/users", verifyJWT, requireAdmin, async (req, res) => {
     try {
         const users = await User.findAll({
             attributes: { exclude: ["password"] },
@@ -34,7 +35,7 @@ router.get("/users", async (req, res) => {
     }
 });
 
-router.post("/register", async (req, res) => {
+router.post("/register", verifyJWT, requireAdmin, async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
         // Check if exists
@@ -122,7 +123,7 @@ router.get("/refresh", async (req, res) => {
     }
 });
 
-router.delete("/users/:id", async (req, res) => {
+router.delete("/users/:id", verifyJWT, requireAdmin, async (req, res) => {
     try {
         const id = req.params.id;
         // Prevent deleting the Super Admin or yourself if needed

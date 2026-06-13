@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import {
     ArrowLeft, Clock, User, Shield, Tag, MessageSquare,
     Paperclip, ChevronRight, Loader, AlertTriangle,
@@ -14,12 +15,12 @@ const BACK = import.meta.env.VITE_BACK;
 
 // ── Config objects ───────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-    open:          { label: 'Open',          color: 'bg-blue-500/15 text-blue-400 border-blue-500/30',         dot: 'bg-blue-400' },
-    triaging:      { label: 'Triaging',      color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',   dot: 'bg-yellow-400' },
-    investigating: { label: 'Investigating', color: 'bg-purple-500/15 text-purple-400 border-purple-500/30',   dot: 'bg-purple-400' },
-    containing:    { label: 'Containing',    color: 'bg-orange-500/15 text-orange-400 border-orange-500/30',   dot: 'bg-orange-400' },
-    remediated:    { label: 'Remediated',    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400' },
-    closed:        { label: 'Closed',        color: 'bg-gray-500/15 text-gray-400 border-gray-500/30',         dot: 'bg-gray-400' },
+    open:          { label: 'Open',          color: 'bg-blue-500/15 text-blue-400 border-blue-500/30',         dot: 'bg-blue-400', badge: 'bg-blue-500/10 border-blue-500/30 text-blue-400' },
+    triaging:      { label: 'Triaging',      color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',   dot: 'bg-yellow-400', badge: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' },
+    investigating: { label: 'Investigating', color: 'bg-purple-500/15 text-purple-400 border-purple-500/30',   dot: 'bg-purple-400', badge: 'bg-purple-500/10 border-purple-500/30 text-purple-400' },
+    containing:    { label: 'Containing',    color: 'bg-orange-500/15 text-orange-400 border-orange-500/30',   dot: 'bg-orange-400', badge: 'bg-orange-500/10 border-orange-500/30 text-orange-400' },
+    remediated:    { label: 'Remediated',    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' },
+    closed:        { label: 'Closed',        color: 'bg-gray-500/15 text-gray-400 border-gray-500/30',         dot: 'bg-gray-400', badge: 'bg-gray-500/10 border-gray-500/30 text-gray-400' },
 };
 
 const SEVERITY_CONFIG = {
@@ -75,6 +76,8 @@ const IncidentDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
+    const { auth } = useAuth();
+    const user = auth?.user;
     const [incident, setIncident] = useState(null);
     const [timeline, setTimeline] = useState([]);
     const [evidence, setEvidence] = useState([]);
@@ -85,6 +88,7 @@ const IncidentDetail = () => {
     const [showAddEvidence, setShowAddEvidence] = useState(false);
     const [newEvidence, setNewEvidence] = useState({ type: 'note', title: '', content: '' });
     const [activeTab, setActiveTab] = useState('timeline');
+    const [errorMsg, setErrorMsg] = useState('');
 
     // ── Fetch data ───────────────────────────────────────────────────────────
     const fetchIncident = async () => {
@@ -96,7 +100,12 @@ const IncidentDetail = () => {
             setEvidence(res.data.evidence || []);
         } catch (err) {
             console.error('Error fetching incident:', err);
-            toast.error('Failed to load incident');
+            if (err.response?.status === 403) {
+                setErrorMsg('Access denied: You are not assigned to this incident');
+            } else {
+                setErrorMsg('Failed to load incident');
+            }
+            toast.error(err.response?.data?.error || 'Failed to load incident');
         } finally {
             setLoading(false);
         }
@@ -197,11 +206,9 @@ const IncidentDetail = () => {
     if (!incident) {
         return (
             <div className="flex-1 bg-background-dark flex flex-col items-center justify-center text-gray-500">
-                <XCircle size={48} />
-                <p className="mt-4 text-lg">Incident not found</p>
-                <button onClick={() => navigate('/incidents')} className="mt-4 text-primary hover:underline">
-                    ← Back to incidents
-                </button>
+                <XCircle size={48} className="text-red-500" />
+                <p className="mt-4 text-lg font-medium">{errorMsg || "Incident not found"}</p>
+                <Link to="/incidents" className="mt-2 text-primary underline">Go back to Incidents</Link>
             </div>
         );
     }
@@ -241,24 +248,27 @@ const IncidentDetail = () => {
                                 </span>
                             </div>
                             <h1 className="text-xl font-bold text-text-main mt-1 max-w-2xl truncate">{incident.title}</h1>
+                            {user?.role !== 'analyst' && transitions.length > 0 && (
+                                <div className="flex flex-col gap-2 mt-4">
+                                    <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Actions</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {transitions.map((s) => {
+                                            const cfg = STATUS_CONFIG[s];
+                                            return (
+                                                <button
+                                                    key={s}
+                                                    onClick={() => handleStatusChange(s)}
+                                                    disabled={changingStatus}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all ${cfg?.badge} hover:brightness-110 cursor-pointer`}
+                                                >
+                                                    {cfg?.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
-
-                    {/* Status transitions */}
-                    <div className="flex items-center gap-2">
-                        {transitions.map(s => {
-                            const cfg = STATUS_CONFIG[s];
-                            return (
-                                <button
-                                    key={s}
-                                    onClick={() => handleStatusChange(s)}
-                                    disabled={changingStatus}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all hover:brightness-125 disabled:opacity-50 ${cfg.color}`}
-                                >
-                                    {s === 'closed' ? 'Close' : s === 'open' ? 'Reopen' : cfg.label}
-                                </button>
-                            );
-                        })}
                     </div>
                 </div>
             </div>
@@ -306,28 +316,32 @@ const IncidentDetail = () => {
                             {activeTab === 'timeline' && (
                                 <div className="p-6">
                                     {/* Comment input */}
-                                    <form onSubmit={handleComment} className="flex gap-3 mb-6">
-                                        <input
-                                            type="text"
-                                            value={comment}
-                                            onChange={(e) => setComment(e.target.value)}
-                                            placeholder="Add a comment or investigation note..."
-                                            className="flex-1 bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-all"
-                                        />
-                                        <button
-                                            type="submit"
-                                            disabled={submittingComment || !comment.trim()}
-                                            className="px-4 py-2 bg-primary text-background-dark rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
-                                        >
-                                            {submittingComment ? <Loader className="h-4 w-4 animate-spin" /> : <Send size={16} />}
-                                        </button>
-                                    </form>
+                                    {user?.role !== 'analyst' ? (
+                                        <form onSubmit={handleComment} className="flex gap-3 mb-6">
+                                            <input
+                                                type="text"
+                                                className="flex-1 bg-background-dark border border-gray-700 rounded-lg px-4 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-all"
+                                                value={comment}
+                                                onChange={(e) => setComment(e.target.value)}
+                                                placeholder="Add a comment or investigation note..."
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="px-4 py-2 bg-primary hover:bg-primary-dark text-background-dark rounded-lg flex items-center justify-center transition-all disabled:opacity-50"
+                                                disabled={submittingComment || !comment.trim()}
+                                            >
+                                                {submittingComment ? <Loader className="h-4 w-4 animate-spin" /> : <Send size={16} />}
+                                            </button>
+                                        </form>
+                                    ) : (
+                                        <div className="mb-6 p-3 bg-card-dark rounded-lg border border-gray-800 text-xs text-text-secondary italic">
+                                            Comments and modifications are disabled for analysts.
+                                        </div>
+                                    )}
 
                                     {/* Timeline events */}
                                     <div className="relative">
-                                        {/* Vertical line */}
                                         <div className="absolute left-[17px] top-0 bottom-0 w-px bg-gray-700"></div>
-
                                         <div className="space-y-4">
                                             {timeline.map((event, idx) => {
                                                 const cfg = TIMELINE_ICONS[event.type] || TIMELINE_ICONS.status_change;
@@ -358,13 +372,6 @@ const IncidentDetail = () => {
                                                 );
                                             })}
                                         </div>
-
-                                        {timeline.length === 0 && (
-                                            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                                                <Clock size={32} />
-                                                <p className="mt-2">No timeline events yet</p>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )}
@@ -372,13 +379,18 @@ const IncidentDetail = () => {
                             {/* ── Evidence Tab ── */}
                             {activeTab === 'evidence' && (
                                 <div className="p-6">
-                                    <button
-                                        onClick={() => setShowAddEvidence(true)}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 mb-4 bg-background-dark border border-dashed border-gray-600 rounded-lg text-sm text-text-secondary hover:text-primary hover:border-primary transition-all"
-                                    >
-                                        <Plus size={16} />
-                                        Attach Evidence
-                                    </button>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-base font-bold text-text-main">Supporting Evidence</h3>
+                                        {user?.role !== 'analyst' && (
+                                            <button 
+                                                onClick={() => setShowAddEvidence(true)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/30 hover:border-primary text-primary text-xs font-semibold rounded-lg transition-all"
+                                            >
+                                                <Paperclip size={14} />
+                                                Attach Evidence
+                                            </button>
+                                        )}
+                                    </div>
 
                                     {showAddEvidence && (
                                         <form onSubmit={handleAddEvidence} className="mb-6 p-4 bg-background-dark rounded-lg border border-gray-700 space-y-3 animate-fade-in">
@@ -428,21 +440,29 @@ const IncidentDetail = () => {
                                                         <EvIcon size={18} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-medium text-text-main">{ev.title}</span>
-                                                            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700 text-text-secondary uppercase">{ev.type}</span>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-medium text-text-main">{ev.title}</span>
+                                                                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700 text-text-secondary uppercase">{ev.type}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-text-secondary">{timeAgo(ev.createdAt)}</span>
+                                                                {user?.role !== 'analyst' && (
+                                                                    <button 
+                                                                        onClick={() => handleRemoveEvidence(ev.id)}
+                                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-text-secondary hover:text-red-500 rounded transition-all"
+                                                                        title="Remove evidence"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         {ev.content && (
                                                             <p className="text-xs text-text-secondary mt-1 line-clamp-3 whitespace-pre-wrap">{ev.content}</p>
                                                         )}
-                                                        <p className="text-xs text-gray-600 mt-1">Added by {ev.addedBy} • {timeAgo(ev.createdAt)}</p>
+                                                        <p className="text-xs text-gray-600 mt-1">Added by {ev.addedBy}</p>
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleRemoveEvidence(ev.id)}
-                                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
-                                                    >
-                                                        <Trash2 size={14} className="text-red-400" />
-                                                    </button>
                                                 </div>
                                             );
                                         })}
