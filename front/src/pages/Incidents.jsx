@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -54,10 +54,16 @@ const Incidents = () => {
     const { auth } = useAuth();
     const user = auth?.user;
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [incidents, setIncidents] = useState([]);
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(searchParams.get('search') || '');
+
+    useEffect(() => {
+        const query = searchParams.get('search') || '';
+        setSearch(query);
+    }, [searchParams]);
     const [filterStatus, setFilterStatus] = useState('active');
     const [filterSeverity, setFilterSeverity] = useState('');
     const [showFilters, setShowFilters] = useState(false);
