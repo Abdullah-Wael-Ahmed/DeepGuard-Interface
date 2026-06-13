@@ -1,9 +1,10 @@
-import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe, ChartNetwork, Crosshair } from 'lucide-react';
+import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe, ChartNetwork, Crosshair, MonitorSmartphone, ClipboardList, GitPullRequestDraft } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
 import DeepGuard from '../assets/DeepGaurdDark.svg';
 import TopBar from '../components/TopBar';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import GlobalCopilot from '../components/GlobalCopilot';
 
 const Layout = () => {
     const location = useLocation();
@@ -40,7 +41,7 @@ const Layout = () => {
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-text-main text-lg font-bold">DeepGuard</h1>
-                                <p className="text-text-secondary text-xs">Multi-Layer Threat Defense Gateway</p>
+                                <p className="text-text-secondary text-xs">Next-Generation SOC Platform Powered By AI</p>
                             </div>
                         </div>
                         <nav className="flex flex-col gap-2">
@@ -52,6 +53,10 @@ const Layout = () => {
                                 <Shield />
                                 <p className="text-sm font-medium">Detection</p>
                             </Link>
+                            <Link className={activeTab("endpoints")} to="/endpoints">
+                                <MonitorSmartphone />
+                                <p className="text-sm font-medium">Endpoints</p>
+                            </Link>
                             <Link className={activeTab("correlation")} to="/correlation">
                                 <Share2 />
                                 <p className="text-sm font-medium">Correlation</p>
@@ -59,6 +64,14 @@ const Layout = () => {
                             <Link className={activeTab("mitre-attack")} to="/mitre-attack">
                                 <Crosshair />
                                 <p className="text-sm font-medium">MITRE ATT&CK</p>
+                            </Link>
+                            <Link className={activeTab("incidents")} to="/incidents">
+                                <ClipboardList />
+                                <p className="text-sm font-medium">Incidents</p>
+                            </Link>
+                            <Link className={activeTab("playbooks")} to="/playbooks">
+                                <GitPullRequestDraft />
+                                <p className="text-sm font-medium">Playbooks</p>
                             </Link>
                             <Link className={activeTab("firewall")} to={"/firewall"}>
                                 <BrickWallFire />
@@ -105,6 +118,7 @@ const Layout = () => {
                     <TopBar />
                     <div className="flex-1 overflow-auto">
                     <Outlet />
+                    <GlobalCopilot />
                     </div>
                 </div>
             </div>

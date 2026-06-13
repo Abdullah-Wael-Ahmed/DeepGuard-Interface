@@ -1,42 +1,79 @@
-import os
-import sqlite3
-import joblib
-import pandas as pd
-from datetime import datetime
-from flask import Flask, request, jsonify
+"""
+DeepGuard — Window-Based Behavioral Anomaly Detector
 
+Receives individual flows at /analyze, buffers them per source IP,
+and flushes 30-second windows through an autoencoder to detect
+behavioral anomalies (DDoS, port scans, brute-force, etc.).
+"""
+
+import os
+import json
+import sqlite3
+import threading
+import logging
+import numpy as np
+import joblib
+from datetime import datetime, timezone
+from collections import defaultdict
+
+from flask import Flask, request, jsonify
+from apscheduler.schedulers.background import BackgroundScheduler
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
+from tensorflow import keras
+
+# ─── Configuration ────────────────────────────────────────
+MODEL_PATH    = 'model/window_autoencoder.keras'
+SCALER_PATH   = 'model/window_scaler.pkl'
+METADATA_PATH = 'model/window_metadata.json'
+DB_PATH       = 'data/anomaly_results.db'
+WINDOW_SECONDS = 30
+
+# ─── Logging ──────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s — %(message)s',
+    datefmt='%H:%M:%S',
+)
+log = logging.getLogger('detector')
+
+# ─── Flask app ────────────────────────────────────────────
 app = Flask(__name__)
 
-MODEL_PATH = 'model/isolation_forest.pkl'
-DB_PATH    = 'data/anomaly_results.db'
-
-FEATURES = [
-    'Flow Duration',
-    'Total Fwd Packets',
-    'Total Backward Packets',
-    'Total Length of Fwd Packets',
-    'Total Length of Bwd Packets',
-    'Fwd Packet Length Max',
-    'Bwd Packet Length Max',
-    'Flow Bytes/s',
-    'Flow Packets/s',
-    'Flow IAT Mean',
-    'Destination Port',
-]
-
-# ─── Load model ───────────────────────────────────────────
+# ─── Load model artifacts ────────────────────────────────
 if not os.path.exists(MODEL_PATH):
-    print("[!] No trained model found. Run train.py first.")
+    log.error("No trained model found at %s.", MODEL_PATH)
+    log.error("Please run 'train_window_autoencoder.py' locally OR")
+    log.error("train in Google Colab and place the .keras, .pkl, and .json files in the 'model/' directory.")
     exit(1)
 
-model = joblib.load(MODEL_PATH)
-print("[+] Model loaded successfully.")
+model  = keras.models.load_model(MODEL_PATH, compile=False)
+scaler = joblib.load(SCALER_PATH)
 
-# ─── Setup database ───────────────────────────────────────
-def init_db():
+with open(METADATA_PATH, 'r') as f:
+    metadata = json.load(f)
+
+THRESHOLD     = metadata['reconstruction_threshold']
+FEATURE_NAMES = metadata['feature_names']
+
+log.info("Model loaded  — threshold=%.6f, features=%d", THRESHOLD, len(FEATURE_NAMES))
+
+# ─── In-memory flow buffers (thread-safe) ─────────────────
+_lock   = threading.Lock()
+_buffers = defaultdict(list)   # src_ip → [flow_dict, ...]
+
+# ─── Database setup ───────────────────────────────────────
+def _get_db():
+    """Return a new SQLite connection (one per call for thread-safety)."""
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
+    conn.execute('PRAGMA journal_mode=WAL')
+    return conn
+
+
+def init_db():
+    conn = _get_db()
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS anomaly_results (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp     TEXT NOT NULL,
@@ -49,85 +86,204 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
-    print("[+] Database ready.")
+    log.info("Database ready at %s", DB_PATH)
+
 
 init_db()
 
-# ─── Save result ──────────────────────────────────────────
-def save_result(src_ip, dest_port, score, is_anomaly, severity):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO anomaly_results
-        (timestamp, src_ip, dest_port, anomaly_score, is_anomaly, severity)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (
-        datetime.now().isoformat(),
-        src_ip,
-        int(dest_port),
-        round(float(score), 4),
-        int(is_anomaly),
-        severity
-    ))
-    conn.commit()
-    conn.close()
 
-# ─── Severity helper ──────────────────────────────────────
-def get_severity(score):
-    if score < -0.6:   return 'HIGH'
-    elif score < -0.4: return 'MEDIUM'
-    else:              return 'LOW'
+# ─── Helpers ──────────────────────────────────────────────
+def _severity(error: float) -> str:
+    """Graduated severity: LOW 1-2x, MEDIUM 2-10x, HIGH >10x threshold."""
+    if error <= THRESHOLD:
+        return 'LOW'
+    ratio = error / THRESHOLD
+    if ratio <= 2.0:
+        return 'LOW'
+    elif ratio <= 10.0:
+        return 'MEDIUM'
+    else:
+        return 'HIGH'
+
+
+def _save_result(src_ip: str, dest_port: int, score: float,
+                 is_anomaly: bool, severity: str):
+    """Insert one window result into the database."""
+    try:
+        conn = _get_db()
+        conn.execute('''
+            INSERT INTO anomaly_results
+            (timestamp, src_ip, dest_port, anomaly_score, is_anomaly, severity)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            datetime.now(timezone.utc).isoformat(),
+            src_ip,
+            int(dest_port),
+            round(float(score), 6),
+            int(is_anomaly),
+            severity,
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.error("DB write error: %s", e)
+
+
+# ─── Feature aggregation ─────────────────────────────────
+def _aggregate(flows: list) -> dict:
+    """Compute aggregated features from a list of flow dicts."""
+    n = len(flows)
+    if n == 0:
+        return None
+
+    dst_ports   = [f.get('dst_port', 0)          for f in flows]
+    dst_ips     = [f.get('dst_ip', '')            for f in flows]
+    conn_states = [f.get('conn_state', 'unknown') for f in flows]
+    durations   = [f.get('duration', 0.0)         for f in flows]
+    bytes_list  = [f.get('bytes_sent', 0) + f.get('bytes_received', 0) for f in flows]
+    packets_list = [f.get('total_fwd_packets', 0) + f.get('total_backward_packets', 0) for f in flows]
+
+    bytes_total   = sum(bytes_list)
+    packets_total = sum(packets_list)
+    syn_count     = sum(1 for s in conn_states if s == 'S0')
+    failed_count  = sum(1 for s in conn_states if s != 'SF')
+
+    return {
+        'conn_count':          float(n),
+        'unique_dst_ports':    float(len(set(dst_ports))),
+        'unique_dst_ips':      float(len(set(dst_ips))),
+        'syn_ratio':           syn_count / n,
+        'failed_ratio':        failed_count / n,
+        'bytes_total':         float(bytes_total),
+        'packets_total':       float(packets_total),
+        'avg_duration':        float(np.mean(durations)) if durations else 0.0,
+        'connections_per_sec': n / WINDOW_SECONDS,
+        'avg_bytes_per_flow':  bytes_total / n if n > 0 else 0.0,
+        # extra (not model input)
+        '_most_common_port':   max(set(dst_ports), key=dst_ports.count) if dst_ports else 0,
+    }
+
+
+# ─── Window flush (runs every WINDOW_SECONDS) ────────────
+def flush_windows():
+    """Score all buffered windows and save results."""
+    with _lock:
+        snapshot = dict(_buffers)
+        _buffers.clear()
+
+    if not snapshot:
+        return
+
+    log.info("Flushing %d IP windows...", len(snapshot))
+
+    for src_ip, flows in snapshot.items():
+        try:
+            agg = _aggregate(flows)
+            if agg is None:
+                continue
+
+            # Build feature vector in correct order
+            feature_vec = np.array(
+                [[agg[name] for name in FEATURE_NAMES]],
+                dtype=np.float32,
+            )
+
+            # Apply log-scaling for heavy-tailed features (matching training)
+            log_features = metadata.get('log_features', [])
+            for feature in log_features:
+                if feature in FEATURE_NAMES:
+                    idx = FEATURE_NAMES.index(feature)
+                    feature_vec[0, idx] = np.log1p(feature_vec[0, idx])
+
+            # Scale and Predict
+            feature_scaled = scaler.transform(feature_vec)
+            reconstructed = model.predict(feature_scaled, verbose=0)
+
+            # Reconstruction error (MSE)
+            error = float(np.mean(np.square(feature_scaled - reconstructed)))
+
+            is_anomaly = error > THRESHOLD
+            severity   = _severity(error)
+
+            log.info(
+                "  %-18s  conns=%-4d  ports=%-3d  error=%.6f  %s%s",
+                src_ip,
+                int(agg['conn_count']),
+                int(agg['unique_dst_ports']),
+                error,
+                severity,
+                "  *** ANOMALY ***" if is_anomaly else "",
+            )
+
+            _save_result(
+                src_ip=src_ip,
+                dest_port=int(agg['_most_common_port']),
+                score=error,
+                is_anomaly=is_anomaly,
+                severity=severity,
+            )
+
+        except Exception as e:
+            log.error("Error scoring window for %s: %s", src_ip, e)
+
+
+# ─── Background scheduler ────────────────────────────────
+scheduler = BackgroundScheduler(daemon=True)
+scheduler.add_job(flush_windows, 'interval', seconds=WINDOW_SECONDS)
+scheduler.start()
+log.info("Scheduler started — flushing every %ds", WINDOW_SECONDS)
+
+
+# ═══════════════════════════════════════════════════════════
+#  FLASK ENDPOINTS
+# ═══════════════════════════════════════════════════════════
 
 # ─── Health check ─────────────────────────────────────────
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok', 'model': 'loaded'})
+    return jsonify({
+        'status': 'ok',
+        'model': 'window_autoencoder',
+        'threshold': THRESHOLD,
+        'window_seconds': WINDOW_SECONDS,
+    })
 
-# ─── Analyze endpoint ─────────────────────────────────────
+
+# ─── Analyze (buffer flow) ───────────────────────────────
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
         event = request.json
 
-        features = pd.DataFrame([{
-            'Flow Duration':               float(event.get('Flow Duration', 0)),
-            'Total Fwd Packets':           float(event.get('Total Fwd Packets', 0)),
-            'Total Backward Packets':      float(event.get('Total Backward Packets', 0)),
-            'Total Length of Fwd Packets': float(event.get('Total Length of Fwd Packets', 0)),
-            'Total Length of Bwd Packets': float(event.get('Total Length of Bwd Packets', 0)),
-            'Fwd Packet Length Max':       float(event.get('Fwd Packet Length Max', 0)),
-            'Bwd Packet Length Max':       float(event.get('Bwd Packet Length Max', 0)),
-            'Flow Bytes/s':                float(event.get('Flow Bytes/s', 0)),
-            'Flow Packets/s':              float(event.get('Flow Packets/s', 0)),
-            'Flow IAT Mean':               float(event.get('Flow IAT Mean', 0)),
-            'Destination Port':            float(event.get('Destination Port', 0)),
-        }])
+        src_ip = event.get('src_ip', 'unknown')
 
-        prediction = model.predict(features)
-        score      = model.score_samples(features)
-        is_anomaly = bool(prediction[0] == -1)
-        severity   = get_severity(score[0])
-        src_ip     = event.get('src_ip', 'unknown')
-        dest_port  = event.get('Destination Port', 0)
+        flow = {
+            'dst_ip':                event.get('dst_ip', ''),
+            'dst_port':              int(event.get('Destination Port', 0)),
+            'conn_state':            event.get('conn_state', 'unknown'),
+            'duration':              float(event.get('Flow Duration', 0)),
+            'bytes_sent':            float(event.get('Total Length of Fwd Packets', 0)),
+            'bytes_received':        float(event.get('Total Length of Bwd Packets', 0)),
+            'total_fwd_packets':     int(event.get('Total Fwd Packets', 0)),
+            'total_backward_packets': int(event.get('Total Backward Packets', 0)),
+            'timestamp':             datetime.now(timezone.utc).isoformat(),
+        }
 
-        # Save every result to database
-        save_result(src_ip, dest_port, score[0], is_anomaly, severity)
+        with _lock:
+            _buffers[src_ip].append(flow)
 
-        return jsonify({
-            'is_anomaly':    is_anomaly,
-            'anomaly_score': round(float(score[0]), 4),
-            'severity':      severity,
-            'src_ip':        src_ip,
-        })
+        return jsonify({'status': 'flow buffered'})
 
     except Exception as e:
+        log.error("/analyze error: %s", e)
         return jsonify({'error': str(e)}), 400
 
-# ─── Get all results from DB (for dashboard) ──────────────
+
+# ─── Results (for dashboard) ─────────────────────────────
 @app.route('/results', methods=['GET'])
 def results():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = _get_db()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT timestamp, src_ip, dest_port,
@@ -145,7 +301,7 @@ def results():
             'dest_port':     r[2],
             'anomaly_score': r[3],
             'is_anomaly':    bool(r[4]),
-            'severity':      r[5]
+            'severity':      r[5],
         } for r in rows]
 
         return jsonify({'count': len(data), 'results': data})
@@ -153,11 +309,12 @@ def results():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-# ─── Stats endpoint (for dashboard graphs) ────────────────
+
+# ─── Stats (for dashboard graphs) ────────────────────────
 @app.route('/stats', methods=['GET'])
 def stats():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = _get_db()
         cursor = conn.cursor()
 
         cursor.execute('SELECT COUNT(*) FROM anomaly_results')
@@ -175,15 +332,17 @@ def stats():
         conn.close()
 
         return jsonify({
-            'total_events':   total,
+            'total_events':    total,
             'total_anomalies': total_anomalies,
-            'high_severity':  high,
+            'high_severity':   high,
             'medium_severity': medium,
-            'normal_events':  total - total_anomalies
+            'normal_events':   total - total_anomalies,
         })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
+# ─── Run ──────────────────────────────────────────────────
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=False)

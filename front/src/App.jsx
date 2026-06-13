@@ -23,6 +23,12 @@ import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 import MitreAttack from './pages/MitreAttack'
+import Endpoints from './pages/Endpoints'
+import Incidents from './pages/Incidents'
+import IncidentDetail from './pages/IncidentDetail'
+import Playbooks from './pages/Playbooks'
+import PlaybookBuilder from './pages/PlaybookBuilder'
+import ExecutionHistory from './pages/ExecutionHistory'
 import { useEffect } from 'react';
 import axios from 'axios'
 const AxiosInterceptorSetup = ({ children }) => {
@@ -80,9 +86,15 @@ function App() {
                 { path: 'users', element: <UserManagement /> },
                 { path: 'correlation', element: <Correlation /> },
                 { path: 'mitre-attack', element: <MitreAttack /> },
+                { path: 'endpoints', element: <Endpoints /> },
                 { path: 'threat-intel', element: <ThreatIntelligence /> },
                 { path: 'settings', element: <Settings /> },
-                { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> }
+                { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> },
+                { path: 'incidents', element: <Incidents /> },
+                { path: 'incidents/:id', element: <IncidentDetail /> },
+                { path: 'playbooks', element: <Playbooks /> },
+                { path: 'playbooks/history', element: <ExecutionHistory /> },
+                { path: 'playbooks/:id', element: <PlaybookBuilder /> }
               ]
             }
           ]

@@ -2,7 +2,7 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-RUN apk update && apk add sudo iptables
+RUN apk update && apk add sudo iptables docker-cli
 
 COPY package*.json ./
 

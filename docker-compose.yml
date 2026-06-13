@@ -3,13 +3,12 @@ services:
   backend:
     build: ./server
     container_name: deepguard-backend
+    privileged: true
     restart: unless-stopped
     env_file:
       - ./server/.env
     environment:
       NODE_ENV: dep
-      PUBLIC_PORT: 5000
-      INTERNAL_PORT: 5010
     ports:
       - "5000:5000"
     cap_add:
@@ -18,6 +17,7 @@ services:
       - ./logs/suricata:/app/logs/suricata:ro
       - ./logs/zeek:/app/logs/zeek:ro
       - iptables_socket:/tmp/iptables-proxy
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db:
         condition: service_healthy
@@ -49,10 +49,10 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+      test: ["CMD-SHELL", "mysql -h localhost -u $$MYSQL_USER -p$$MYSQL_PASSWORD -e 'SELECT 1' >/dev/null 2>&1"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
       start_period: 30s
 
   filebeat:
@@ -64,6 +64,7 @@ services:
       - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs/suricata:/var/log/suricata:ro
       - ./logs/zeek:/usr/local/zeek/logs/current:ro
+      - ./velociraptor/data:/var/lib/velociraptor:ro
     command: ["--strict.perms=false"]
     restart: unless-stopped
 
@@ -117,6 +118,20 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+  velociraptor:
+    build: ./velociraptor
+    container_name: deepguard-velociraptor
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8889:8889"
+    volumes:
+      - ./velociraptor/data:/velociraptor
+      - ./velociraptor/config/server.config.yaml:/etc/velociraptor/server.config.yaml:ro
+    env_file:
+      - ./server/.env
 
 volumes:
   mysql_data:

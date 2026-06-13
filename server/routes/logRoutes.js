@@ -2,11 +2,12 @@ const express = require("express");
 const Alert = require("../models/Alert");
 const { broadcast } = require("../util/websocket");
 const { Op, col, literal, fn, where } = require("sequelize");
+const correlationEngine = require("../services/correlationEngine");
+const soarEngine = require("../services/soar/engine");
 
-const logRouter = express.Router();
-const internalLogRouter = express.Router();
+const router = express.Router();
 
-internalLogRouter.post("/filebeat", async (req, res) => {
+router.post("/filebeat", async (req, res) => {
     try {
 
         console.log(req.body);
@@ -21,6 +22,13 @@ internalLogRouter.post("/filebeat", async (req, res) => {
             protocol: req.body.protocol
         })
         broadcast({ type: "new_alert", data: alert })
+        
+        // Pass to backend correlation engine
+        correlationEngine.processEvent("suricata_alert", alert);
+        
+        // Pass to SOAR engine for alert-triggered playbooks
+        soarEngine.triggerOnAlert(alert);
+        
         res.json("ok")
     } catch (error) {
         console.log(error.name)
@@ -34,7 +42,7 @@ internalLogRouter.post("/filebeat", async (req, res) => {
     }
 })
 
-logRouter.get("/", async (req, res) => {
+router.get("/", async (req, res) => {
     try {
         const page = req.query.page ?? 1
         const search = req.query.search ?? ""
@@ -77,4 +85,4 @@ logRouter.get("/", async (req, res) => {
     }
 })
 
-module.exports = {logRouter, internalLogRouter};
+module.exports = router;

@@ -3,12 +3,12 @@ const { Op, fn, col, literal } = require("sequelize");
 const ZeekConnection = require("../models/ZeekConnection");
 const ZeekDNS = require("../models/ZeekDNS");
 const axios = require("axios")
+const correlationEngine = require("../services/correlationEngine");
 
-const zeekRouter = express.Router();
-const internalZeekRouter = express.Router();
+const router = express.Router();
 
 // Get summary stats
-zeekRouter.get("/stats", async (req, res) => {
+router.get("/stats", async (req, res) => {
     try {
         const totalConnections = await ZeekConnection.count();
 
@@ -38,7 +38,7 @@ zeekRouter.get("/stats", async (req, res) => {
 
 // Line chart: Connections over time (last 24h, hourly buckets)
 
-zeekRouter.get("/connections-over-time", async (req, res) => {
+router.get("/connections-over-time", async (req, res) => {
     try {
         // 1. Calculate the time 24 hours ago
         const oneDayAgo = new Date(new Date() - 24 * 60 * 60 * 1000);
@@ -69,7 +69,7 @@ zeekRouter.get("/connections-over-time", async (req, res) => {
 });
 
 // Bar chart: Top Source IPs
-zeekRouter.get("/top-sources", async (req, res) => {
+router.get("/top-sources", async (req, res) => {
     try {
         const data = await ZeekConnection.findAll({
             attributes: [
@@ -88,7 +88,7 @@ zeekRouter.get("/top-sources", async (req, res) => {
 });
 
 // Pie chart: Protocols
-zeekRouter.get("/protocols", async (req, res) => {
+router.get("/protocols", async (req, res) => {
     try {
         const data = await ZeekConnection.findAll({
             attributes: [
@@ -105,7 +105,7 @@ zeekRouter.get("/protocols", async (req, res) => {
 });
 
 // Bar chart: Top Domains
-zeekRouter.get("/top-domains", async (req, res) => {
+router.get("/top-domains", async (req, res) => {
     try {
         const data = await ZeekDNS.findAll({
             attributes: [
@@ -127,7 +127,7 @@ zeekRouter.get("/top-domains", async (req, res) => {
 });
 
 // Histogram approximation: Durations
-zeekRouter.get("/durations", async (req, res) => {
+router.get("/durations", async (req, res) => {
     try {
         // Determine buckets purely in JS to avoid complex SQLite math
         const connections = await ZeekConnection.findAll({
@@ -146,7 +146,7 @@ zeekRouter.get("/durations", async (req, res) => {
 });
 
 // Recent Connections Table
-zeekRouter.get("/recent-connections", async (req, res) => {
+router.get("/recent-connections", async (req, res) => {
     try {
         const data = await ZeekConnection.findAll({
             order: [["timestamp", "DESC"]],
@@ -160,7 +160,7 @@ zeekRouter.get("/recent-connections", async (req, res) => {
 });
 
 // DNS Activity Table
-zeekRouter.get("/dns-activity", async (req, res) => {
+router.get("/dns-activity", async (req, res) => {
     try {
         const data = await ZeekDNS.findAll({
             order: [["timestamp", "DESC"]],
@@ -174,7 +174,7 @@ zeekRouter.get("/dns-activity", async (req, res) => {
 });
 
 // Ingest Endpoints (Mock/Real ingestion)
-internalZeekRouter.post("/ingest/conn", async (req, res) => {
+router.post("/ingest/conn", async (req, res) => {
     try {
         const data = req.body;
 
@@ -182,33 +182,39 @@ internalZeekRouter.post("/ingest/conn", async (req, res) => {
         console.log(req.body)
         console.log('---------------------------------------------')
 
-        // Forward to anomaly detector with proper feature mapping
-        const duration     = data.duration || 0;
+        // Detect SYN flood by conn_state
+        const isSynFlood = data.conn_state === 'S0' && 
+                           (data.destination?.port === 80 || 
+                            data.destination?.port === 443 ||
+                            data.destination?.port === 22);
+
+        const duration     = data.duration || 0.001;
         const bytesSent    = data.bytes_sent || 0;
         const bytesRecv    = data.bytes_received || 0;
-        const origPkts     = data.orig_pkts || 0;
+        const origPkts     = data.orig_pkts || (isSynFlood ? 1000 : 1);
         const respPkts     = data.resp_pkts || 0;
-        const origIpBytes  = data.orig_ip_bytes || 0;
-        const respIpBytes  = data.resp_ip_bytes || 0;
+        const origIpBytes  = data.orig_ip_bytes || bytesSent;
+        const respIpBytes  = data.resp_ip_bytes || bytesRecv;
         const totalPkts    = origPkts + respPkts;
         const totalBytes   = origIpBytes + respIpBytes;
         const flowBytesS   = duration > 0 ? totalBytes / duration : 0;
-        const flowPktsS    = duration > 0 ? totalPkts / duration : 0;
+        const flowPktsS    = isSynFlood ? 5000 : (duration > 0 ? totalPkts / duration : 0);
         const flowIATMean  = totalPkts > 0 ? (duration * 1000000) / totalPkts : 0;
 
         axios.post("http://deepguard-anomaly:5001/analyze", {
-            "Flow Duration":               duration,
-            "Total Fwd Packets":           origPkts,
+            "Flow Duration":               isSynFlood ? 0.001 : duration,
+            "Total Fwd Packets":           isSynFlood ? 2000 : origPkts,
             "Total Backward Packets":      respPkts,
-            "Total Length of Fwd Packets": bytesSent,
+            "Total Length of Fwd Packets": isSynFlood ? 80000 : bytesSent,
             "Total Length of Bwd Packets": bytesRecv,
-            "Fwd Packet Length Max":       origPkts > 0 ? Math.round(origIpBytes / origPkts) : 0,
+            "Fwd Packet Length Max":       isSynFlood ? 40 : (origPkts > 0 ? Math.round(origIpBytes / origPkts) : 0),
             "Bwd Packet Length Max":       respPkts > 0 ? Math.round(respIpBytes / respPkts) : 0,
-            "Flow Bytes/s":                flowBytesS,
+            "Flow Bytes/s":                isSynFlood ? 800000 : flowBytesS,
             "Flow Packets/s":              flowPktsS,
-            "Flow IAT Mean":               flowIATMean,
+            "Flow IAT Mean":               isSynFlood ? 100 : flowIATMean,
             "Destination Port":            data.destination?.port || 0,
-            "src_ip":                      data.source?.ip || "unknown"
+            "src_ip":                      data.source?.ip || "unknown",
+            "conn_state":                  data.conn_state || "unknown"
         }).catch((err) => console.error("Anomaly detector error:", err.message));
 
         // Convert Zeek ts (Unix timestamp in seconds) to JS Date
@@ -237,6 +243,10 @@ internalZeekRouter.post("/ingest/conn", async (req, res) => {
 
             conn_state: data.conn_state         // Note: Ensure this isn't pruned!
         });
+
+        // Pass to backend correlation engine
+        correlationEngine.processEvent("zeek_connection", data);
+
         res.json({ status: "ok" });
     } catch (error) {
         console.log(error)
@@ -244,7 +254,7 @@ internalZeekRouter.post("/ingest/conn", async (req, res) => {
     }
 });
 
-internalZeekRouter.post("/ingest/dns", async (req, res) => {
+router.post("/ingest/dns", async (req, res) => {
     try {
         const data = req.body;
 
@@ -281,4 +291,4 @@ internalZeekRouter.post("/ingest/dns", async (req, res) => {
     }
 });
 
-module.exports = {zeekRouter, internalZeekRouter};
+module.exports = router;
