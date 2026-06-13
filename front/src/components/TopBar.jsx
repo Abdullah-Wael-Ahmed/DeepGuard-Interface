@@ -1,14 +1,28 @@
 import React, { useState } from 'react';
-import { Search, Bell, User, X } from 'lucide-react';
+import { Search, Bell, User, X, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 
 const TopBar = () => {
-    const { auth } = useAuth();
+    const { auth, setAuth } = useAuth();
     const user = auth?.user;
     const [searchValue, setSearchValue] = useState('');
     const [showNotifications, setShowNotifications] = useState(false);
     const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        try {
+            await axios.post(`${import.meta.env.VITE_BACK}/auth/logout`, {}, {
+                withCredentials: true 
+            });
+        } catch (error) {
+            console.error("Logout failed on server:", error);
+        } finally {
+            setAuth({});
+            navigate('/login');
+        }
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -115,11 +129,18 @@ const TopBar = () => {
                         <p className="text-sm font-medium text-text-main">{user?.name} </p>
                         <p className="text-xs text-text-secondary capitalize">{user?.role}</p>
                     </div>
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px] status-online">
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px] status-online mr-1">
                          <div className="h-full w-full rounded-full bg-background-dark flex items-center justify-center">
                             <User className="h-5 w-5 text-gray-300" />
                          </div>
                     </div>
+                    <button 
+                        onClick={handleLogout} 
+                        className="p-2 rounded-lg bg-card-dark border border-gray-700 hover:border-red-500/50 hover:text-red-500 transition-all cursor-pointer"
+                        title="Logout"
+                    >
+                        <LogOut className="h-4 w-4" />
+                    </button>
                 </div>
             </div>
 

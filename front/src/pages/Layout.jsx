@@ -1,4 +1,4 @@
-import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe, ChartNetwork, Crosshair, MonitorSmartphone, ClipboardList, GitPullRequestDraft } from 'lucide-react';
+import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, Share2, Users, Globe, ChartNetwork, Crosshair, MonitorSmartphone, ClipboardList, GitPullRequestDraft } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
 import DeepGuard from '../assets/DeepGaurdDark.svg';
 import TopBar from '../components/TopBar';
@@ -17,18 +17,7 @@ const Layout = () => {
         else return "flex items-center gap-3 px-3 py-2 text-text-secondary hover:text-text-main hover:bg-card-dark rounded-lg transition-colors";
     };
 
-    const handleLogout = async () => {
-        try {
-            await axios.post(`${import.meta.env.VITE_BACK}/auth/logout`, {}, {
-                withCredentials: true 
-            });
-        } catch (error) {
-            console.error("Logout failed on server:", error);
-        } finally {
-            setAuth({});
-            navigate('/login');
-        }
-    };
+
 
     return (
         <div className="bg-background-dark font-display text-text-main">
@@ -124,15 +113,6 @@ const Layout = () => {
                                 <p className="text-sm font-medium">Settings</p>
                             </Link>
                         </nav>
-                    </div>
-                    <div className="p-2">
-                        <button 
-                            onClick={handleLogout} 
-                            className="w-full flex items-center gap-3 px-3 py-2 text-text-secondary hover:text-text-main hover:bg-card-dark rounded-lg transition-colors cursor-pointer"
-                        >
-                            <LogOut />
-                            <p className="text-sm font-medium">Logout</p>
-                        </button>
                     </div>
                 </aside>
 

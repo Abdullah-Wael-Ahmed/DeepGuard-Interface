@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const router = express.Router();
 const verifyJWT = require("../middleware/verifyJWT");
-const { requireAdmin } = require("../middleware/authorize");
+const { requireAdmin, requireAdminOrOperator } = require("../middleware/authorize");
 
 const generateAccessToken = (user) => {
     return jwt.sign(
@@ -22,7 +22,7 @@ const generateRefreshToken = (user) => {
     );
 };
 
-router.get("/users", verifyJWT, requireAdmin, async (req, res) => {
+router.get("/users", verifyJWT, requireAdminOrOperator, async (req, res) => {
     try {
         const users = await User.findAll({
             attributes: { exclude: ["password"] },

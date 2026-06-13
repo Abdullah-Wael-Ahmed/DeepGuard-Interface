@@ -73,8 +73,10 @@ const Incidents = () => {
         severity: 'medium',
         category: '',
         assignee: '',
-        tlp: 'amber',
+        assigneeId: null,
+        tlp: 'amber'
     });
+    const [analysts, setAnalysts] = useState([]);
 
     // ── Data fetching ────────────────────────────────────────────────────────
     const fetchIncidents = async () => {
@@ -104,7 +106,20 @@ const Incidents = () => {
         }
     };
 
-    useEffect(() => { fetchStats(); }, []);
+    const fetchAnalysts = async () => {
+        try {
+            const res = await axios.get(`${BACK}/auth/users`, { withCredentials: true });
+            const filtered = res.data.filter(u => u.role === 'analyst');
+            setAnalysts(filtered);
+        } catch (err) {
+            console.error('Error fetching analysts:', err);
+        }
+    };
+
+    useEffect(() => { 
+        fetchStats(); 
+        fetchAnalysts();
+    }, []);
     useEffect(() => { fetchIncidents(); }, [page, filterStatus, filterSeverity]);
 
     // Debounced search
@@ -125,7 +140,7 @@ const Incidents = () => {
             const res = await axios.post(`${BACK}/incidents`, newIncident, { withCredentials: true });
             toast.success(`${res.data.incidentRef} created successfully`);
             setShowCreateModal(false);
-            setNewIncident({ title: '', description: '', severity: 'medium', category: '', assignee: '', tlp: 'amber' });
+            setNewIncident({ title: '', description: '', severity: 'medium', category: '', assignee: '', assigneeId: null, tlp: 'amber' });
             fetchIncidents();
             fetchStats();
         } catch (err) {
@@ -451,13 +466,24 @@ const Incidents = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-text-secondary mb-1.5">Assignee</label>
-                                    <input
-                                        type="text"
-                                        value={newIncident.assignee}
-                                        onChange={(e) => setNewIncident({ ...newIncident, assignee: e.target.value })}
-                                        placeholder="Analyst name"
-                                        className="w-full bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-all"
-                                    />
+                                    <select
+                                        value={newIncident.assigneeId || ''}
+                                        onChange={(e) => {
+                                            const selectedId = e.target.value;
+                                            const selectedAnalyst = analysts.find(a => String(a.id) === selectedId);
+                                            setNewIncident({ 
+                                                ...newIncident, 
+                                                assigneeId: selectedId ? parseInt(selectedId) : null,
+                                                assignee: selectedAnalyst ? selectedAnalyst.name : ''
+                                            });
+                                        }}
+                                        className="w-full bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-all cursor-pointer"
+                                    >
+                                        <option value="">Select analyst...</option>
+                                        {analysts.map(a => (
+                                            <option key={a.id} value={a.id}>{a.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-text-secondary mb-1.5">TLP</label>
