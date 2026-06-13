@@ -85,6 +85,7 @@ class SOAREngine {
             if (startNodes.length === 0) throw new Error("No trigger node found in playbook");
 
             let queue = [{ node: startNodes[0], payload: { ...contextData } }];
+            let currentPayload = contextData;
 
             // ── DAG Traversal (Queue-based BFS) ──────────────────────────────
             while (queue.length > 0) {
@@ -96,6 +97,7 @@ class SOAREngine {
                 }
 
                 const { node: currentNode, payload } = queue.shift();
+                currentPayload = payload;
 
                 const nodeLabel = currentNode.data?.label || currentNode.data?.actionType || currentNode.type;
                 log("info", `Step ${stepCount}: Executing node "${nodeLabel}" (${currentNode.type})`);
@@ -244,7 +246,7 @@ class SOAREngine {
         } finally {
             execution.completedAt = new Date();
             execution.logs = logs;
-            execution.contextData = payload || contextData;
+            execution.contextData = currentPayload || contextData;
             await execution.save();
 
             broadcast({
