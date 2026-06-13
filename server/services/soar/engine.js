@@ -345,6 +345,9 @@ class SOAREngine {
 
     async triggerOnAlert(alert) {
         try {
+            // Ignore Suricata stream false positives (TCP handshake/ack quirks) to prevent endless execution loops
+            if (alert.signature && alert.signature.includes("SURICATA STREAM")) return;
+
             const playbooks = await Playbook.findAll({
                 where: { status: "active", triggerType: "on_alert" }
             });
