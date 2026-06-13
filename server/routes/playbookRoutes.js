@@ -142,6 +142,20 @@ router.post("/seed", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GET /playbooks/force-seed — Forcefully wipe and recreate all playbooks
+// ═══════════════════════════════════════════════════════════════════════════════
+router.get("/force-seed", async (req, res) => {
+    try {
+        await PlaybookExecution.destroy({ where: {} });
+        await Playbook.destroy({ where: {} });
+        const result = await seedPlaybooks();
+        res.json({ message: "All playbooks forcefully wiped and recreated!", result });
+    } catch (error) {
+        res.status(500).json({ error: error.message, stack: error.stack });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // GET /playbooks/:id — Get specific playbook (with nodes/edges)
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get("/:id", async (req, res) => {
