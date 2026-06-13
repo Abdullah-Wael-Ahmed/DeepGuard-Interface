@@ -118,7 +118,7 @@ router.get('/clients/:clientId', async (req, res) => {
 router.get('/clients/:clientId/collections', async (req, res) => {
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const data = await queryVelociraptor(`SELECT client_id, flow_id, artifacts, create_time, active_time, state FROM flows(client_id='${clientId}') ORDER BY create_time DESC LIMIT 50`);
+        const data = await queryVelociraptor(`SELECT * FROM flows(client_id='${clientId}') ORDER BY create_time DESC LIMIT 50`);
         console.log(`[DEBUG] Flows for ${clientId}:`, JSON.stringify(data));
         
         let collections = [];
@@ -136,6 +136,31 @@ router.get('/clients/:clientId/collections', async (req, res) => {
     } catch (error) {
         console.error(`Error fetching velociraptor collections:`, error.message);
         res.status(500).json({ error: 'Failed to fetch client collections' });
+    }
+});
+
+// GET /api/velociraptor/clients/:clientId/collections/:flowId/results — fetch raw results of a specific hunt flow
+router.get('/clients/:clientId/collections/:flowId/results', async (req, res) => {
+    try {
+        const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+        const flowId = req.params.flowId.replace(/[^a-zA-Z0-9.-]/g, '');
+        const data = await queryVelociraptor(`SELECT * FROM flow_results(client_id='${clientId}', flow_id='${flowId}')`);
+        
+        let results = [];
+        if (data.Responses && data.Responses.length > 0) {
+            results = data.Responses[0].Response || [];
+            if (typeof results === 'string') {
+                try {
+                    results = JSON.parse(results);
+                } catch(e) {
+                    results = results.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                }
+            }
+        }
+        res.json({ items: results });
+    } catch (error) {
+        console.error(`Error fetching flow results:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch flow results' });
     }
 });
 
