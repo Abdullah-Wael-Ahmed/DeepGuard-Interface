@@ -1,46 +1,31 @@
 #!/bin/bash
 set -e
-BIND_ADDRESS="0.0.0.0"
-PUBLIC_PATH="public"
-LOG_DIR="."
-DATASTORE_LOCATION="./"
-FILESTORE_DIRECTORY="./"
-CLIENT_DIR="/velociraptor/clients"
 
-# Move binaries into place
-cp /opt/velociraptor/linux/velociraptor . && chmod +x velociraptor
-mkdir -p $CLIENT_DIR/linux && rsync -a /opt/velociraptor/linux/velociraptor /velociraptor/clients/linux/velociraptor_client
-mkdir -p $CLIENT_DIR/mac && rsync -a /opt/velociraptor/mac/velociraptor_client /velociraptor/clients/mac/velociraptor_client
-mkdir -p $CLIENT_DIR/windows && rsync -a /opt/velociraptor/windows/velociraptor_client* /velociraptor/clients/windows/
+CONFIG="/etc/velociraptor/server.config.yaml"
+BINARY="/opt/velociraptor"
 
-# If no existing server config, set it up
-if [ ! -f server.config.yaml ]; then
-	./velociraptor config generate > server.config.yaml --merge '{"Frontend":{"public_path":"'$PUBLIC_PATH'", "hostname":"'$VELOX_FRONTEND_HOSTNAME'"},"API":{"bind_address":"'$BIND_ADDRESS'"},"GUI":{"bind_address":"'$BIND_ADDRESS'"},"Monitoring":{"bind_address":"'$BIND_ADDRESS'"},"Logging":{"output_directory":"'$LOG_DIR'","separate_logs_per_component":true},"Client":{"server_urls":["'$VELOX_SERVER_URL'"],"use_self_signed_ssl":true}, "Datastore":{"location":"'$DATASTORE_LOCATION'", "filestore_directory":"'$FILESTORE_DIRECTORY'"}}'
-        #sed -i "s#https://localhost:8000/#$VELOX_CLIENT_URL#" server.config.yaml
-	sed -i 's#/tmp/velociraptor#.#'g server.config.yaml
-	./velociraptor --config server.config.yaml user add $VELOX_USER $VELOX_PASSWORD --role $VELOX_ROLE
+# 1. If config doesn't exist, generate a fresh one
+if [ ! -f "$CONFIG" ]; then
+    echo "Generating fresh Velociraptor config..."
+    $BINARY config generate > "$CONFIG"
+    
+    # 2. Automatically patch the config for Docker environment
+    echo "Patching config for Docker (0.0.0.0 and persistent paths)..."
+    
+    # Set bind addresses to 0.0.0.0 so we can access from host
+    sed -i 's/bind_address: 127.0.0.1/bind_address: 0.0.0.0/g' "$CONFIG"
+    
+    # Set Datastore to the persistent volume path used by both Velociraptor and Filebeat
+    sed -i 's|location: /var/tmp/velociraptor|location: /velociraptor|g' "$CONFIG"
+    sed -i 's|filestore_directory: /var/tmp/velociraptor|filestore_directory: /velociraptor|g' "$CONFIG"
 fi
 
-# Check Server Certificate Status, Re-generate if it's expiring in 24-hours or less
-if true | ./velociraptor --config server.config.yaml config show --json | jq -r .Frontend.certificate | openssl x509 -text -enddate -noout -checkend 86400 >/dev/null; then
-  echo "Skipping renewal, certificate is not expired"
-else
-  echo "Certificate is expired, rotating certificate."
-  ./velociraptor --config ./server.config.yaml config rotate_key > /tmp/server.config.yaml
-  cp ./server.config.yaml ./server.config.yaml.bak
-  mv /tmp/server.config.yaml /velociraptor/.
+# 3. Add the admin user from environment variables
+if [ ! -z "$VR_ADMIN_USER" ] && [ ! -z "$VR_ADMIN_PASSWORD" ]; then
+    echo "Ensuring admin user '$VR_ADMIN_USER' exists..."
+    $BINARY --config "$CONFIG" user add "$VR_ADMIN_USER" "$VR_ADMIN_PASSWORD" --role administrator || echo "User already exists."
 fi
 
-# Re-generate client config in case server config changed
-./velociraptor --config server.config.yaml config client > client.config.yaml
-
-# Repack clients
-./velociraptor config repack --exe clients/linux/velociraptor_client client.config.yaml clients/linux/velociraptor_client_repacked
-# Remove for now -- causing the build to fail --> ./velociraptor --config client.config.yaml debian client --output clients/linux/velociraptor_client_repacked.deb
-# Remove for now -- causing the build to fail --> ./velociraptor --config client.config.yaml rpm client --output clients/linux/velociraptor_client_repacked.rpm
-./velociraptor config repack --exe clients/mac/velociraptor_client client.config.yaml clients/mac/velociraptor_client_repacked
-./velociraptor config repack --exe clients/windows/velociraptor_client.exe client.config.yaml clients/windows/velociraptor_client_repacked.exe
-./velociraptor config repack --msi clients/windows/velociraptor_client.msi client.config.yaml clients/windows/velociraptor_client_repacked.msi
-
-# Start Velocoraptor
-./velociraptor --config server.config.yaml frontend -v
+# 4. Start Velociraptor
+echo "Starting Velociraptor Frontend..."
+exec $BINARY --config "$CONFIG" frontend -v
