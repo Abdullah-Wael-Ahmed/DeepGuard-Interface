@@ -119,6 +119,7 @@ router.get('/clients/:clientId/collections', async (req, res) => {
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
         const data = await queryVelociraptor(`SELECT client_id, flow_id, artifacts, create_time, active_time, state FROM flows(client_id='${clientId}') ORDER BY create_time DESC LIMIT 50`);
+        console.log(`[DEBUG] Flows for ${clientId}:`, JSON.stringify(data));
         
         let collections = [];
         if (data.Responses && data.Responses.length > 0) {
@@ -148,7 +149,8 @@ router.post('/hunt', async (req, res) => {
         const safeArtifact = artifact.replace(/[^a-zA-Z0-9.-_]/g, '');
         const safeClientId = clientId.replace(/[^a-zA-Z0-9.-]/g, '');
 
-        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts='${safeArtifact}')`);
+        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'])`);
+        console.log(`[DEBUG] Triggered Hunt for ${safeClientId}:`, JSON.stringify(data));
         
         let result = {};
         if (data.Responses && data.Responses.length > 0) {

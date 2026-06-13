@@ -892,7 +892,6 @@ const Endpoints = () => {
                                         value={manualTargetId}
                                         onChange={(e) => setManualTargetId(e.target.value)}
                                         className="w-full bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5"
-                                        required
                                     >
                                         <option value="">-- Select an endpoint --</option>
                                         {clients.map(c => (
