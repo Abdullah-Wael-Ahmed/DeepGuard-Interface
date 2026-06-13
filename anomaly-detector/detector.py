@@ -140,13 +140,18 @@ def _aggregate(flows: list) -> dict:
     dst_ips     = [f.get('dst_ip', '')            for f in flows]
     conn_states = [f.get('conn_state', 'unknown') for f in flows]
     durations   = [f.get('duration', 0.0)         for f in flows]
-    bytes_list  = [f.get('bytes_sent', 0) + f.get('bytes_received', 0) for f in flows]
+    bytes_sent_list = [f.get('bytes_sent', 0) for f in flows]
+    bytes_recv_list = [f.get('bytes_received', 0) for f in flows]
+    bytes_list  = [s + r for s, r in zip(bytes_sent_list, bytes_recv_list)]
     packets_list = [f.get('total_fwd_packets', 0) + f.get('total_backward_packets', 0) for f in flows]
+    protos      = [f.get('protocol', 'unknown') for f in flows]
 
     bytes_total   = sum(bytes_list)
     packets_total = sum(packets_list)
     syn_count     = sum(1 for s in conn_states if s == 'S0')
     failed_count  = sum(1 for s in conn_states if s != 'SF')
+    tcp_count     = sum(1 for p in protos if p == 'tcp')
+    inbound_outbound = sum(bytes_recv_list) / max(sum(bytes_sent_list), 1)
 
     return {
         'conn_count':          float(n),
@@ -159,6 +164,10 @@ def _aggregate(flows: list) -> dict:
         'avg_duration':        float(np.mean(durations)) if durations else 0.0,
         'connections_per_sec': n / WINDOW_SECONDS,
         'avg_bytes_per_flow':  bytes_total / n if n > 0 else 0.0,
+        'tcp_ratio':           float(tcp_count / n),
+        'avg_pkt_size':        float(bytes_total / packets_total) if packets_total > 0 else 0.0,
+        'inbound_outbound_ratio': float(inbound_outbound),
+        'proto_diversity':     float(len(set(protos))),
         # extra (not model input)
         '_most_common_port':   max(set(dst_ports), key=dst_ports.count) if dst_ports else 0,
     }
@@ -266,6 +275,7 @@ def analyze():
             'bytes_received':        float(event.get('Total Length of Bwd Packets', 0)),
             'total_fwd_packets':     int(event.get('Total Fwd Packets', 0)),
             'total_backward_packets': int(event.get('Total Backward Packets', 0)),
+            'protocol':              str(event.get('protocol', 'unknown')).lower(),
             'timestamp':             datetime.now(timezone.utc).isoformat(),
         }
 
