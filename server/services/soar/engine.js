@@ -59,6 +59,7 @@ class SOAREngine {
         const logs = [];
         const rollbackStack = []; // LIFO stack of { actionType, rollbackData }
         let stepCount = 0;
+        let currentPayload = contextData;
 
         const log = (level, msg, data = null) => {
             const entry = { timestamp: new Date().toISOString(), level, message: msg, data };
@@ -85,7 +86,6 @@ class SOAREngine {
             if (startNodes.length === 0) throw new Error("No trigger node found in playbook");
 
             let queue = [{ node: startNodes[0], payload: { ...contextData } }];
-            let currentPayload = contextData;
 
             // ── DAG Traversal (Queue-based BFS) ──────────────────────────────
             while (queue.length > 0) {
