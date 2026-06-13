@@ -129,7 +129,7 @@ services:
       - "8889:8889"
     volumes:
       - ./velociraptor/data:/velociraptor
-      - ./velociraptor/config/server.config.yaml:/etc/velociraptor/server.config.yaml:ro
+      - ./velociraptor/config:/etc/velociraptor
     env_file:
       - ./server/.env
 
