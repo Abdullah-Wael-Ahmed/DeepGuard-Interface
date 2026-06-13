@@ -217,7 +217,7 @@ router.post("/", async (req, res) => {
             sourceRef,
             tags = [],
             tlp = "amber",
-        } = req.body;
+        } = req.body || {};
 
         if (!title || !title.trim()) {
             return res.status(400).json({ error: "Title is required" });
@@ -294,9 +294,9 @@ router.patch("/:id", async (req, res) => {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        const { title, description, severity, priority, category, assignee, assigneeId, tags, tlp } = req.body;
-        const actor = req.body.actor || "analyst";
-        const actorId = req.body.actorId || null;
+        const { title, description, severity, priority, category, assignee, assigneeId, tags, tlp } = req.body || {};
+        const actor = req.body?.actor || "analyst";
+        const actorId = req.body?.actorId || null;
 
         // Track what changed for timeline events
         const changes = [];
@@ -365,7 +365,7 @@ router.patch("/:id/status", async (req, res) => {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        const { status, actor = "analyst", actorId = null, reason } = req.body;
+        const { status, actor = "analyst", actorId = null, reason } = req.body || {};
 
         // Valid transitions
         const validTransitions = {
@@ -431,7 +431,7 @@ router.post("/:id/comment", async (req, res) => {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        const { message, actor = "analyst", actorId = null } = req.body;
+        const { message, actor = "analyst", actorId = null } = req.body || {};
 
         if (!message || !message.trim()) {
             return res.status(400).json({ error: "Comment message is required" });
@@ -463,7 +463,7 @@ router.post("/:id/evidence", async (req, res) => {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        const { type, referenceId, title, content, metadata, addedBy = "analyst" } = req.body;
+        const { type, referenceId, title, content, metadata, addedBy = "analyst" } = req.body || {};
 
         if (!type || !title) {
             return res.status(400).json({ error: "Evidence type and title are required" });
@@ -510,7 +510,7 @@ router.delete("/:id/evidence/:evidenceId", async (req, res) => {
         await logEvent(
             parseInt(req.params.id),
             "evidence_removed",
-            req.body.actor || "analyst",
+            req.body?.actor || "analyst",
             `Evidence removed: [${evidence.type}] ${evidence.title}`,
             { evidenceId: evidence.id },
         );

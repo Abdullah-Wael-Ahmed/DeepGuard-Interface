@@ -1,0 +1,155 @@
+version: "3.9"
+
+services:
+  backend:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: deepguard-backend-dev
+    privileged: true
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    environment:
+      NODE_ENV: dev
+    ports:
+      - "5000:5000"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+      - ./logs/suricata:/app/logs/suricata:ro
+      - ./logs/zeek:/app/logs/zeek:ro
+      - iptables_socket:/tmp/iptables-proxy
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["npm", "run", "dev", "--", "--verbose", "--ignore", "logs/*", "--ignore", "data/*"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: 
+      context: ./front
+      dockerfile: Dockerfile.dev
+    container_name: deepguard-frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  iptables-proxy:
+    build: ./iptables-service
+    container_name: deepguard-iptables
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    volumes:
+      - iptables_socket:/tmp/iptables-proxy
+
+  db:
+    image: mysql:8.0
+    container_name: deepguard-mysql
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h localhost -u $$MYSQL_USER -p$$MYSQL_PASSWORD -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: deepguard-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db 
+      PMA_PORT: 3306
+    depends_on:
+      - db
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.12.0
+    container_name: deepguard-filebeat
+    user: root
+    network_mode: "host"
+    volumes:
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs/suricata:/var/log/suricata:ro
+      - ./logs/zeek:/usr/local/zeek/logs/current:ro
+      - ./velociraptor/data:/var/lib/velociraptor:ro
+    command: ["--strict.perms=false"]
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.0
+    container_name: deepguard-logstash
+    volumes:
+      - ./configs/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    restart: unless-stopped
+
+  anomaly-detector:
+    build: ./anomaly-detector
+    container_name: deepguard-anomaly
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    volumes:
+      - ./anomaly-detector/model:/app/model
+      - ./anomaly-detector/data:/app/data
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: deepguard-suricata
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./logs/suricata:/var/log/suricata
+      - ./suricata-config:/etc/suricata
+    command: -c /etc/suricata/suricata.yaml -i ens33
+    restart: unless-stopped
+
+  zeek:
+    image: zeek/zeek:8.1.0
+    container_name: deepguard-zeek
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./configs/zeek:/usr/local/zeek/etc:ro
+      - ./logs/zeek:/usr/local/zeek/logs/current
+      - /opt/zeek/share/zeek/site:/usr/local/zeek/share/zeek/site
+    command: sh -c "mkdir -p /usr/local/zeek/logs/current && zeek -i ens33 local -C Log::default_logdir=/usr/local/zeek/logs/current"
+
+  velociraptor:
+    build: ./velociraptor
+    container_name: deepguard-velociraptor
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8889:8889"
+    volumes:
+      - ./velociraptor/data:/velociraptor
+      - ./velociraptor/config:/etc/velociraptor
+    env_file:
+      - ./server/.env
+
+volumes:
+  mysql_data:
+  iptables_socket:
