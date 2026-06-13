@@ -740,9 +740,10 @@ const Endpoints = () => {
                                                         </div>
                                                     ) : collections.length > 0 ? (
                                                         collections.map((col, i) => {
-                                                            const flowId = col.urn || col.flow_id || col.session_id || 'N/A';
-                                                            const artifactName = col.artifacts ? col.artifacts.join(', ') : col.artifact || col.request?.artifacts?.join(', ') || 'Custom Hunt';
-                                                            const isFinished = col.state === 'FINISHED';
+                                                            const flowId = col.urn || col.flow_id || col.session_id || col.Urn || col.FlowId || col.SessionId || col.flowId || col.Flow_id || 'N/A';
+                                                            const colArtifacts = col.artifacts || col.Artifacts || col.request?.artifacts || col.Request?.Artifacts;
+                                                            const artifactName = colArtifacts ? (Array.isArray(colArtifacts) ? colArtifacts.join(', ') : colArtifacts) : col.artifact || col.Artifact || 'Custom Hunt';
+                                                            const isFinished = col.state === 'FINISHED' || col.State === 'FINISHED';
                                                             
                                                             return (
                                                                 <div key={i} className="p-4 bg-background-dark/50 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">

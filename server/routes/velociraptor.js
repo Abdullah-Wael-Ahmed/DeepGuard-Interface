@@ -18,8 +18,9 @@ const queryVelociraptor = async (vqlQuery) => {
         // Escape single quotes for the shell command
         const safeQuery = vqlQuery.replace(/'/g, "'\\''");
         
-        // Execute the VQL query directly against the live server by generating and using a temporary API client
-        const cmd = `docker exec deepguard-velociraptor sh -c "/velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
+        // Execute the VQL query directly against the live server
+        // We cache the api_client.yaml to significantly reduce the execution time of 'docker exec'
+        const cmd = `docker exec deepguard-velociraptor sh -c "if [ ! -f /tmp/api_client.yaml ]; then /velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
         const { stdout, stderr } = await execPromise(cmd);
         
         if (stderr && stderr.trim()) {
@@ -239,7 +240,7 @@ router.get('/status', async (req, res) => {
 router.get('/context/:ip', async (req, res) => {
     try {
         const ip = req.params.ip;
-        const hours = parseInt(req.query.hours) || 24;
+        const hours = parseInt(req.query.hours) || 720; // Default to 30 days so older test data appears
         const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
         // 1. Suricata alerts for this IP (as source or destination)
@@ -326,8 +327,8 @@ router.get('/context/:ip', async (req, res) => {
 // GET /api/velociraptor/overview — summary stats for the endpoints page KPIs
 router.get('/overview', async (req, res) => {
     try {
-        // Get counts of IPs seen in the last 24 hours from Zeek connections
-        const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        // Get counts of IPs seen in the last 30 days (changed from 24h)
+        const since24h = new Date(Date.now() - 720 * 60 * 60 * 1000);
         const recentConnections = await ZeekConnection.findAll({
             attributes: ['id_orig_h'],
             where: { createdAt: { [Op.gte]: since24h } },
