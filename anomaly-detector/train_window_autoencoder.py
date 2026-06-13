@@ -12,7 +12,7 @@ import os
 import json
 import numpy as np
 import joblib
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'          # suppress TF info logs
 import tensorflow as tf
@@ -37,6 +37,8 @@ FEATURE_NAMES = [
     'avg_duration',
     'connections_per_sec',
     'avg_bytes_per_flow',
+    'dst_port_entropy',
+    'dst_ip_entropy',
 ]
 
 WINDOW_SIZE = 30   # seconds
@@ -53,10 +55,12 @@ NORMAL_RANGES = {
     'avg_duration':        (0.1, 120.0),
     'connections_per_sec': (0.1, 5.0),
     'avg_bytes_per_flow':  (100, 1_000_000),
+    'dst_port_entropy':    (0.0, 2.0),
+    'dst_ip_entropy':      (0.0, 1.5),
 }
 
 NUM_SAMPLES = 8000
-LOG_FEATURES = ['bytes_total', 'packets_total', 'avg_bytes_per_flow']
+LOG_FEATURES = ['bytes_total', 'packets_total', 'avg_bytes_per_flow', 'conn_count', 'connections_per_sec']
 
 
 # ─── Synthetic data generation ───────────────────────────
@@ -123,8 +127,8 @@ def main():
         data[:, idx] = np.log1p(data[:, idx])
 
     # 3. Fit scaler
-    print("[*] Fitting MinMaxScaler...")
-    scaler = MinMaxScaler()
+    print("[*] Fitting RobustScaler...")
+    scaler = RobustScaler()
     data_scaled = scaler.fit_transform(data)
     joblib.dump(scaler, SCALER_PATH)
     print(f"[+] Scaler saved to {SCALER_PATH}")

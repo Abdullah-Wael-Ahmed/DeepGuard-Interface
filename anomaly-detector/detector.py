@@ -14,7 +14,8 @@ import logging
 import numpy as np
 import joblib
 from datetime import datetime, timezone
-from collections import defaultdict
+from collections import defaultdict, Counter
+import math
 
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -128,6 +129,17 @@ def _save_result(src_ip: str, dest_port: int, score: float,
     except Exception as e:
         log.error("DB write error: %s", e)
 
+def _calculate_entropy(items):
+    """Compute Shannon entropy for a list of items."""
+    if not items:
+        return 0.0
+    counts = Counter(items)
+    n = len(items)
+    entropy = 0.0
+    for count in counts.values():
+        p = count / n
+        entropy -= p * math.log2(p)
+    return entropy
 
 # ─── Feature aggregation ─────────────────────────────────
 def _aggregate(flows: list) -> dict:
@@ -168,6 +180,8 @@ def _aggregate(flows: list) -> dict:
         'avg_pkt_size':        float(bytes_total / packets_total) if packets_total > 0 else 0.0,
         'inbound_outbound_ratio': float(inbound_outbound),
         'proto_diversity':     float(len(set(protos))),
+        'dst_port_entropy':    float(_calculate_entropy(dst_ports)),
+        'dst_ip_entropy':      float(_calculate_entropy(dst_ips)),
         # extra (not model input)
         '_most_common_port':   max(set(dst_ports), key=dst_ports.count) if dst_ports else 0,
     }
