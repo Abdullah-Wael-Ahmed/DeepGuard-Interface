@@ -1,5 +1,5 @@
 {
-  "reconstruction_threshold": 0.0004900068312417716,
+  "reconstruction_threshold": 0.01,
   "feature_names": [
     "conn_count",
     "unique_dst_ports",
