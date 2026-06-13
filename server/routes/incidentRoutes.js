@@ -59,6 +59,11 @@ router.get("/", async (req, res) => {
 
         const where = {};
 
+        // If user is an analyst, they can only view incidents assigned to them
+        if (req.userRole === 'analyst') {
+            where.assigneeId = req.userId;
+        }
+
         if (status) {
             if (status === "active") {
                 where.status = { [Op.notIn]: ["closed", "remediated"] };
@@ -102,6 +107,11 @@ router.get("/", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get("/stats", async (req, res) => {
     try {
+        const where = {};
+        if (req.userRole === 'analyst') {
+            where.assigneeId = req.userId;
+        }
+
         const [
             total,
             openCount,
@@ -114,17 +124,18 @@ router.get("/stats", async (req, res) => {
             highCount,
             breachedSLA,
         ] = await Promise.all([
-            Incident.count(),
-            Incident.count({ where: { status: "open" } }),
-            Incident.count({ where: { status: "triaging" } }),
-            Incident.count({ where: { status: "investigating" } }),
-            Incident.count({ where: { status: "containing" } }),
-            Incident.count({ where: { status: "remediated" } }),
-            Incident.count({ where: { status: "closed" } }),
-            Incident.count({ where: { severity: "critical", status: { [Op.notIn]: ["closed", "remediated"] } } }),
-            Incident.count({ where: { severity: "high", status: { [Op.notIn]: ["closed", "remediated"] } } }),
+            Incident.count({ where }),
+            Incident.count({ where: { ...where, status: "open" } }),
+            Incident.count({ where: { ...where, status: "triaging" } }),
+            Incident.count({ where: { ...where, status: "investigating" } }),
+            Incident.count({ where: { ...where, status: "containing" } }),
+            Incident.count({ where: { ...where, status: "remediated" } }),
+            Incident.count({ where: { ...where, status: "closed" } }),
+            Incident.count({ where: { ...where, severity: "critical", status: { [Op.notIn]: ["closed", "remediated"] } } }),
+            Incident.count({ where: { ...where, severity: "high", status: { [Op.notIn]: ["closed", "remediated"] } } }),
             Incident.count({
                 where: {
+                    ...where,
                     slaDeadline: { [Op.lt]: new Date() },
                     status: { [Op.notIn]: ["closed", "remediated"] },
                 },
@@ -133,7 +144,7 @@ router.get("/stats", async (req, res) => {
 
         // MTTR calculation (mean time to resolve) — only for resolved incidents
         const resolvedIncidents = await Incident.findAll({
-            where: { resolvedAt: { [Op.ne]: null } },
+            where: { ...where, resolvedAt: { [Op.ne]: null } },
             attributes: ["createdAt", "resolvedAt"],
             limit: 100,
             order: [["resolvedAt", "DESC"]],
@@ -175,6 +186,11 @@ router.get("/:id", async (req, res) => {
         const incident = await Incident.findByPk(req.params.id);
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
+        }
+
+        // Restriction: Analysts can only view their assigned incidents
+        if (req.userRole === 'analyst' && incident.assigneeId !== req.userId) {
+            return res.status(403).json({ error: "Access denied: You are not assigned to this incident" });
         }
 
         const [timeline, evidence] = await Promise.all([
@@ -528,6 +544,13 @@ router.delete("/:id/evidence/:evidenceId", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get("/:id/timeline", async (req, res) => {
     try {
+        const incident = await Incident.findByPk(req.params.id);
+        if (!incident) {
+            return res.status(404).json({ error: "Incident not found" });
+        }
+        if (req.userRole === 'analyst' && incident.assigneeId !== req.userId) {
+            return res.status(403).json({ error: "Access denied: You are not assigned to this incident" });
+        }
         const events = await IncidentEvent.findAll({
             where: { incidentId: req.params.id },
             order: [["createdAt", "DESC"]],

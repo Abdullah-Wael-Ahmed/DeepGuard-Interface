@@ -3,6 +3,7 @@ import { Layers, Network, Zap, Power, PowerOff, ShieldAlert, Cpu, CheckCircle2, 
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import useWebSocket from 'react-use-websocket';
+import { useSearchParams } from 'react-router-dom';
 
 const BACK = import.meta.env.VITE_BACK;
 
@@ -26,6 +27,8 @@ const Correlation = () => {
     const [rules, setRules] = useState([]);
     const [loading, setLoading] = useState(true);
     const [recentIncidents, setRecentIncidents] = useState([]);
+    const [searchParams] = useSearchParams();
+    const search = searchParams.get('search') || '';
     
     // WebSockets for Real-time Triggers
     const { lastMessage } = useWebSocket(import.meta.env.VITE_WS, {
@@ -181,9 +184,13 @@ const Correlation = () => {
                                 <p>No rules defined</p>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-4">
-                                {rules.map(rule => {
-                                    const Ico = STATUS_ICONS[rule.severity] || CheckCircle2;
+                             <div className="flex flex-col gap-4">
+                                 {rules.filter(rule => 
+                                     rule.name?.toLowerCase().includes(search.toLowerCase()) ||
+                                     rule.description?.toLowerCase().includes(search.toLowerCase()) ||
+                                     rule.category?.toLowerCase().includes(search.toLowerCase())
+                                 ).map(rule => {
+                                     const Ico = STATUS_ICONS[rule.severity] || CheckCircle2;
                                     return (
                                         <div key={rule.id} className={`p-4 rounded-xl border transition-all duration-300 ${rule.enabled ? 'border-primary/30 bg-background-dark shadow-[0_4px_20px_rgba(0,0,0,0.3)]' : 'border-gray-800 bg-gray-900/50 opacity-60'}`}>
                                             <div className="flex justify-between items-start mb-3">

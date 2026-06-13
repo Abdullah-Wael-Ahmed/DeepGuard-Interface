@@ -1,4 +1,4 @@
-import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, LogOut, Share2, Users, Globe, ChartNetwork, Crosshair, MonitorSmartphone, ClipboardList, GitPullRequestDraft } from 'lucide-react';
+import { Gauge, Shield, BrickWallFire, HatGlasses, Settings, ChartLine, Share2, Users, Globe, ChartNetwork, Crosshair, MonitorSmartphone, ClipboardList, GitPullRequestDraft } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
 import DeepGuard from '../assets/DeepGaurdDark.svg';
 import TopBar from '../components/TopBar';
@@ -9,25 +9,15 @@ import GlobalCopilot from '../components/GlobalCopilot';
 const Layout = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { setAuth } = useAuth();
+    const { auth, setAuth } = useAuth();
+    const userRole = auth?.user?.role;
     const currentTab = location.pathname.split("/")[1];
     const activeTab = (tab) => {
         if (currentTab == tab) return "flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 text-primary shadow-glow-primary border border-primary/50";
         else return "flex items-center gap-3 px-3 py-2 text-text-secondary hover:text-text-main hover:bg-card-dark rounded-lg transition-colors";
     };
 
-    const handleLogout = async () => {
-        try {
-            await axios.post(`${import.meta.env.VITE_BACK}/auth/logout`, {}, {
-                withCredentials: true 
-            });
-        } catch (error) {
-            console.error("Logout failed on server:", error);
-        } finally {
-            setAuth({});
-            navigate('/login');
-        }
-    };
+
 
     return (
         <div className="bg-background-dark font-display text-text-main">
@@ -53,30 +43,42 @@ const Layout = () => {
                                 <Shield />
                                 <p className="text-sm font-medium">Detection</p>
                             </Link>
-                            <Link className={activeTab("endpoints")} to="/endpoints">
-                                <MonitorSmartphone />
-                                <p className="text-sm font-medium">Endpoints</p>
-                            </Link>
-                            <Link className={activeTab("correlation")} to="/correlation">
-                                <Share2 />
-                                <p className="text-sm font-medium">Correlation</p>
-                            </Link>
-                            <Link className={activeTab("mitre-attack")} to="/mitre-attack">
-                                <Crosshair />
-                                <p className="text-sm font-medium">MITRE ATT&CK</p>
-                            </Link>
+                            
+                            {(userRole === "admin" || userRole === "operator") && (
+                                <>
+                                    <Link className={activeTab("endpoints")} to="/endpoints">
+                                        <MonitorSmartphone />
+                                        <p className="text-sm font-medium">Endpoints</p>
+                                    </Link>
+                                    <Link className={activeTab("correlation")} to="/correlation">
+                                        <Share2 />
+                                        <p className="text-sm font-medium">Correlation</p>
+                                    </Link>
+                                    <Link className={activeTab("mitre-attack")} to="/mitre-attack">
+                                        <Crosshair />
+                                        <p className="text-sm font-medium">MITRE ATT&CK</p>
+                                    </Link>
+                                </>
+                            )}
+
                             <Link className={activeTab("incidents")} to="/incidents">
                                 <ClipboardList />
                                 <p className="text-sm font-medium">Incidents</p>
                             </Link>
-                            <Link className={activeTab("playbooks")} to="/playbooks">
-                                <GitPullRequestDraft />
-                                <p className="text-sm font-medium">Playbooks</p>
-                            </Link>
-                            <Link className={activeTab("firewall")} to={"/firewall"}>
-                                <BrickWallFire />
-                                <p className="text-sm font-medium">Firewall</p>
-                            </Link>
+
+                            {(userRole === "admin" || userRole === "operator") && (
+                                <>
+                                    <Link className={activeTab("playbooks")} to="/playbooks">
+                                        <GitPullRequestDraft />
+                                        <p className="text-sm font-medium">Playbooks</p>
+                                    </Link>
+                                    <Link className={activeTab("firewall")} to={"/firewall"}>
+                                        <BrickWallFire />
+                                        <p className="text-sm font-medium">Firewall</p>
+                                    </Link>
+                                </>
+                            )}
+
                             <Link className={activeTab("traffic")} to={"/traffic"}>
                                 <HatGlasses />
                                 <p className="text-sm font-medium">Inspection</p>
@@ -85,32 +87,32 @@ const Layout = () => {
                                 <ChartLine />
                                 <p className="text-sm font-bold">Reports</p>
                             </Link>
-                            <Link className={activeTab("threat-intel")} to="/threat-intel">
-                                <Globe />
-                                <p className="text-sm font-medium">Threat Intel</p>
-                            </Link>
-                            <Link className={activeTab("network-analytics")} to="/network-analytics">
-                                <ChartNetwork />
-                                <p className="text-sm font-medium">Network Analytics</p>
-                            </Link>
-                            <Link className={activeTab("users")} to="/users">
-                                <Users />
-                                <p className="text-sm font-medium">User Management</p>
-                            </Link>
+
+                            {(userRole === "admin" || userRole === "operator") && (
+                                <>
+                                    <Link className={activeTab("threat-intel")} to="/threat-intel">
+                                        <Globe />
+                                        <p className="text-sm font-medium">Threat Intel</p>
+                                    </Link>
+                                    <Link className={activeTab("network-analytics")} to="/network-analytics">
+                                        <ChartNetwork />
+                                        <p className="text-sm font-medium">Network Analytics</p>
+                                    </Link>
+                                </>
+                            )}
+
+                            {userRole === "admin" && (
+                                <Link className={activeTab("users")} to="/users">
+                                    <Users />
+                                    <p className="text-sm font-medium">User Management</p>
+                                </Link>
+                            )}
+
                             <Link className={activeTab("settings")} to="/settings">
                                 <Settings />
                                 <p className="text-sm font-medium">Settings</p>
                             </Link>
                         </nav>
-                    </div>
-                    <div className="p-2">
-                        <button 
-                            onClick={handleLogout} 
-                            className="w-full flex items-center gap-3 px-3 py-2 text-text-secondary hover:text-text-main hover:bg-card-dark rounded-lg transition-colors cursor-pointer"
-                        >
-                            <LogOut />
-                            <p className="text-sm font-medium">Logout</p>
-                        </button>
                     </div>
                 </aside>
 
