@@ -67,21 +67,36 @@ class VelociraptorPoller {
     async fetchAndFanOutResults(clientId, flowId, artifact) {
         try {
             const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}')`);
-            let results = [];
             
-            if (data.Responses && data.Responses.length > 0) {
-                results = data.Responses[0].Response || [];
-                if (typeof results === 'string') {
-                    try {
-                        results = JSON.parse(results);
-                    } catch(e) {
-                        results = results.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+            const parseResponse = (resData) => {
+                let res = [];
+                if (resData.Responses && resData.Responses.length > 0) {
+                    res = resData.Responses[0].Response || [];
+                    if (typeof res === 'string') {
+                        try { res = JSON.parse(res); } catch(e) {
+                            res = res.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                        }
+                    }
+                }
+                return res;
+            };
+
+            let results = parseResponse(data);
+
+            if (results.length === 0) {
+                const fallbackSources = ['BasicInformation', 'Pslist', 'NetworkConnections', 'Users'];
+                for (const src of fallbackSources) {
+                    const retryData = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}', source='${src}')`);
+                    const retryResults = parseResponse(retryData);
+                    if (retryResults.length > 0) {
+                        results = retryResults;
+                        break;
                     }
                 }
             }
-
-            if (!Array.isArray(results) || results.length === 0) {
-                console.log(`[VelociraptorPoller] No results found for flow ${flowId}.`);
+            
+            if (results.length === 0) {
+                console.log(`[VelociraptorPoller] Hunt ${flowId} returned 0 rows.`);
                 return;
             }
 

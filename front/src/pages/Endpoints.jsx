@@ -91,6 +91,7 @@ const Endpoints = () => {
     const [resultsData, setResultsData] = useState([]);
     const [loadingResults, setLoadingResults] = useState(false);
     const [selectedFlowInfo, setSelectedFlowInfo] = useState(null);
+    const [launchingHunt, setLaunchingHunt] = useState(false);
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchStatus = async () => {
@@ -239,6 +240,7 @@ const Endpoints = () => {
                 toast.error('Please select a target endpoint');
                 return;
             }
+            setLaunchingHunt(true);
             await axios.post(`${import.meta.env.VITE_BACK}/api/velociraptor/hunt`, {
                 artifact: selectedArtifact,
                 clientId: targetId
@@ -251,6 +253,8 @@ const Endpoints = () => {
             }
         } catch (error) {
             toast.error('Failed to trigger hunt');
+        } finally {
+            setLaunchingHunt(false);
         }
     };
 
@@ -961,8 +965,28 @@ const Endpoints = () => {
                                 <p className="text-xs text-text-secondary">{PRESET_ARTIFACTS.find(a => a.name === selectedArtifact)?.desc || 'Custom artifact'}</p>
                             </div>
                             <div className="mt-2 flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowHuntModal(false)} className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-white transition-colors">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg transition-colors shadow-glow-primary">Launch Hunt</button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowHuntModal(false)} 
+                                    disabled={launchingHunt}
+                                    className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-white transition-colors disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    disabled={launchingHunt}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-glow-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {launchingHunt ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Launching...
+                                        </>
+                                    ) : (
+                                        'Launch Hunt'
+                                    )}
+                                </button>
                             </div>
                         </form>
                     </div>

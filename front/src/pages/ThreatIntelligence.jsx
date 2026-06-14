@@ -105,11 +105,11 @@ const ThreatIntelligence = () => {
             
             // Show toast based on result
             if (result.reputation === 'malicious') {
-                toast.error(`⚠️ Malicious IP detected! Score: ${result.aggregatedScore}/100`);
+                toast.error(`Malicious IP detected! Score: ${result.aggregatedScore}/100`);
             } else if (result.reputation === 'suspicious') {
-                toast.warning(`⚡ Suspicious IP. Score: ${result.aggregatedScore}/100`);
+                toast.warning(`Suspicious IP. Score: ${result.aggregatedScore}/100`);
             } else {
-                toast.success(`✅ IP appears clean. Score: ${result.aggregatedScore}/100`);
+                toast.success(`IP appears clean. Score: ${result.aggregatedScore}/100`);
             }
         } catch (error) {
             console.error('IP lookup error:', error);

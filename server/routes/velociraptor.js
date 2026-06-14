@@ -109,17 +109,40 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
 
         const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}')`);
         
-        let results = [];
-        if (data.Responses && data.Responses.length > 0) {
-            results = data.Responses[0].Response || [];
-            if (typeof results === 'string') {
-                try {
-                    results = JSON.parse(results);
-                } catch(e) {
-                    results = results.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+        const parseResponse = (resData) => {
+            let res = [];
+            if (resData.Responses && resData.Responses.length > 0) {
+                res = resData.Responses[0].Response || [];
+                if (typeof res === 'string') {
+                    try {
+                        res = JSON.parse(res);
+                    } catch(e) {
+                        res = res.split('\n').filter(l => l.trim()).map(l => {
+                            try { return JSON.parse(l); } catch(err) { return l; }
+                        });
+                    }
+                }
+            }
+            return res;
+        };
+
+        let results = parseResponse(data);
+
+        // Velociraptor's source() defaults to the 'Results' source or the first source.
+        // If an artifact uses custom source names (like Generic.Client.Info -> BasicInformation),
+        // the default query might return 0 rows. We dynamically brute-force common custom sources.
+        if (results.length === 0) {
+            const fallbackSources = ['BasicInformation', 'Pslist', 'NetworkConnections', 'Users'];
+            for (const src of fallbackSources) {
+                const retryData = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}', source='${src}')`);
+                const retryResults = parseResponse(retryData);
+                if (retryResults.length > 0) {
+                    results = retryResults;
+                    break;
                 }
             }
         }
+
         res.json({ items: results });
     } catch (error) {
         console.error(`Error fetching flow results:`, error.message);
