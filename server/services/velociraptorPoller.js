@@ -83,7 +83,7 @@ class VelociraptorPoller {
 
     async fetchAndFanOutResults(clientId, flowId, artifact) {
         try {
-            const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}')`);
+            const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}')`);
             let results = [];
             
             if (data.Responses && data.Responses.length > 0) {
