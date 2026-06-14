@@ -46,25 +46,27 @@ const Reports = () => {
 
     return (
         <main className="flex-1 p-8 font-display">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8">
+            <div className="max-w-7xl mx-auto flex flex-col gap-6">
                 
-                {/* Sidebar Template Selector */}
-                <div className="w-full md:w-64 shrink-0 flex flex-col gap-2">
-                    <h2 className="text-xl font-bold text-text-main mb-2">Report Templates</h2>
-                    {templates.map(tpl => (
-                        <button
-                            key={tpl.id}
-                            onClick={() => setActiveTemplate(tpl.id)}
-                            className={`flex items-center gap-3 w-full p-3 rounded-lg text-left transition-all duration-300 border ${
-                                activeTemplate === tpl.id 
-                                ? 'bg-primary/20 border-primary text-primary shadow-glow-primary' 
-                                : 'bg-card-dark border-gray-800 text-text-secondary hover:border-gray-600 hover:text-text-main'
-                            }`}
-                        >
-                            {tpl.icon}
-                            <span className="font-medium text-sm">{tpl.name}</span>
-                        </button>
-                    ))}
+                {/* Horizontal Template Selector Tabs */}
+                <div className="flex flex-col gap-4">
+                    <h2 className="text-3xl font-bold text-text-main">Reports & Analytics</h2>
+                    <div className="flex flex-wrap gap-2 border-b border-gray-800 pb-px">
+                        {templates.map(tpl => (
+                            <button
+                                key={tpl.id}
+                                onClick={() => setActiveTemplate(tpl.id)}
+                                className={`flex items-center gap-2 px-5 py-3 rounded-t-lg transition-all duration-300 border-b-2 font-medium text-sm ${
+                                    activeTemplate === tpl.id 
+                                    ? 'bg-primary/10 border-primary text-primary' 
+                                    : 'border-transparent text-text-secondary hover:bg-white/5 hover:text-text-main'
+                                }`}
+                            >
+                                {tpl.icon}
+                                <span>{tpl.name}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Main Content Area */}

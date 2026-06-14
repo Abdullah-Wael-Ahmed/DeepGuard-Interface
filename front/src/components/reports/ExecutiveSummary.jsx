@@ -62,7 +62,7 @@ const ExecutiveSummary = ({ data }) => {
             </div>
 
             {/* Threat Trends Chart */}
-            <div className="p-5 rounded-xl bg-card-dark border border-gray-800 h-96">
+            <div className="p-5 rounded-xl bg-card-dark border border-gray-800 h-96 mb-8">
                 <h3 className="text-lg font-medium text-text-main mb-4">Threat Trends Over Time</h3>
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
