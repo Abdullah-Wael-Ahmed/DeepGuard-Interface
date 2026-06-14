@@ -100,40 +100,62 @@ def parse_zeek_logs(filepath):
     
     with open(filepath, 'r') as f:
         for line in f:
-            if line.startswith('#'):
-                if line.startswith('#fields'):
-                    fields = line.strip().split('\t')[1:]
-                continue
+            line = line.strip()
+            if not line: continue
             
-            parts = line.strip().split('\t')
-            if len(parts) != len(fields):
-                continue
+            if line.startswith('{'):
+                try:
+                    record = json.loads(line)
+                    ts = float(record['ts'])
+                    src_ip = record.get('id.orig_h', record.get('id', {}).get('orig_h'))
+                    
+                    flow = {
+                        'dst_ip': record.get('id.resp_h', record.get('id', {}).get('resp_h')),
+                        'dst_port': int(record.get('id.resp_p', record.get('id', {}).get('resp_p', 0))),
+                        'conn_state': record.get('conn_state', 'unknown'),
+                        'duration': float(record.get('duration', 0.0)),
+                        'bytes_sent': int(record.get('orig_bytes', 0)),
+                        'bytes_received': int(record.get('resp_bytes', 0)),
+                        'total_fwd_packets': int(record.get('orig_pkts', 0)),
+                        'total_backward_packets': int(record.get('resp_pkts', 0)),
+                        'protocol': record.get('proto', 'unknown').lower(),
+                        'timestamp': ts
+                    }
+                    window_idx = int(ts // WINDOW_SECONDS)
+                    windows[(src_ip, window_idx)].append(flow)
+                except Exception as e:
+                    continue
+            else:
+                if line.startswith('#'):
+                    if line.startswith('#fields'):
+                        fields = line.split('\t')[1:]
+                    continue
                 
-            record = dict(zip(fields, parts))
-            
-            try:
-                ts = float(record['ts'])
-                src_ip = record['id.orig_h']
-                
-                flow = {
-                    'dst_ip': record['id.resp_h'],
-                    'dst_port': int(record['id.resp_p']),
-                    'conn_state': record['conn_state'],
-                    'duration': float(record['duration']) if record.get('duration', '-') != '-' else 0.0,
-                    'bytes_sent': int(record['orig_bytes']) if record.get('orig_bytes', '-') != '-' else 0,
-                    'bytes_received': int(record['resp_bytes']) if record.get('resp_bytes', '-') != '-' else 0,
-                    'total_fwd_packets': int(record['orig_pkts']) if record.get('orig_pkts', '-') != '-' else 0,
-                    'total_backward_packets': int(record['resp_pkts']) if record.get('resp_pkts', '-') != '-' else 0,
-                    'protocol': record['proto'].lower() if record.get('proto') else 'unknown',
-                    'timestamp': ts
-                }
-                
-                # Windowing by 30 seconds
-                window_idx = int(ts // WINDOW_SECONDS)
-                windows[(src_ip, window_idx)].append(flow)
-                
-            except (ValueError, KeyError) as e:
-                continue
+                parts = line.split('\t')
+                if len(parts) != len(fields):
+                    continue
+                    
+                record = dict(zip(fields, parts))
+                try:
+                    ts = float(record['ts'])
+                    src_ip = record['id.orig_h']
+                    
+                    flow = {
+                        'dst_ip': record['id.resp_h'],
+                        'dst_port': int(record['id.resp_p']),
+                        'conn_state': record['conn_state'],
+                        'duration': float(record['duration']) if record.get('duration', '-') != '-' else 0.0,
+                        'bytes_sent': int(record['orig_bytes']) if record.get('orig_bytes', '-') != '-' else 0,
+                        'bytes_received': int(record['resp_bytes']) if record.get('resp_bytes', '-') != '-' else 0,
+                        'total_fwd_packets': int(record['orig_pkts']) if record.get('orig_pkts', '-') != '-' else 0,
+                        'total_backward_packets': int(record['resp_pkts']) if record.get('resp_pkts', '-') != '-' else 0,
+                        'protocol': record['proto'].lower() if record.get('proto') else 'unknown',
+                        'timestamp': ts
+                    }
+                    window_idx = int(ts // WINDOW_SECONDS)
+                    windows[(src_ip, window_idx)].append(flow)
+                except (ValueError, KeyError) as e:
+                    continue
 
     print(f"[+] Found {len(windows)} unique windows.")
     
