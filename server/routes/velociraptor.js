@@ -134,11 +134,16 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
         if (results.length === 0) {
             const fallbackSources = ['BasicInformation', 'Pslist', 'NetworkConnections', 'Users'];
             for (const src of fallbackSources) {
-                const retryData = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}', source='${src}')`);
-                const retryResults = parseResponse(retryData);
-                if (retryResults.length > 0) {
-                    results = retryResults;
-                    break;
+                try {
+                    const retryData = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}', source='${src}')`);
+                    const retryResults = parseResponse(retryData);
+                    if (retryResults.length > 0) {
+                        results = retryResults;
+                        break;
+                    }
+                } catch (e) {
+                    // Ignore errors where the source doesn't exist in the artifact
+                    continue;
                 }
             }
         }
