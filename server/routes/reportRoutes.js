@@ -76,10 +76,10 @@ router.get("/export/pdf", async (req, res) => {
             return res.status(500).json({ error: "Generated PDF was empty" });
         }
 
-        res.contentType("application/pdf");
+        res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Length", pdfBuffer.length);
-        res.setHeader("Content-Disposition", `attachment; filename=DeepGuard_${template}_Report.pdf`);
-        res.end(pdfBuffer, 'binary');
+        res.setHeader("Content-Disposition", `attachment; filename="DeepGuard_${template}_Report.pdf"`);
+        res.send(pdfBuffer);
         console.log(`[PDF] Successfully sent ${pdfBuffer.length} bytes`);
     } catch (error) {
         console.error("Error exporting PDF:", error);

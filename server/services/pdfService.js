@@ -55,15 +55,18 @@ class PdfService {
                     left: '20px'
                 }
             });
-            console.log(`[PDF] PDF Buffer generated. Size: ${pdfBuffer.length} bytes`);
+            // Puppeteer v22+ may return a Uint8Array instead of a Node Buffer.
+            // Normalize to a Buffer so downstream transmission is reliable.
+            const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+            console.log(`[PDF] PDF Buffer generated. Size: ${buffer.length} bytes`);
 
             await browser.close();
 
-            if (!pdfBuffer || pdfBuffer.length === 0) {
+            if (!buffer || buffer.length === 0) {
                 throw new Error("Generated PDF buffer is empty");
             }
 
-            return pdfBuffer;
+            return buffer;
         } catch (error) {
             console.error('PDF Generation Error:', error);
             if (browser) await browser.close();
