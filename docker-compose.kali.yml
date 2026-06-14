@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  filebeat:
+    command: ["filebeat", "-e", "-strict.perms=false"]
+
+  logstash:
+    ports:
+      - "5044:5044"
+
+  suricata:
+    command: -c /etc/suricata/suricata.yaml -i eth0
+
+  zeek:
+    volumes:
+      - ./configs/zeek:/usr/local/zeek/etc:ro
+      - ./logs/zeek:/usr/local/zeek/logs/current
+    command: sh -c "mkdir -p /usr/local/zeek/logs/current && zeek -i eth0 local tuning/json-logs -C Log::default_logdir=/usr/local/zeek/logs/current"
