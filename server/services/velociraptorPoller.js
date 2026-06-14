@@ -1,89 +1,71 @@
 const { queryVelociraptor } = require('../util/velociraptorUtils');
 const Alert = require('../models/Alert');
 const ZeekConnection = require('../models/ZeekConnection');
-// Optional: IncidentEvent if we want to fan out to timeline specific events
-// const IncidentEvent = require('../models/IncidentEvent');
 
 class VelociraptorPoller {
     constructor() {
-        this.activeHunts = new Map(); // key: flow_id, value: { clientId, artifact, startTime }
-        this.pollInterval = 10000; // 10 seconds
+        this.processedFlows = new Set();
+        this.pollInterval = 30000; // 30 seconds
         this.intervalId = null;
-        this.timeoutLimit = 15 * 60 * 1000; // 15 minutes timeout
     }
 
     start() {
         if (this.intervalId) return;
-        this.intervalId = setInterval(() => this.pollActiveHunts(), this.pollInterval);
-        console.log('[VelociraptorPoller] Started polling service');
+        this.intervalId = setInterval(() => this.pollGlobalHunts(), this.pollInterval);
+        console.log('[VelociraptorPoller] Started global polling service');
+        // Run immediately on start
+        this.pollGlobalHunts();
     }
 
     stop() {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-            console.log('[VelociraptorPoller] Stopped polling service');
+            console.log('[VelociraptorPoller] Stopped global polling service');
         }
     }
 
-    addHunt(clientId, flowId, artifact) {
-        this.activeHunts.set(flowId, {
-            clientId,
-            artifact,
-            startTime: Date.now()
-        });
-        console.log(`[VelociraptorPoller] Tracking new hunt - Flow ID: ${flowId}, Client: ${clientId}, Artifact: ${artifact}`);
-        if (!this.intervalId) {
-            this.start();
-        }
-    }
-
-    async pollActiveHunts() {
-        if (this.activeHunts.size === 0) return;
-
-        for (const [flowId, huntData] of this.activeHunts.entries()) {
-            const { clientId, artifact, startTime } = huntData;
-
-            // Check for timeout
-            if (Date.now() - startTime > this.timeoutLimit) {
-                console.warn(`[VelociraptorPoller] Hunt ${flowId} timed out after 15 minutes. Removing from tracker.`);
-                this.activeHunts.delete(flowId);
-                continue;
+    async pollGlobalHunts() {
+        try {
+            // This query fetches all flows from all clients in the last 60 minutes
+            const vql = `SELECT client_id, session_id, state, request.artifacts AS artifacts FROM foreach(row={SELECT client_id FROM clients()}, query={SELECT client_id, session_id, state, request.artifacts FROM flows(client_id=client_id) WHERE create_time > timestamp(epoch=now() - 3600)})`;
+            
+            const data = await queryVelociraptor(vql);
+            
+            let flows = [];
+            if (data.Responses && data.Responses.length > 0) {
+                flows = data.Responses[0].Response || [];
+                if (typeof flows === 'string') {
+                    try { flows = JSON.parse(flows); } catch(e) {}
+                }
             }
 
-            try {
-                // Check flow state
-                const data = await queryVelociraptor(`SELECT state FROM flows(client_id='${clientId}', flow_id='${flowId}')`);
-                let state = null;
+            if (!Array.isArray(flows)) return;
+
+            for (const flow of flows) {
+                const { client_id, session_id, state, artifacts } = flow;
                 
-                if (data.Responses && data.Responses.length > 0) {
-                    let flows = data.Responses[0].Response || [];
-                    if (typeof flows === 'string') {
-                        try { flows = JSON.parse(flows); } catch(e) {}
-                    }
-                    if (Array.isArray(flows) && flows.length > 0) {
-                        state = flows[0].state;
+                if (state === 'FINISHED' && !this.processedFlows.has(session_id)) {
+                    const primaryArtifact = Array.isArray(artifacts) && artifacts.length > 0 ? artifacts[0] : '';
+                    
+                    if (primaryArtifact) {
+                        console.log(`[VelociraptorPoller] Found new completed hunt ${session_id} for artifact ${primaryArtifact}. Fetching results...`);
+                        
+                        // Mark as processed immediately to prevent concurrent duplicate fetching
+                        this.processedFlows.add(session_id);
+                        
+                        await this.fetchAndFanOutResults(client_id, session_id, primaryArtifact);
                     }
                 }
-
-                if (state === 'FINISHED') {
-                    console.log(`[VelociraptorPoller] Hunt ${flowId} FINISHED. Fetching and parsing results...`);
-                    this.activeHunts.delete(flowId);
-                    await this.fetchAndFanOutResults(clientId, flowId, artifact);
-                } else if (state === 'ERROR' || state === 'TERMINATED') {
-                    console.log(`[VelociraptorPoller] Hunt ${flowId} ended with state: ${state}. Removing from tracker.`);
-                    this.activeHunts.delete(flowId);
-                }
-                // If RUNNING or other states, continue polling
-            } catch (error) {
-                console.error(`[VelociraptorPoller] Error polling flow ${flowId}:`, error.message);
             }
+        } catch (error) {
+            console.error(`[VelociraptorPoller] Error in global sync engine:`, error.message);
         }
     }
 
     async fetchAndFanOutResults(clientId, flowId, artifact) {
         try {
-            const data = await queryVelociraptor(`SELECT * FROM flow_results(client_id='${clientId}', flow_id='${flowId}')`);
+            const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}')`);
             let results = [];
             
             if (data.Responses && data.Responses.length > 0) {

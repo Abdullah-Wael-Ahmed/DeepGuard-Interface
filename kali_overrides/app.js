@@ -65,9 +65,10 @@ app.use("/mitre", verifyJWT, mitreRouter)
 app.use("/anomaly", verifyJWT, anomalyRouter)
 app.use("/copilot", verifyJWT, copilotRouter)
 app.use("/api/velociraptor", verifyJWT, restrictWriteToAdminOrOperator, velociraptorRoutes)
-app.use("/incidents", verifyJWT, incidentRouter)
+app.use("/incidents", verifyJWT, restrictWriteToAdminOrOperator, incidentRouter)
 app.use("/rules", verifyJWT, restrictWriteToAdminOrOperator, correlationRouter)
 app.use("/playbooks", verifyJWT, restrictWriteToAdminOrOperator, playbookRouter)
+
 
 server.listen(5000, () => {
     console.log("server running on port 5000");

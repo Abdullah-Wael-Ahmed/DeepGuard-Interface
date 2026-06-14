@@ -91,7 +91,19 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
         const flowId = req.params.flowId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const data = await queryVelociraptor(`SELECT * FROM flow_results(client_id='${clientId}', flow_id='${flowId}')`);
+        const flowData = await queryVelociraptor(`SELECT request.artifacts AS artifacts FROM flows(client_id='${clientId}') WHERE session_id='${flowId}'`);
+        let artifact = '';
+        if (flowData.Responses && flowData.Responses.length > 0) {
+            let flows = flowData.Responses[0].Response || [];
+            if (typeof flows === 'string') {
+                try { flows = JSON.parse(flows); } catch(e) {}
+            }
+            if (Array.isArray(flows) && flows.length > 0 && flows[0].artifacts) {
+                artifact = flows[0].artifacts[0] || '';
+            }
+        }
+
+        const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}')`);
         
         let results = [];
         if (data.Responses && data.Responses.length > 0) {
@@ -134,10 +146,9 @@ router.post('/hunt', async (req, res) => {
             if (Array.isArray(flows) && flows.length > 0) result = flows[0];
         }
         
-        // Ensure flow ID exists and begin polling
-        if (result && result.flow_id) {
-            console.log(`[DEBUG] Captured flow_id: ${result.flow_id} for client: ${safeClientId}`);
-            velociraptorPoller.addHunt(safeClientId, result.flow_id, safeArtifact);
+        // Ensure flow ID exists
+        if (result && (result.flow_id || result.session_id)) {
+            console.log(`[DEBUG] Successfully scheduled hunt ${result.flow_id || result.session_id} for client: ${safeClientId}. Global sync engine will pick this up automatically.`);
         } else {
             console.warn(`[WARNING] Failed to capture flow_id for artifact: ${safeArtifact} on client: ${safeClientId}`);
         }
