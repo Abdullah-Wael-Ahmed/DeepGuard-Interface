@@ -228,6 +228,167 @@ class ReportService {
             highRiskAssets
         };
     }
+
+    /**
+     * Get data for the Incident Post-Mortem template
+     */
+    async getIncidentPostMortem(ip, hours = 24) {
+        const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+        // If no IP is provided, find the most critical active IP in the timeframe
+        let targetIp = ip;
+        if (!targetIp) {
+            const topAlert = await Alert.findOne({
+                attributes: ['src_ip'],
+                where: { createdAt: { [Op.gte]: sinceDate } },
+                order: [['severity', 'ASC'], ['createdAt', 'DESC']], // 1 is critical
+                raw: true
+            });
+            targetIp = topAlert ? topAlert.src_ip : '10.0.0.5'; // fallback
+        }
+
+        // 1. Fetch Timeline Data (Suricata, Zeek, Anomalies)
+        const alerts = await Alert.findAll({
+            where: {
+                [Op.or]: [{ src_ip: targetIp }, { dest_ip: targetIp }],
+                createdAt: { [Op.gte]: sinceDate }
+            },
+            order: [['createdAt', 'DESC']],
+            limit: 100,
+            raw: true
+        });
+
+        const zeekConnections = await ZeekConnection.findAll({
+            where: {
+                [Op.or]: [{ id_orig_h: targetIp }, { id_resp_h: targetIp }],
+                createdAt: { [Op.gte]: sinceDate }
+            },
+            order: [['createdAt', 'DESC']],
+            limit: 100,
+            raw: true
+        });
+
+        let anomalies = [];
+        try {
+            const anomalyRes = await axios.get(`${ANOMALY_BASE}/results`, { timeout: 5000 });
+            if (anomalyRes.data?.results) {
+                anomalies = anomalyRes.data.results.filter(r => r.src_ip === targetIp || r.dest_ip === targetIp);
+            }
+        } catch (e) {
+            console.error("Error fetching anomalies:", e.message);
+        }
+
+        // Merge into a single chronological timeline
+        const timeline = [];
+        alerts.forEach(a => timeline.push({
+            id: `alert-${a.id}`,
+            timestamp: new Date(a.createdAt).getTime(),
+            type: 'suricata',
+            title: a.signature,
+            severity: a.severity,
+            source: a.src_ip,
+            dest: a.dest_ip,
+            details: `Port: ${a.dest_port}, Protocol: ${a.protocol}`
+        }));
+
+        zeekConnections.forEach(c => timeline.push({
+            id: `zeek-${c.id}`,
+            timestamp: new Date(c.createdAt).getTime(),
+            type: 'zeek',
+            title: `Connection to ${c.id_resp_h}`,
+            severity: 4, // Info
+            source: c.id_orig_h,
+            dest: c.id_resp_h,
+            details: `Port: ${c.id_resp_p}, Protocol: ${c.proto}, Service: ${c.service || 'unknown'}`
+        }));
+
+        anomalies.forEach((a, i) => timeline.push({
+            id: `anomaly-${i}`,
+            timestamp: a.timestamp ? new Date(a.timestamp).getTime() : Date.now(),
+            type: 'anomaly',
+            title: `ML Anomaly: ${a.type || 'Behavioral Deviation'}`,
+            severity: a.severity === 'HIGH' ? 2 : 3,
+            source: a.src_ip,
+            dest: a.dest_ip,
+            details: `Confidence: ${Math.round(a.score * 100)}%, Flow bytes: ${a.bytes || 'N/A'}`
+        }));
+
+        // Sort descending (newest first)
+        timeline.sort((a, b) => b.timestamp - a.timestamp);
+
+        // 2. Compute Risk Score for this IP
+        const criticalAlerts = alerts.filter(a => a.severity === 1).length;
+        const highAlerts = alerts.filter(a => a.severity === 2).length;
+        const mediumAlerts = alerts.filter(a => a.severity === 3).length;
+        const anomalyCount = anomalies.filter(a => a.is_anomaly).length;
+
+        let riskScore = 0;
+        riskScore += Math.min(criticalAlerts * 3, 4);
+        riskScore += Math.min(highAlerts * 1.5, 2);
+        riskScore += Math.min(mediumAlerts * 0.5, 1);
+        riskScore += Math.min(anomalyCount * 1, 3);
+        riskScore = Math.min(Math.round(riskScore * 10) / 10, 10);
+
+        // 3. Fetch Forensic Evidence (Hunts affecting this IP)
+        // Find if this IP is associated with any enrolled Velociraptor client
+        let relatedClientId = null;
+        let forensicEvidence = [];
+        
+        try {
+            const data = await queryVelociraptor(`SELECT client_id, os_info, last_ip FROM clients()`);
+            if (data.Responses && data.Responses.length > 0) {
+                let clients = data.Responses[0].Response || [];
+                if (typeof clients === 'string') {
+                    try { clients = JSON.parse(clients); } 
+                    catch (e) { clients = clients.split('\\n').filter(l => l.trim()).map(l => JSON.parse(l)); }
+                }
+                
+                // VQL last_ip often looks like "10.0.0.5:12345" or just "10.0.0.5"
+                const matchedClient = clients.find(c => c.last_ip && c.last_ip.includes(targetIp));
+                if (matchedClient) {
+                    relatedClientId = matchedClient.client_id;
+                }
+            }
+
+            if (relatedClientId) {
+                // Fetch hunts/flows for this client
+                const flowData = await queryVelociraptor(`SELECT * FROM flows(client_id='${relatedClientId}') ORDER BY create_time DESC LIMIT 5`);
+                if (flowData.Responses && flowData.Responses.length > 0) {
+                    let flows = flowData.Responses[0].Response || [];
+                    if (typeof flows === 'string') {
+                        try { flows = JSON.parse(flows); } 
+                        catch (e) { flows = flows.split('\\n').filter(l => l.trim()).map(l => JSON.parse(l)); }
+                    }
+                    
+                    forensicEvidence = flows.map(f => {
+                        let ts = f.create_time;
+                        if (typeof ts === 'number') ts = ts > 1e12 ? ts / 1000 : ts * 1000;
+                        return {
+                            timestamp: new Date(ts).toISOString(),
+                            artifact: (f.artifacts && f.artifacts.length > 0) ? f.artifacts.join(", ") : 'Generic Collection',
+                            state: f.state,
+                            flowId: f.flow_id
+                        };
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching forensic evidence for post-mortem:", error.message);
+        }
+
+        return {
+            targetIp,
+            timeRange: { hours, since: sinceDate.toISOString() },
+            overview: {
+                riskScore,
+                status: riskScore > 7 ? 'Investigating' : riskScore > 4 ? 'Monitoring' : 'Resolved',
+                totalEvents: timeline.length,
+                relatedClientId
+            },
+            timeline: timeline.slice(0, 50), // Send top 50 events for the report
+            forensicEvidence
+        };
+    }
 }
 
 module.exports = new ReportService();

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Download, Calendar, Shield, AlertCircle, HardDrive, BrainCircuit } from 'lucide-react';
 import ExecutiveSummary from '../components/reports/ExecutiveSummary';
 import EndpointFleetHealth from '../components/reports/EndpointFleetHealth';
+import IncidentPostMortem from '../components/reports/IncidentPostMortem';
 
 const Reports = () => {
     const [activeTemplate, setActiveTemplate] = useState('executive');
@@ -28,6 +29,11 @@ const Reports = () => {
                     setReportData(res.data);
                 } else if (activeTemplate === 'endpoint') {
                     const res = await axios.get(`${import.meta.env.VITE_BACK}/reports/endpoint-health?hours=${timeRange}`, {
+                        withCredentials: true
+                    });
+                    setReportData(res.data);
+                } else if (activeTemplate === 'postmortem') {
+                    const res = await axios.post(`${import.meta.env.VITE_BACK}/reports/postmortem`, { hours: timeRange }, {
                         withCredentials: true
                     });
                     setReportData(res.data);
@@ -118,6 +124,8 @@ const Reports = () => {
                             <ExecutiveSummary data={reportData} />
                         ) : activeTemplate === 'endpoint' ? (
                             <EndpointFleetHealth data={reportData} />
+                        ) : activeTemplate === 'postmortem' ? (
+                            <IncidentPostMortem data={reportData} />
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full text-text-secondary space-y-4">
                                 <AlertCircle size={48} className="text-gray-600" />
