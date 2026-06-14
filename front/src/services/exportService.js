@@ -1,3 +1,5 @@
+import { toast } from 'react-toastify';
+
 /**
  * Utility service to handle report exports (CSV/JSON)
  */
@@ -69,6 +71,6 @@ export const exportReportToCSV = (templateId, data) => {
     if (exportData.length > 0) {
         downloadCSV(exportData, filename);
     } else {
-        alert('No tabular data available in this report to export to CSV.');
+        toast.error('No tabular data available in this report to export to CSV.');
     }
 };
