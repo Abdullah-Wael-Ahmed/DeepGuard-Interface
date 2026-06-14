@@ -4,6 +4,7 @@ import { Download, Calendar, Shield, AlertCircle, HardDrive, BrainCircuit, Searc
 import ExecutiveSummary from '../components/reports/ExecutiveSummary';
 import EndpointFleetHealth from '../components/reports/EndpointFleetHealth';
 import IncidentPostMortem from '../components/reports/IncidentPostMortem';
+import DeepGuardAiAnomalies from '../components/reports/DeepGuardAiAnomalies';
 
 const Reports = () => {
     const [activeTemplate, setActiveTemplate] = useState('executive');
@@ -37,17 +38,20 @@ const Reports = () => {
                 } else if (activeTemplate === 'postmortem') {
                     const res = await axios.post(`${import.meta.env.VITE_BACK}/reports/postmortem`, { 
                         hours: timeRange,
-                        ip: submittedIp || null // Send the searched IP if available
+                        ip: submittedIp || null
                     }, {
                         withCredentials: true
                     });
                     setReportData(res.data);
-                    // Update the input to show the IP the backend actually used
                     if (res.data && res.data.targetIp) {
                         setTargetIp(res.data.targetIp);
                     }
+                } else if (activeTemplate === 'ai') {
+                    const res = await axios.get(`${import.meta.env.VITE_BACK}/reports/ai-anomalies?hours=${timeRange}`, {
+                        withCredentials: true
+                    });
+                    setReportData(res.data);
                 } else {
-                    // For now, clear data for templates that aren't implemented yet
                     setReportData(null);
                 }
             } catch (error) {

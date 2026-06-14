@@ -389,6 +389,76 @@ class ReportService {
             forensicEvidence
         };
     }
+
+    /**
+     * Get data for the DeepGuard AI Anomalies template
+     */
+    async getAiAnomaliesReport(hours = 24) {
+        const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        
+        let totalAnalyzed = 0;
+        let results = [];
+        
+        try {
+            // Try to get stats from the ML container
+            const statsRes = await axios.get(`${ANOMALY_BASE}/stats`, { timeout: 5000 });
+            totalAnalyzed = statsRes.data?.total_analyzed || 0;
+            
+            // If the ML container doesn't return total_analyzed, fallback to total Zeek connections in timeframe
+            if (!totalAnalyzed) {
+                totalAnalyzed = await ZeekConnection.count({ where: { createdAt: { [Op.gte]: sinceDate } } });
+            }
+
+            const anomalyRes = await axios.get(`${ANOMALY_BASE}/results`, { timeout: 5000 });
+            if (anomalyRes.data?.results) {
+                results = anomalyRes.data.results.filter(a => a.is_anomaly);
+            }
+        } catch (error) {
+            console.error("Error fetching AI anomalies for report:", error.message);
+            // Fallback for total analyzed if ML container is completely down
+            totalAnalyzed = await ZeekConnection.count({ where: { createdAt: { [Op.gte]: sinceDate } } });
+        }
+
+        // 1. ML Performance Metrics
+        const metrics = {
+            totalAnalyzed,
+            totalFlagged: results.length
+        };
+
+        // 2. Behavioral Deviations (Bar Chart Data)
+        // Group anomalies by description/type
+        const deviationMap = {};
+        results.forEach(a => {
+            const type = a.details || a.type || 'Unknown Behavior';
+            deviationMap[type] = (deviationMap[type] || 0) + 1;
+        });
+        
+        // Convert to array and sort descending
+        const deviations = Object.keys(deviationMap).map(key => ({
+            name: key,
+            count: deviationMap[key]
+        })).sort((a, b) => b.count - a.count);
+
+        // 3. AI Detections Log (Table)
+        const log = results.map(a => {
+            // Create a pseudo-timestamp if the ML model doesn't return one directly
+            const ts = a.timestamp ? new Date(a.timestamp) : new Date();
+            return {
+                timestamp: ts.toISOString(),
+                srcIp: a.src_ip || 'Unknown',
+                destIp: a.dest_ip || 'Unknown',
+                score: a.score ? Math.round(a.score * 100) : 85, // Default 85% confidence if missing
+                description: a.details || a.type || 'Behavioral Deviation Detected'
+            };
+        }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        return {
+            timeRange: { hours, since: sinceDate.toISOString() },
+            metrics,
+            deviations: deviations.slice(0, 10), // Send top 10 deviations for the chart
+            log: log.slice(0, 100) // Send latest 100 anomalies for the table
+        };
+    }
 }
 
 module.exports = new ReportService();

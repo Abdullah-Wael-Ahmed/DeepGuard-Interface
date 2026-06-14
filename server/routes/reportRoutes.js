@@ -41,4 +41,16 @@ router.post("/postmortem", async (req, res) => {
     }
 });
 
+// GET /api/reports/ai-anomalies?hours=24
+router.get("/ai-anomalies", async (req, res) => {
+    try {
+        const hours = parseInt(req.query.hours) || 24;
+        const data = await reportService.getAiAnomaliesReport(hours);
+        res.json(data);
+    } catch (error) {
+        console.error("Error generating AI anomalies report:", error);
+        res.status(500).json({ error: "Failed to generate report data" });
+    }
+});
+
 module.exports = router;
