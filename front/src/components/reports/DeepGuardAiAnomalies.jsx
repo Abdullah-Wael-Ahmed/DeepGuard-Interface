@@ -4,9 +4,9 @@ import { BrainCircuit, Activity, AlertTriangle } from 'lucide-react';
 import AnimatedCounter from '../ui/AnimatedCounter';
 
 const DeepGuardAiAnomalies = ({ data }) => {
-    if (!data || !data.metrics) return <div className="text-text-secondary">No data available.</div>;
+    if (!data || !data.metrics) return <div className="text-text-secondary p-8">No data available.</div>;
 
-    const { metrics, deviations, log } = data;
+    const { metrics = {}, deviations = [], log = [] } = data;
 
     // Colors for the bar chart
     const colors = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#8b5cf6'];
@@ -34,12 +34,12 @@ const DeepGuardAiAnomalies = ({ data }) => {
                             <h3 className="text-sm font-medium text-text-secondary">Total Connections Analyzed (AI)</h3>
                         </div>
                         <p className="text-3xl font-bold text-text-main pl-11">
-                            <AnimatedCounter value={metrics.totalAnalyzed} />
+                            <AnimatedCounter value={metrics?.totalAnalyzed || 0} />
                         </p>
                     </div>
                     <div className="text-right">
                         <div className="text-xs text-text-secondary mb-1">Processing Rate</div>
-                        <div className="text-sm font-mono text-primary">~{(metrics.totalAnalyzed / (data.timeRange?.hours || 24)).toFixed(0)} / hr</div>
+                        <div className="text-sm font-mono text-primary">~{(metrics?.totalAnalyzed / (data?.timeRange?.hours || 24)).toFixed(0)} / hr</div>
                     </div>
                 </div>
                 
@@ -50,13 +50,13 @@ const DeepGuardAiAnomalies = ({ data }) => {
                             <h3 className="text-sm font-medium text-text-secondary">Anomalies Flagged</h3>
                         </div>
                         <p className="text-3xl font-bold text-red-400 pl-11">
-                            <AnimatedCounter value={metrics.totalFlagged} />
+                            <AnimatedCounter value={metrics?.totalFlagged || 0} />
                         </p>
                     </div>
                     <div className="text-right">
                         <div className="text-xs text-text-secondary mb-1">Detection Rate</div>
                         <div className="text-sm font-mono text-red-400">
-                            {metrics.totalAnalyzed > 0 ? ((metrics.totalFlagged / metrics.totalAnalyzed) * 100).toFixed(2) : 0}%
+                            {metrics?.totalAnalyzed > 0 ? ((metrics.totalFlagged / metrics.totalAnalyzed) * 100).toFixed(2) : 0}%
                         </div>
                     </div>
                 </div>
@@ -66,7 +66,7 @@ const DeepGuardAiAnomalies = ({ data }) => {
             <div className="p-5 rounded-xl bg-card-dark border border-gray-800 h-96">
                 <h3 className="text-lg font-medium text-text-main mb-4">Behavioral Deviations Breakdown</h3>
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={deviations} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
+                    <BarChart data={deviations || []} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                         <XAxis 
                             dataKey="name" 
@@ -83,7 +83,7 @@ const DeepGuardAiAnomalies = ({ data }) => {
                             cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                         />
                         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                            {deviations.map((entry, index) => (
+                            {(deviations || []).map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                             ))}
                         </Bar>
@@ -108,24 +108,24 @@ const DeepGuardAiAnomalies = ({ data }) => {
                         <tbody>
                             {log && log.length > 0 ? (
                                 log.map((entry, idx) => {
-                                    const d = new Date(entry.timestamp);
+                                    const d = new Date(entry?.timestamp || Date.now());
                                     return (
                                         <tr key={idx} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
                                             <td className="py-3 text-text-secondary whitespace-nowrap">
                                                 {`${d.toLocaleDateString()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
                                             </td>
-                                            <td className="py-3 font-mono text-primary">{entry.srcIp}</td>
-                                            <td className="py-3 font-mono text-text-main">{entry.destIp}</td>
+                                            <td className="py-3 font-mono text-primary">{entry?.srcIp || 'N/A'}</td>
+                                            <td className="py-3 font-mono text-text-main">{entry?.destIp || 'N/A'}</td>
                                             <td className="py-3 text-center">
                                                 <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                                    entry.score >= 90 ? 'bg-red-500/20 text-red-400' :
-                                                    entry.score >= 70 ? 'bg-orange-500/20 text-orange-400' :
+                                                    (entry?.score || 0) >= 90 ? 'bg-red-500/20 text-red-400' :
+                                                    (entry?.score || 0) >= 70 ? 'bg-orange-500/20 text-orange-400' :
                                                     'bg-yellow-500/20 text-yellow-400'
                                                 }`}>
-                                                    {entry.score}%
+                                                    {entry?.score || 0}%
                                                 </span>
                                             </td>
-                                            <td className="py-3 text-text-main">{entry.description}</td>
+                                            <td className="py-3 text-text-main">{entry?.description || 'Behavioral Deviation'}</td>
                                         </tr>
                                     );
                                 })

@@ -72,7 +72,7 @@ function App() {
         },
         {
           element: <ProtectedRoute />,
-          errorElement: <div className="p-10 text-white">Page not found! <a href="/" className="text-primary underline">Go Home</a></div>,
+          errorElement: <div className="p-10 text-white">Something went wrong! <a href="/" className="text-primary underline">Go Home</a></div>,
           children: [
             {
               path: '/',
