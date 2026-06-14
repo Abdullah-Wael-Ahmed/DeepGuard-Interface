@@ -62,8 +62,8 @@ router.get("/export/pdf", async (req, res) => {
     try {
         const { template, hours, ip } = req.query;
         
-        // internal frontend URL inside Docker network
-        const baseUrl = process.env.FRONTEND_INTERNAL_URL || "http://frontend:3000";
+        // internal frontend URL inside Docker network (nginx listens on :80)
+        const baseUrl = process.env.FRONTEND_INTERNAL_URL || "http://deepguard-frontend:80";
         const secret = process.env.PRINT_SECRET || "dg_system_secret_2024";
         const printUrl = `${baseUrl}/reports/print/${template}?hours=${hours || 24}${ip ? `&ip=${ip}` : ""}&secret=${secret}`;
 

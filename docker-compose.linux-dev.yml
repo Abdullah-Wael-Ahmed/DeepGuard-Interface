@@ -10,6 +10,8 @@ services:
       - ./server/.env
     environment:
       NODE_ENV: dev
+      # Puppeteer target: dev frontend runs vite on :3000
+      FRONTEND_INTERNAL_URL: http://deepguard-frontend-dev:3000
     ports:
       - "5000:5000"
     cap_add:

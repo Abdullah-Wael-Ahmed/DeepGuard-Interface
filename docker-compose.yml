@@ -9,6 +9,8 @@ services:
       - ./server/.env
     environment:
       NODE_ENV: dep
+      # Puppeteer target: prod frontend runs nginx on :80
+      FRONTEND_INTERNAL_URL: http://deepguard-frontend:80
     ports:
       - "5000:5000"
     cap_add:
