@@ -15,6 +15,7 @@ const incidentRouter = require("./routes/incidentRoutes")
 const correlationRouter = require("./routes/correlationRoutes")
 const playbookRouter = require("./routes/playbookRoutes")
 const correlationEngine = require("./services/correlationEngine")
+const velociraptorPoller = require("./services/velociraptorPoller")
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
@@ -39,6 +40,7 @@ async function connectWithRetry(retries = 10, delay = 3000) {
             await db.sync();
             console.log(`Database synced (attempt ${attempt})`);
             await correlationEngine.init(); // Init backend correlation
+            velociraptorPoller.start(); // Init Velociraptor flow polling
             await seedSuperAdmin();
             return;
         } catch (e) {

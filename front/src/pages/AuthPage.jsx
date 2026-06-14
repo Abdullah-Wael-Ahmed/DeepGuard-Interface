@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-    ShieldCheck, 
     Mail, 
     Lock, 
     ArrowRight, 
@@ -11,6 +10,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios'; // Import axios
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext'; // Import your Auth Context
+import DeepGuard from '../assets/DeepGaurdDark.svg';
 
 const LoginPage = () => {
     const { setAuth } = useAuth(); // Get the setter from context
@@ -101,14 +101,23 @@ const LoginPage = () => {
             <div className="w-full max-w-md bg-card-dark border border-gray-700 rounded-2xl p-8 shadow-2xl relative z-10 card-lift animate-fade-in">
                 
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-xl mb-4 border border-primary/20">
-                        <ShieldCheck className="text-primary w-8 h-8" />
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <div className="flex gap-3.5 items-center mb-5 bg-background-dark/30 p-3.5 rounded-xl border border-gray-700/80 shadow-[0_0_15px_rgba(0,0,0,0.2)]">
+                        <div className="size-12 flex-shrink-0">
+                            <img src={DeepGuard} alt="DeepGuard Logo" className="w-full h-full object-contain" />
+                        </div>
+                        <div className="flex flex-col text-left">
+                            <h2 className="text-xl font-extrabold text-white tracking-tight leading-none">
+                                Deep<span className="text-primary">Guard</span>
+                            </h2>
+                            <p className="text-[9px] uppercase font-bold text-text-secondary tracking-wider mt-1.5 leading-none">Next-Generation SOC Platform</p>
+                            <p className="text-[8px] uppercase font-semibold text-primary tracking-wider mt-1 leading-none">Powered by AI</p>
+                        </div>
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
+                    <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
                         Welcome Back
                     </h1>
-                    <p className="text-text-secondary">
+                    <p className="text-text-secondary text-sm">
                         Enter your credentials to access the DeepGuard network.
                     </p>
                 </div>
