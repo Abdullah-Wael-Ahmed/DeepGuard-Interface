@@ -277,8 +277,8 @@ const Incidents = () => {
             </head>
             <body>
                 <h1>DeepGuard Security Incident Report</h1>
-                <p><strong>Generated on:</strong> \${new Date().toLocaleString()}</p>
-                <p><strong>Total Incidents Exported:</strong> \${targetIncidents.length}</p>
+                <p><strong>Generated on:</strong> ${new Date().toLocaleString()}</p>
+                <p><strong>Total Incidents Exported:</strong> ${targetIncidents.length}</p>
                 <table>
                     <thead>
                         <tr>
@@ -294,7 +294,7 @@ const Incidents = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        \${rowsHtml}
+                        ${rowsHtml}
                     </tbody>
                 </table>
                 <div class="footer">
