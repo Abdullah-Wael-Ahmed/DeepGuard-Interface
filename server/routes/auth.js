@@ -60,6 +60,7 @@ router.post("/register", verifyJWT, requireAdmin, async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+    console.log('login try')
     try {
         const { email, password } = req.body;
 
