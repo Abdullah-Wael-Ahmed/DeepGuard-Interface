@@ -10,7 +10,7 @@ import {
     Database, Globe, Zap, Filter, ArrowUpDown
 } from 'lucide-react';
 import AnimatedCounter, { Sparkline } from '../components/ui/AnimatedCounter';
-import { SkeletonCard, SkeletonTableRow } from '../components/ui/Skeleton';
+import Skeleton, { SkeletonCard, SkeletonTableRow } from '../components/ui/Skeleton';
 
 // ─── Preset Artifact Catalog ──────────────────────────────────────
 const PRESET_ARTIFACTS = [
@@ -57,6 +57,7 @@ const Endpoints = () => {
     // ─── State ────────────────────────────────────────────────────
     const [clients, setClients] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingOverview, setLoadingOverview] = useState(true);
     const [status, setStatus] = useState(null);
     const [overview, setOverview] = useState({ totalEndpoints: 0, activeAlerts: 0, criticalAlerts: 0 });
     const [searchQuery, setSearchQuery] = useState('');
@@ -113,10 +114,13 @@ const Endpoints = () => {
 
     const fetchOverview = async () => {
         try {
+            setLoadingOverview(true);
             const res = await axios.get(`${import.meta.env.VITE_BACK}/api/velociraptor/overview`, { withCredentials: true });
             setOverview(res.data);
         } catch (error) {
             console.error('Error fetching overview:', error);
+        } finally {
+            setLoadingOverview(false);
         }
     };
 
@@ -316,7 +320,7 @@ const Endpoints = () => {
                                 </div>
                             </div>
                             <p className="text-text-main text-4xl font-bold">
-                                <AnimatedCounter value={clients.length || overview.totalEndpoints} />
+                                {loading ? <Skeleton className="h-10 w-24" /> : <AnimatedCounter value={clients.length} />}
                             </p>
                             <p className="text-text-secondary text-sm">Enrolled endpoints</p>
                         </div>
@@ -330,7 +334,7 @@ const Endpoints = () => {
                                 </div>
                             </div>
                             <p className="text-text-main text-4xl font-bold">
-                                <AnimatedCounter value={onlineCount} />
+                                {loading ? <Skeleton className="h-10 w-24" /> : <AnimatedCounter value={onlineCount} />}
                             </p>
                             <p className="text-green-400 text-sm font-medium">Active in last 10 min</p>
                         </div>
@@ -344,7 +348,7 @@ const Endpoints = () => {
                                 </div>
                             </div>
                             <p className="text-text-main text-4xl font-bold">
-                                <AnimatedCounter value={Math.max(clients.length - onlineCount, 0)} />
+                                {loading ? <Skeleton className="h-10 w-24" /> : <AnimatedCounter value={Math.max(clients.length - onlineCount, 0)} />}
                             </p>
                             <p className="text-gray-400 text-sm font-medium">Not responding</p>
                         </div>
@@ -358,10 +362,10 @@ const Endpoints = () => {
                                 </div>
                             </div>
                             <p className="text-text-main text-4xl font-bold">
-                                <AnimatedCounter value={overview.activeAlerts} />
+                                {loadingOverview ? <Skeleton className="h-10 w-24" /> : <AnimatedCounter value={overview.activeAlerts} />}
                             </p>
                             <p className={`text-sm font-medium ${overview.criticalAlerts > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                {overview.criticalAlerts > 0 ? `${overview.criticalAlerts} critical` : '✓ All clear'}
+                                {loadingOverview ? <Skeleton className="h-4 w-16" /> : (overview.criticalAlerts > 0 ? `${overview.criticalAlerts} critical` : '✓ All clear')}
                             </p>
                         </div>
                     </div>
