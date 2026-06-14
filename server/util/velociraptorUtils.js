@@ -10,7 +10,7 @@ const queryVelociraptor = async (vqlQuery) => {
         
         // Execute the VQL query directly against the live server
         // We cache the api_client.yaml to significantly reduce the execution time of 'docker exec'
-        const cmd = `docker exec deepguard-velociraptor sh -c "if [ ! -f /tmp/api_client.yaml ]; then /velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
+        const cmd = `docker exec deepguard-velociraptor sh -c "if [ ! -f /tmp/api_client.yaml ]; then /opt/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /opt/velociraptor --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
         const { stdout, stderr } = await execPromise(cmd);
         
         if (stderr && stderr.trim()) {
