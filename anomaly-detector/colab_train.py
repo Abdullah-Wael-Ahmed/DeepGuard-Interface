@@ -22,7 +22,7 @@ import json
 import numpy as np
 import pandas as pd
 import joblib
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -50,9 +50,11 @@ FEATURE_NAMES = [
     'avg_pkt_size',
     'inbound_outbound_ratio',
     'proto_diversity',
+    'dst_port_entropy',
+    'dst_ip_entropy',
 ]
 
-LOG_FEATURES = ['bytes_total', 'packets_total', 'avg_bytes_per_flow', 'avg_pkt_size']
+LOG_FEATURES = ['bytes_total', 'packets_total', 'avg_bytes_per_flow', 'avg_pkt_size', 'conn_count', 'connections_per_sec']
 
 UNSW_COLUMNS = [
     'srcip', 'sport', 'dstip', 'dsport', 'proto', 'state', 'dur',
@@ -106,7 +108,18 @@ def aggregate_window(flows_df):
     
     protos = flows_df['proto'].astype(str).str.strip().str.lower()
     tcp_count = (protos == 'tcp').sum()
-    
+
+    import math
+    def calculate_entropy(items):
+        if not items or len(items) == 0: return 0.0
+        counts = items.value_counts()
+        n = len(items)
+        entropy = 0.0
+        for count in counts:
+            p = count / n
+            entropy -= p * math.log2(p)
+        return entropy
+
     return {
         'conn_count': float(n),
         'unique_dst_ports': float(flows_df['dsport'].nunique()),
@@ -122,6 +135,8 @@ def aggregate_window(flows_df):
         'avg_pkt_size': float(bytes_total / packets_total) if packets_total > 0 else 0.0,
         'inbound_outbound_ratio': float(dbytes.sum() / max(sbytes.sum(), 1)),
         'proto_diversity': float(protos.nunique()),
+        'dst_port_entropy': float(calculate_entropy(flows_df['dsport'])),
+        'dst_ip_entropy': float(calculate_entropy(flows_df['dstip'])),
     }
 
 def create_windows(df):
@@ -231,7 +246,7 @@ def main():
         if X_attack is not None:
             X_attack[:, idx] = np.log1p(X_attack[:, idx])
             
-    scaler = MinMaxScaler()
+    scaler = RobustScaler()
     X_scaled = scaler.fit_transform(X_normal)
     
     # Shuffle before split
