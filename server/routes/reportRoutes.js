@@ -66,16 +66,26 @@ router.get("/export/pdf", async (req, res) => {
         const baseUrl = process.env.FRONTEND_INTERNAL_URL || "http://frontend:3000";
         const printUrl = `${baseUrl}/reports/print/${template}?hours=${hours || 24}${ip ? `&ip=${ip}` : ""}`;
 
-        console.log(`[PDF] Generating report for: ${printUrl}`);
+        console.log(`[PDF] Request received for: ${printUrl}`);
         
         const pdfBuffer = await pdfService.generateFromUrl(printUrl, `DeepGuard_${template}_Report`);
 
+        if (!pdfBuffer || pdfBuffer.length === 0) {
+            console.error("[PDF] Generated buffer is empty");
+            return res.status(500).json({ error: "Generated PDF was empty" });
+        }
+
         res.contentType("application/pdf");
+        res.setHeader("Content-Length", pdfBuffer.length);
         res.setHeader("Content-Disposition", `attachment; filename=DeepGuard_${template}_Report.pdf`);
-        res.send(pdfBuffer);
+        res.end(pdfBuffer, 'binary');
+        console.log(`[PDF] Successfully sent ${pdfBuffer.length} bytes`);
     } catch (error) {
         console.error("Error exporting PDF:", error);
-        res.status(500).json({ error: "Failed to export PDF" });
+        // We can't send JSON if headers were already sent, but here they shouldn't be
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Failed to export PDF", details: error.message });
+        }
     }
 });
 

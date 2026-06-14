@@ -25,16 +25,18 @@ class PdfService {
             });
 
             const page = await browser.newPage();
+            console.log(`[PDF] Page opened. Navigating to ${url}...`);
 
             // Set viewport size for consistent rendering
             await page.setViewport({ width: 1200, height: 1600 });
 
             // Navigate to the URL
-            // Wait until the network is idle (no more than 2 active connections)
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+            console.log(`[PDF] Navigation successful. Waiting for animations...`);
 
             // Wait a little extra for Recharts animations to finish
             await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log(`[PDF] Animation wait complete. Rendering PDF...`);
 
             // Generate PDF
             const pdfBuffer = await page.pdf({
@@ -47,8 +49,14 @@ class PdfService {
                     left: '20px'
                 }
             });
+            console.log(`[PDF] PDF Buffer generated. Size: ${pdfBuffer.length} bytes`);
 
             await browser.close();
+
+            if (!pdfBuffer || pdfBuffer.length === 0) {
+                throw new Error("Generated PDF buffer is empty");
+            }
+
             return pdfBuffer;
         } catch (error) {
             console.error('PDF Generation Error:', error);

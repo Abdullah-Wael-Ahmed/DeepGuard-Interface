@@ -59,18 +59,13 @@ const AxiosInterceptorSetup = ({ children }) => {
 function App() {
   const router = createBrowserRouter([
     {
+      path: '/reports/print/:templateId',
+      element: <ReportPrintView />
+    },
+    {
       // wraps everything so we check for the "Remember Me" cookie
       element: <PersistLogin />,
       children: [
-        {
-          element: <PublicRoute />,
-          children: [
-            {
-              path: '/login',
-              element: <LoginPage />
-            }
-          ]
-        },
         {
           element: <ProtectedRoute />,
           errorElement: <div className="p-10 text-white">Something went wrong! <a href="/" className="text-primary underline">Go Home</a></div>,
@@ -82,7 +77,6 @@ function App() {
                 { index: true, element: <Dashboard /> },
                 { path: 'dashboard', element: <Dashboard /> },
                 { path: 'reports', element: <Reports /> },
-                { path: 'reports/print/:templateId', element: <ReportPrintView /> },
                 { path: 'traffic', element: <Traffic /> },
                 { path: 'detection', element: <AnomalyDetection /> },
                 { path: 'settings', element: <Settings /> },

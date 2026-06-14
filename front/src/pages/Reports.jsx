@@ -85,8 +85,20 @@ const Reports = () => {
                 withCredentials: true
             });
 
+            // Double check if we actually got a PDF
+            if (response.data.type === 'application/json') {
+                // This means the backend returned an error but axios didn't throw (rare)
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const errorData = JSON.parse(reader.result);
+                    toast.update(id, { render: `Export Failed: ${errorData.error || 'Unknown error'}`, type: "error", isLoading: false, autoClose: 5000 });
+                };
+                reader.readAsText(response.data);
+                return;
+            }
+
             // Create a blob link to trigger the download
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `DeepGuard_${activeTemplate}_Report.pdf`);
@@ -98,7 +110,22 @@ const Reports = () => {
             toast.update(id, { render: "PDF Downloaded Successfully!", type: "success", isLoading: false, autoClose: 3000 });
         } catch (error) {
             console.error("PDF Export Error:", error);
-            toast.update(id, { render: "Failed to generate PDF. Please check server logs.", type: "error", isLoading: false, autoClose: 3000 });
+            
+            // If the error response is a blob, try to read it as text
+            if (error.response && error.response.data instanceof Blob) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const errorData = JSON.parse(reader.result);
+                        toast.update(id, { render: `Failed: ${errorData.details || errorData.error}`, type: "error", isLoading: false, autoClose: 5000 });
+                    } catch (e) {
+                        toast.update(id, { render: "Failed to generate PDF. Check server logs.", type: "error", isLoading: false, autoClose: 5000 });
+                    }
+                };
+                reader.readAsText(error.response.data);
+            } else {
+                toast.update(id, { render: "Failed to generate PDF. Server unreachable.", type: "error", isLoading: false, autoClose: 5000 });
+            }
         }
     };
 

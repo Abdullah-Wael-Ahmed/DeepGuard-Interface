@@ -56,7 +56,7 @@ const ExecutiveSummary = ({ data }) => {
                         <h3 className="text-sm font-medium text-text-secondary">Mean Risk Score (0-10)</h3>
                     </div>
                     <p className="text-3xl font-bold text-text-main">
-                        <AnimatedCounter value={data.metrics.meanRiskScore} isFloat={true} decimals={1} />
+                        {data.metrics.meanRiskScore}
                     </p>
                 </div>
             </div>
