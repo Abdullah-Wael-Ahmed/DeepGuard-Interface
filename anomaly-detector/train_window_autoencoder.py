@@ -12,7 +12,7 @@ import os
 import json
 import numpy as np
 import joblib
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'          # suppress TF info logs
 import tensorflow as tf
@@ -37,25 +37,16 @@ FEATURE_NAMES = [
     'avg_duration',
     'connections_per_sec',
     'avg_bytes_per_flow',
+    'dst_port_entropy',
+    'dst_ip_entropy',
 ]
 
 WINDOW_SIZE = 30   # seconds
 
-# ─── Normal traffic ranges (for synthetic data) ──────────
-NORMAL_RANGES = {
-    'conn_count':          (5, 30),
-    'unique_dst_ports':    (1, 5),
-    'unique_dst_ips':      (1, 3),
-    'syn_ratio':           (0.0, 0.1),
-    'failed_ratio':        (0.0, 0.05),
-    'bytes_total':         (1_000, 50_000),
-    'packets_total':       (10, 200),
-    'avg_duration':        (1.0, 60.0),
-    'connections_per_sec': (0.1, 2.0),
-    'avg_bytes_per_flow':  (100, 5_000),
-}
+# ─── Removed static normal ranges, using distributions directly ──────────
 
-NUM_SAMPLES = 5000
+NUM_SAMPLES = 8000
+LOG_FEATURES = ['bytes_total', 'packets_total', 'avg_bytes_per_flow', 'conn_count', 'connections_per_sec']
 
 
 # ─── Synthetic data generation ───────────────────────────
@@ -66,13 +57,30 @@ def generate_normal_data(n_samples: int) -> np.ndarray:
     data = np.zeros((n_samples, len(FEATURE_NAMES)))
 
     for i, name in enumerate(FEATURE_NAMES):
-        lo, hi = NORMAL_RANGES[name]
-        if name in ('conn_count', 'unique_dst_ports', 'unique_dst_ips', 'packets_total'):
-            # Integer features — use uniform ints
-            data[:, i] = rng.integers(int(lo), int(hi) + 1, size=n_samples).astype(float)
-        else:
-            # Float features — use uniform floats
-            data[:, i] = rng.uniform(lo, hi, size=n_samples)
+        if name == 'conn_count':
+            data[:, i] = rng.exponential(scale=3.0, size=n_samples) + 1
+        elif name == 'unique_dst_ports':
+            data[:, i] = rng.exponential(scale=1.5, size=n_samples) + 1
+        elif name == 'unique_dst_ips':
+            data[:, i] = rng.exponential(scale=1.5, size=n_samples) + 1
+        elif name == 'syn_ratio':
+            data[:, i] = rng.uniform(0.0, 0.1, size=n_samples)
+        elif name == 'failed_ratio':
+            data[:, i] = rng.uniform(0.0, 0.05, size=n_samples)
+        elif name == 'bytes_total':
+            data[:, i] = rng.lognormal(mean=7.0, sigma=2.0, size=n_samples)
+        elif name == 'packets_total':
+            data[:, i] = rng.lognormal(mean=3.0, sigma=1.5, size=n_samples)
+        elif name == 'avg_duration':
+            data[:, i] = rng.exponential(scale=5.0, size=n_samples)
+        elif name == 'connections_per_sec':
+            data[:, i] = rng.exponential(scale=0.5, size=n_samples)
+        elif name == 'avg_bytes_per_flow':
+            data[:, i] = rng.lognormal(mean=6.0, sigma=1.5, size=n_samples)
+        elif name == 'dst_port_entropy':
+            data[:, i] = rng.uniform(0.0, 1.0, size=n_samples)
+        elif name == 'dst_ip_entropy':
+            data[:, i] = rng.uniform(0.0, 1.0, size=n_samples)
 
     # Enforce consistency: avg_bytes_per_flow ≤ bytes_total / conn_count
     conn_idx  = FEATURE_NAMES.index('conn_count')
@@ -115,9 +123,15 @@ def main():
     # 1. Generate data
     data = generate_normal_data(NUM_SAMPLES)
 
-    # 2. Fit scaler
-    print("[*] Fitting MinMaxScaler...")
-    scaler = MinMaxScaler()
+    # 2. Log-scale heavy features
+    print(f"[*] Applying log-scaling to: {LOG_FEATURES}")
+    for feature in LOG_FEATURES:
+        idx = FEATURE_NAMES.index(feature)
+        data[:, idx] = np.log1p(data[:, idx])
+
+    # 3. Fit scaler
+    print("[*] Fitting RobustScaler...")
+    scaler = RobustScaler()
     data_scaled = scaler.fit_transform(data)
     joblib.dump(scaler, SCALER_PATH)
     print(f"[+] Scaler saved to {SCALER_PATH}")
@@ -139,12 +153,12 @@ def main():
     model.save(MODEL_PATH)
     print(f"[+] Model saved to {MODEL_PATH}")
 
-    # 5. Compute threshold (95th percentile of reconstruction errors)
+    # 5. Compute threshold (99th percentile of reconstruction errors)
     print("[*] Computing reconstruction threshold...")
     predictions = model.predict(data_scaled, verbose=0)
     mse_errors = np.mean(np.square(data_scaled - predictions), axis=1)
-    threshold = float(np.percentile(mse_errors, 95))
-    print(f"[+] Threshold (95th percentile): {threshold:.6f}")
+    threshold = float(np.percentile(mse_errors, 99))
+    print(f"[+] Threshold (99th percentile): {threshold:.6f}")
     print(f"    Mean error:  {np.mean(mse_errors):.6f}")
     print(f"    Max error:   {np.max(mse_errors):.6f}")
 
@@ -152,6 +166,7 @@ def main():
     metadata = {
         'reconstruction_threshold': threshold,
         'feature_names': FEATURE_NAMES,
+        'log_features': LOG_FEATURES,
         'window_size': WINDOW_SIZE,
         'training_samples': NUM_SAMPLES,
         'mean_error': float(np.mean(mse_errors)),

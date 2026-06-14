@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useSearchParams } from 'react-router-dom';
 import {
     Crosshair, ShieldAlert, BrainCircuit, Activity, ServerCrash,
     MapPin, Eye, X, Clock, Target, LoaderCircle, Inbox, RefreshCw,
@@ -46,11 +47,14 @@ const formatTime = (ts) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MitreAttack = () => {
+    const [searchParams] = useSearchParams();
+    const search = searchParams.get('search') || '';
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ active_techniques: 0, tactics_observed: 0, ai_behavioral_flags: 0, high_severity: 0 });
     const [coverage, setCoverage] = useState({ detected: 0, total: 0, score: 0 });
     const [matrix, setMatrix] = useState([]);
     const [recentAlerts, setRecentAlerts] = useState([]);
+    const [playbooks, setPlaybooks] = useState([]);
 
     // Drill-down state
     const [selectedTechnique, setSelectedTechnique] = useState(null);
@@ -94,10 +98,40 @@ const MitreAttack = () => {
         setLoadingDetail(false);
     };
 
+    const fetchPlaybooks = async () => {
+        try {
+            const res = await axios.get(`${BACK}/playbooks`, { withCredentials: true });
+            setPlaybooks(res.data);
+        } catch (error) {
+            console.error('Failed to load playbooks:', error);
+        }
+    };
+
     useEffect(() => {
         fetchMatrix();
         fetchRecentAlerts();
+        fetchPlaybooks();
     }, []);
+
+    const coveredTechniques = useMemo(() => {
+        const covered = new Set();
+        playbooks.forEach(pb => {
+            if (pb.mitreTags) pb.mitreTags.forEach(t => covered.add(t));
+        });
+        return covered;
+    }, [playbooks]);
+
+    const filteredAlerts = useMemo(() => {
+        if (!search) return recentAlerts;
+        const q = search.toLowerCase();
+        return recentAlerts.filter(alert => 
+            alert.alert_id?.toLowerCase().includes(q) ||
+            alert.technique_id?.toLowerCase().includes(q) ||
+            alert.signature?.toLowerCase().includes(q) ||
+            alert.source?.toLowerCase().includes(q) ||
+            alert.src_ip?.toLowerCase().includes(q)
+        );
+    }, [recentAlerts, search]);
 
     // ─────────────── Technique Drill-Down ───────────────
 
@@ -238,16 +272,25 @@ const MitreAttack = () => {
                                             {/* Techniques */}
                                             {tactic.techniques.map(tech => {
                                                 const style = getSourceStyle(tech.source, tech.ai_inferred);
+                                                const hasPlaybook = coveredTechniques.has(tech.id);
+                                                const matchesSearch = !search || 
+                                                    tech.id.toLowerCase().includes(search.toLowerCase()) || 
+                                                    tech.name.toLowerCase().includes(search.toLowerCase());
                                                 return (
                                                     <div
                                                         key={tech.id}
                                                         onClick={() => handleTechniqueClick(tech)}
-                                                        className={`p-2 rounded text-[11px] border flex justify-between items-center transition-all duration-200 ${tech.detected
+                                                        className={`p-2 rounded text-[11px] border flex flex-col justify-center transition-all duration-200 ${tech.detected
                                                             ? `${style.border} ${style.glow} hover:bg-white/5 cursor-pointer`
-                                                            : 'border-gray-800 bg-gray-800/20 text-gray-600'}`}
+                                                            : 'border-gray-800 bg-gray-800/20 text-gray-600'} ${matchesSearch ? '' : 'opacity-20 pointer-events-none'}`}
                                                     >
-                                                        <span className={`truncate mr-2 ${tech.detected ? 'text-text-main font-medium' : 'text-gray-600'}`} title={tech.name}>{tech.id}</span>
-                                                        <span className={`w-2 h-2 rounded-full ${style.dot} flex-shrink-0`}></span>
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <span className={`truncate mr-2 ${tech.detected ? 'text-text-main font-medium' : 'text-gray-600'}`} title={tech.name}>{tech.id}</span>
+                                                            <span className={`w-2 h-2 rounded-full ${style.dot} flex-shrink-0`}></span>
+                                                        </div>
+                                                        {hasPlaybook && (
+                                                            <span className="text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded px-1 py-0.5 w-fit mt-1 inline-block">SOAR Protect</span>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -332,7 +375,7 @@ const MitreAttack = () => {
                             <div className="flex items-center justify-center h-32 w-full">
                                 <LoaderCircle className="animate-spin text-primary" size={36} />
                             </div>
-                        ) : recentAlerts.length > 0 ? (
+                        ) : filteredAlerts.length > 0 ? (
                             <div className="overflow-x-auto w-full">
                                 <table className="w-full text-left text-sm min-w-[800px]">
                                     <thead>
@@ -343,7 +386,7 @@ const MitreAttack = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-800 stagger-children">
-                                        {recentAlerts.map((alert, idx) => {
+                                        {filteredAlerts.map((alert, idx) => {
                                             const s = getSourceStyle(alert.source, alert.ai_inferred);
                                             return (
                                                 <tr key={idx} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => handleTechniqueClick({ id: alert.technique_id, name: alert.signature, detected: true, source: alert.source, severity: alert.severity, ai_inferred: alert.ai_inferred })}>

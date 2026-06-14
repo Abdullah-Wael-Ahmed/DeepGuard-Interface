@@ -2,13 +2,15 @@ const express = require("express");
 const Alert = require("../models/Alert");
 const { broadcast } = require("../util/websocket");
 const { Op, col, literal, fn, where } = require("sequelize");
+const correlationEngine = require("../services/correlationEngine");
+const soarEngine = require("../services/soar/engine");
 
 const router = express.Router();
 
 router.post("/filebeat", async (req, res) => {
     try {
 
-        console.log(req.body);
+        // console.log(req.body);
         const alert = await Alert.create({
             timestamp: req.body["@timestamp"],
             src_ip: req.body.source.ip,
@@ -20,6 +22,13 @@ router.post("/filebeat", async (req, res) => {
             protocol: req.body.protocol
         })
         broadcast({ type: "new_alert", data: alert })
+        
+        // Pass to backend correlation engine
+        correlationEngine.processEvent("suricata_alert", alert);
+        
+        // Pass to SOAR engine for alert-triggered playbooks
+        soarEngine.triggerOnAlert(alert);
+        
         res.json("ok")
     } catch (error) {
         console.log(error.name)
@@ -42,11 +51,11 @@ router.get("/", async (req, res) => {
             where: {
                 [Op.or]: [
                     where(
-                        literal("src_ip || ':' || src_port"),
+                        literal("CONCAT(src_ip, ':', src_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     where(
-                        literal("dest_ip || ':' || dest_port"),
+                        literal("CONCAT(dest_ip, ':', dest_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     { protocol: { [Op.like]: `%${search}%` } }
@@ -59,11 +68,11 @@ router.get("/", async (req, res) => {
         const alertCount = await Alert.count({where: {
                 [Op.or]: [
                     where(
-                        literal("src_ip || ':' || src_port"),
+                        literal("CONCAT(src_ip, ':', src_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     where(
-                        literal("dest_ip || ':' || dest_port"),
+                        literal("CONCAT(dest_ip, ':', dest_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     { protocol: { [Op.like]: `%${search}%` } }

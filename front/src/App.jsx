@@ -23,6 +23,13 @@ import Correlation from './pages/Correlation';
 import ThreatIntelligence from './pages/ThreatIntelligence';
 import NetworkBehaviorAnalytics from './pages/NetworkBehaviorAnalytics'
 import MitreAttack from './pages/MitreAttack'
+import Endpoints from './pages/Endpoints'
+import Incidents from './pages/Incidents'
+import IncidentDetail from './pages/IncidentDetail'
+import Playbooks from './pages/Playbooks'
+import PlaybookBuilder from './pages/PlaybookBuilder'
+import ExecutionHistory from './pages/ExecutionHistory'
+import RoleRoute from './components/RoleRoute';
 import { useEffect } from 'react';
 import axios from 'axios'
 const AxiosInterceptorSetup = ({ children }) => {
@@ -75,14 +82,34 @@ function App() {
                 { path: 'dashboard', element: <Dashboard /> },
                 { path: 'reports', element: <Reports /> },
                 { path: 'traffic', element: <Traffic /> },
-                { path: 'firewall', element: <Firewall /> },
                 { path: 'detection', element: <AnomalyDetection /> },
-                { path: 'users', element: <UserManagement /> },
-                { path: 'correlation', element: <Correlation /> },
-                { path: 'mitre-attack', element: <MitreAttack /> },
-                { path: 'threat-intel', element: <ThreatIntelligence /> },
                 { path: 'settings', element: <Settings /> },
-                { path: '/network-analytics', element: <NetworkBehaviorAnalytics /> }
+                { path: 'incidents', element: <Incidents /> },
+                { path: 'incidents/:id', element: <IncidentDetail /> },
+                
+                // Admin & Operator Only Routes
+                {
+                  element: <RoleRoute allowedRoles={['admin', 'operator']} />,
+                  children: [
+                    { path: 'firewall', element: <Firewall /> },
+                    { path: 'correlation', element: <Correlation /> },
+                    { path: 'mitre-attack', element: <MitreAttack /> },
+                    { path: 'endpoints', element: <Endpoints /> },
+                    { path: 'threat-intel', element: <ThreatIntelligence /> },
+                    { path: 'network-analytics', element: <NetworkBehaviorAnalytics /> },
+                    { path: 'playbooks', element: <Playbooks /> },
+                    { path: 'playbooks/history', element: <ExecutionHistory /> },
+                    { path: 'playbooks/:id', element: <PlaybookBuilder /> }
+                  ]
+                },
+                
+                // Admin Only Routes
+                {
+                  element: <RoleRoute allowedRoles={['admin']} />,
+                  children: [
+                    { path: 'users', element: <UserManagement /> }
+                  ]
+                }
               ]
             }
           ]

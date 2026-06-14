@@ -1,6 +1,16 @@
 const jwt = require("jsonwebtoken");
 
 const verifyJWT = (req, res, next) => {
+    // Exempt logging and network monitoring ingestion endpoints (from external containers)
+    if (
+        req.path?.startsWith('/filebeat') ||
+        req.originalUrl?.startsWith('/logs/filebeat') ||
+        req.path?.includes('/ingest') ||
+        req.originalUrl?.includes('/ingest')
+    ) {
+        return next();
+    }
+
     // Check for the Authorization header (can be lowercase or uppercase 'A')
     const authHeader = req.headers.authorization || req.headers.Authorization;
     
@@ -18,8 +28,9 @@ const verifyJWT = (req, res, next) => {
         process.env.ACCESS_TOKEN_SECRET,
         (err, decoded) => {
             if (err) return res.status(403).json({ message: "Forbidden: Invalid or expired token" });
-            // Attach the user ID to the request so the next route can use it
+            // Attach the user ID and role to the request so downstream routes can use them
             req.userId = decoded.id;
+            req.userRole = decoded.role;
             next(); // Move on to the actual route
         }
     );
