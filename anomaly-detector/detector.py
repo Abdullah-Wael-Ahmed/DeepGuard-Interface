@@ -50,7 +50,7 @@ if not os.path.exists(MODEL_PATH):
     exit(1)
 
 model  = keras.models.load_model(MODEL_PATH, compile=False)
-scaler = joblib.load(SCALER_PATH)
+scalers = joblib.load(SCALER_PATH)
 
 with open(METADATA_PATH, 'r') as f:
     metadata = json.load(f)
@@ -219,11 +219,16 @@ def flush_windows():
                     feature_vec[0, idx] = np.log1p(feature_vec[0, idx])
 
             # Scale and Predict
-            feature_scaled = scaler.transform(feature_vec)
+            if isinstance(scalers, dict):
+                host_scaler = scalers.get(src_ip, scalers.get('__GLOBAL__'))
+            else:
+                host_scaler = scalers
+                
+            feature_scaled = host_scaler.transform(feature_vec)
             reconstructed = model.predict(feature_scaled, verbose=0)
 
-            # Reconstruction error (MSE)
-            error = float(np.mean(np.square(feature_scaled - reconstructed)))
+            # Reconstruction error (MAE)
+            error = float(np.mean(np.abs(feature_scaled - reconstructed)))
 
             is_anomaly = error > THRESHOLD
             severity   = _severity(error)
