@@ -5,16 +5,16 @@ const execFilePromise = util.promisify(execFile);
 // Helper to query Velociraptor via local docker exec
 const queryVelociraptor = async (vqlQuery) => {
     try {
-        // We use spawn arguments to completely bypass shell string concatenation and quoting bugs.
-        // The VQL query is passed as the positional argument $1 to the container's shell.
+        // We pass the VQL query as an environment variable to the docker container.
+        // This completely bypasses any shell positional argument ($0, $1) parsing inconsistencies
+        // and guarantees the query is executed exactly as intended.
         const cmdArgs = [
             'exec',
+            '-e', `VQL_QUERY=${vqlQuery}`,
             'deepguard-velociraptor',
             'sh',
             '-c',
-            'if [ ! -f /tmp/api_client.yaml ]; then /velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query "$1" --format json',
-            '--',
-            vqlQuery
+            'if [ ! -f /tmp/api_client.yaml ]; then /velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
         ];
         
         const { stdout, stderr } = await execFilePromise('docker', cmdArgs);

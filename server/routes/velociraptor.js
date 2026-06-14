@@ -134,7 +134,8 @@ router.post('/hunt', async (req, res) => {
         const safeClientId = clientId.replace(/[^a-zA-Z0-9.-]/g, '');
 
         // Use env=dict(wait=FALSE) to schedule the collection without blocking
-        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'], env=dict(wait=FALSE))`);
+        // collect_client is a function, not a plugin, so it must be evaluated in SELECT
+        const data = await queryVelociraptor(`SELECT collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'], env=dict(wait=FALSE)).flow_id AS flow_id FROM scope()`);
         console.log(`[DEBUG] Triggered Hunt for ${safeClientId}:`, JSON.stringify(data));
         
         let result = {};
