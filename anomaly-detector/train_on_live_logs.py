@@ -35,6 +35,10 @@ FEATURE_NAMES = [
     'avg_duration',
     'connections_per_sec',
     'avg_bytes_per_flow',
+    'tcp_ratio',
+    'avg_pkt_size',
+    'inbound_outbound_ratio',
+    'proto_diversity',
     'dst_port_entropy',
     'dst_ip_entropy',
 ]
@@ -73,6 +77,8 @@ def _aggregate(flows: list) -> dict:
     packets_total = sum(packets_list)
     syn_count     = sum(1 for s in conn_states if s == 'S0')
     failed_count  = sum(1 for s in conn_states if s != 'SF')
+    tcp_count     = sum(1 for p in protos if p == 'tcp')
+    inbound_outbound = sum(bytes_recv_list) / max(sum(bytes_sent_list), 1)
 
     return {
         'conn_count':          float(n),
@@ -85,6 +91,10 @@ def _aggregate(flows: list) -> dict:
         'avg_duration':        float(np.mean(durations)) if durations else 0.0,
         'connections_per_sec': n / WINDOW_SECONDS,
         'avg_bytes_per_flow':  bytes_total / n if n > 0 else 0.0,
+        'tcp_ratio':           float(tcp_count / n),
+        'avg_pkt_size':        float(bytes_total / packets_total) if packets_total > 0 else 0.0,
+        'inbound_outbound_ratio': float(inbound_outbound),
+        'proto_diversity':     float(len(set(protos))),
         'dst_port_entropy':    float(_calculate_entropy(dst_ports)),
         'dst_ip_entropy':      float(_calculate_entropy(dst_ips)),
     }
