@@ -6,8 +6,33 @@ const Evidence = require("../models/Evidence");
 const Alert = require("../models/Alert");
 const soarEngine = require("../services/soar/engine");
 const IOC = require("../models/IOC");
+const { requireAdminOrOperator } = require("../middleware/authorize");
 
 const router = express.Router();
+
+// ── Middleware: Granular Incident Write Guard for Analysts ───────────────────
+async function requireIncidentWriteAccess(req, res, next) {
+    try {
+        if (req.userRole === 'admin' || req.userRole === 'operator') {
+            return next();
+        }
+        if (req.userRole === 'analyst') {
+            const incident = await Incident.findByPk(req.params.id);
+            if (!incident) {
+                return res.status(404).json({ error: "Incident not found" });
+            }
+            if (incident.assigneeId === req.userId) {
+                req.incident = incident;
+                return next();
+            }
+            return res.status(403).json({ error: "Forbidden: You are not assigned to this incident" });
+        }
+        return res.status(403).json({ error: "Forbidden: Unauthorized role" });
+    } catch (error) {
+        console.error("[Auth Middleware] Error checking write access:", error);
+        res.status(500).json({ error: "Internal server error during authorization checks" });
+    }
+}
 
 // ── Helper: Create a timeline event for an incident ──────────────────────────
 async function logEvent(incidentId, type, actor, message, details = null, actorId = null) {
@@ -53,6 +78,8 @@ router.get("/", async (req, res) => {
             assignee,
             category,
             search,
+            mitreTechnique,
+            falsePositive,
             sortBy = "createdAt",
             sortOrder = "DESC",
         } = req.query;
@@ -75,6 +102,10 @@ router.get("/", async (req, res) => {
         if (priority) where.priority = priority;
         if (assignee) where.assignee = assignee;
         if (category) where.category = category;
+        if (mitreTechnique) where.mitreTechnique = mitreTechnique;
+        if (falsePositive !== undefined) {
+            where.falsePositive = falsePositive === "true";
+        }
         if (search) {
             where[Op.or] = [
                 { title: { [Op.like]: `%${search}%` } },
@@ -179,6 +210,175 @@ router.get("/stats", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// POST /incidents/bulk — Bulk update incidents (Admin/Operator only)
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/bulk", requireAdminOrOperator, async (req, res) => {
+    try {
+        const { incidentIds, status, assignee, assigneeId, severity, priority } = req.body || {};
+        
+        if (!incidentIds || !Array.isArray(incidentIds) || incidentIds.length === 0) {
+            return res.status(400).json({ error: "An array of incidentIds is required" });
+        }
+
+        const updates = {};
+
+        if (status !== undefined) {
+            updates.status = status;
+            if (status === "closed") {
+                updates.closedAt = new Date();
+                updates.resolvedAt = new Date();
+            } else if (status === "remediated") {
+                updates.resolvedAt = new Date();
+            }
+        }
+        if (assignee !== undefined) {
+            updates.assignee = assignee || null;
+            updates.assigneeId = assigneeId || null;
+        }
+        if (severity !== undefined) {
+            updates.severity = severity;
+        }
+        if (priority !== undefined) {
+            updates.priority = priority;
+        }
+
+        await Incident.update(updates, {
+            where: { id: { [Op.in]: incidentIds } }
+        });
+
+        // Log timeline events for all updated incidents
+        const actor = req.body?.actor || "system";
+        const actorId = req.body?.actorId || null;
+        
+        for (const id of incidentIds) {
+            let msg = `Bulk update applied: `;
+            const details = {};
+            if (status !== undefined) {
+                msg += `status set to ${status}. `;
+                details.status = status;
+            }
+            if (assignee !== undefined) {
+                msg += `assignee set to ${assignee || 'unassigned'}. `;
+                details.assignee = assignee;
+            }
+            if (severity !== undefined) {
+                msg += `severity set to ${severity}. `;
+                details.severity = severity;
+            }
+            await logEvent(id, "bulk_update", actor, msg.trim(), details, actorId);
+        }
+
+        res.json({ success: true, count: incidentIds.length });
+    } catch (error) {
+        console.error("[Incidents] Bulk update error:", error);
+        res.status(500).json({ error: "Failed to apply bulk updates", details: error.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POST /incidents/merge — Merge duplicate incidents (Admin/Operator only)
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/merge", requireAdminOrOperator, async (req, res) => {
+    try {
+        const { primaryId, childIds, reason } = req.body || {};
+
+        if (!primaryId || !childIds || !Array.isArray(childIds) || childIds.length === 0) {
+            return res.status(400).json({ error: "primaryId and childIds (array) are required" });
+        }
+
+        if (childIds.includes(primaryId)) {
+            return res.status(400).json({ error: "Primary incident cannot be merged into itself" });
+        }
+
+        const primary = await Incident.findByPk(primaryId);
+        if (!primary) {
+            return res.status(404).json({ error: "Primary incident not found" });
+        }
+
+        const children = await Incident.findAll({
+            where: { id: { [Op.in]: childIds } }
+        });
+
+        if (children.length === 0) {
+            return res.status(404).json({ error: "No child incidents found to merge" });
+        }
+
+        const actor = req.body?.actor || "system";
+        const actorId = req.body?.actorId || null;
+
+        // Perform merge
+        for (const child of children) {
+            // Close the child incident
+            child.status = "closed";
+            child.closedAt = new Date();
+            if (!child.resolvedAt) child.resolvedAt = new Date();
+            await child.save();
+
+            const childRef = formatIncidentId(child.id);
+            const primaryRef = formatIncidentId(primary.id);
+
+            // 1. Log merge event in child timeline
+            await logEvent(
+                child.id,
+                "merged",
+                actor,
+                `Incident merged into primary incident ${primaryRef}. Reason: ${reason || 'Duplicate'}`,
+                { primaryId: primary.id, reason },
+                actorId
+            );
+
+            // 2. Log merge event in primary timeline
+            await logEvent(
+                primary.id,
+                "merged",
+                actor,
+                `Incident ${childRef} merged into this incident. Reason: ${reason || 'Duplicate'}`,
+                { childId: child.id, reason },
+                actorId
+            );
+
+            // 3. Move/Copy timeline events of child to primary
+            const childEvents = await IncidentEvent.findAll({
+                where: { incidentId: child.id }
+            });
+            for (const event of childEvents) {
+                if (event.type !== "created") { // Avoid double created events
+                    await IncidentEvent.create({
+                        incidentId: primary.id,
+                        type: event.type,
+                        actor: event.actor,
+                        actorId: event.actorId,
+                        message: `[Merged from ${childRef}] ${event.message}`,
+                        details: event.details
+                    });
+                }
+            }
+
+            // 4. Move/Copy evidence logs of child to primary
+            const childEvidence = await Evidence.findAll({
+                where: { incidentId: child.id }
+            });
+            for (const ev of childEvidence) {
+                await Evidence.create({
+                    incidentId: primary.id,
+                    type: ev.type,
+                    referenceId: ev.referenceId,
+                    title: `[Merged from ${childRef}] ${ev.title}`,
+                    content: ev.content,
+                    metadata: ev.metadata,
+                    addedBy: ev.addedBy
+                });
+            }
+        }
+
+        res.json({ success: true, mergedCount: children.length });
+    } catch (error) {
+        console.error("[Incidents] Merge error:", error);
+        res.status(500).json({ error: "Failed to merge incidents", details: error.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // GET /incidents/:id — Get single incident with timeline and evidence
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get("/:id", async (req, res) => {
@@ -219,7 +419,7 @@ router.get("/:id", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // POST /incidents — Create a new incident
 // ═══════════════════════════════════════════════════════════════════════════════
-router.post("/", async (req, res) => {
+router.post("/", requireAdminOrOperator, async (req, res) => {
     try {
         const {
             title,
@@ -303,14 +503,14 @@ router.post("/", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PATCH /incidents/:id — Update incident fields
 // ═══════════════════════════════════════════════════════════════════════════════
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", requireIncidentWriteAccess, async (req, res) => {
     try {
-        const incident = await Incident.findByPk(req.params.id);
+        const incident = req.incident || await Incident.findByPk(req.params.id);
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        const { title, description, severity, priority, category, assignee, assigneeId, tags, tlp } = req.body || {};
+        const { title, description, severity, priority, category, assignee, assigneeId, tags, tlp, mitreTechnique, falsePositive, falsePositiveReason, escalationReason } = req.body || {};
         const actor = req.body?.actor || "analyst";
         const actorId = req.body?.actorId || null;
 
@@ -355,6 +555,27 @@ router.patch("/:id", async (req, res) => {
         if (tlp !== undefined) {
             incident.tlp = tlp;
         }
+        if (mitreTechnique !== undefined && mitreTechnique !== incident.mitreTechnique) {
+            changes.push({ field: "mitreTechnique", from: incident.mitreTechnique, to: mitreTechnique });
+            incident.mitreTechnique = mitreTechnique;
+        }
+        if (falsePositive !== undefined && falsePositive !== incident.falsePositive) {
+            changes.push({ field: "falsePositive", from: incident.falsePositive, to: falsePositive });
+            incident.falsePositive = falsePositive;
+            if (falsePositive) {
+                incident.status = "closed";
+                incident.closedAt = new Date();
+                if (!incident.resolvedAt) incident.resolvedAt = new Date();
+            }
+        }
+        if (falsePositiveReason !== undefined) {
+            incident.falsePositiveReason = falsePositiveReason;
+        }
+        if (escalationReason !== undefined && escalationReason !== incident.escalationReason) {
+            changes.push({ field: "escalationReason", from: incident.escalationReason, to: escalationReason });
+            incident.escalationReason = escalationReason;
+            await logEvent(incident.id, "escalated", actor, `Incident escalated: ${escalationReason}`, { reason: escalationReason }, actorId);
+        }
 
         await incident.save();
 
@@ -374,14 +595,18 @@ router.patch("/:id", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PATCH /incidents/:id/status — Transition incident status
 // ═══════════════════════════════════════════════════════════════════════════════
-router.patch("/:id/status", async (req, res) => {
+router.patch("/:id/status", requireIncidentWriteAccess, async (req, res) => {
     try {
-        const incident = await Incident.findByPk(req.params.id);
+        const incident = req.incident || await Incident.findByPk(req.params.id);
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
         }
 
         const { status, actor = "analyst", actorId = null, reason } = req.body || {};
+
+        if (status === "closed" && (!reason || !reason.trim())) {
+            return res.status(400).json({ error: "A closure reason/justification is required to close an incident." });
+        }
 
         // Valid transitions
         const validTransitions = {
@@ -440,9 +665,9 @@ router.patch("/:id/status", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // POST /incidents/:id/comment — Add a comment to the timeline
 // ═══════════════════════════════════════════════════════════════════════════════
-router.post("/:id/comment", async (req, res) => {
+router.post("/:id/comment", requireIncidentWriteAccess, async (req, res) => {
     try {
-        const incident = await Incident.findByPk(req.params.id);
+        const incident = req.incident || await Incident.findByPk(req.params.id);
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
         }
@@ -472,9 +697,9 @@ router.post("/:id/comment", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // POST /incidents/:id/evidence — Attach evidence to an incident
 // ═══════════════════════════════════════════════════════════════════════════════
-router.post("/:id/evidence", async (req, res) => {
+router.post("/:id/evidence", requireIncidentWriteAccess, async (req, res) => {
     try {
-        const incident = await Incident.findByPk(req.params.id);
+        const incident = req.incident || await Incident.findByPk(req.params.id);
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
         }
@@ -514,7 +739,7 @@ router.post("/:id/evidence", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELETE /incidents/:id/evidence/:evidenceId — Remove evidence
 // ═══════════════════════════════════════════════════════════════════════════════
-router.delete("/:id/evidence/:evidenceId", async (req, res) => {
+router.delete("/:id/evidence/:evidenceId", requireIncidentWriteAccess, async (req, res) => {
     try {
         const evidence = await Evidence.findOne({
             where: { id: req.params.evidenceId, incidentId: req.params.id },
@@ -620,7 +845,7 @@ router.post("/from-alert/:alertId", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELETE /incidents/:id — Delete an incident (admin only in practice)
 // ═══════════════════════════════════════════════════════════════════════════════
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAdminOrOperator, async (req, res) => {
     try {
         const incident = await Incident.findByPk(req.params.id);
         if (!incident) {

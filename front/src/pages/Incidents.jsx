@@ -66,6 +66,9 @@ const Incidents = () => {
     }, [searchParams]);
     const [filterStatus, setFilterStatus] = useState('active');
     const [filterSeverity, setFilterSeverity] = useState('');
+    const [filterMitre, setFilterMitre] = useState('');
+    const [filterFalsePositive, setFilterFalsePositive] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
     const [showFilters, setShowFilters] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -91,6 +94,8 @@ const Incidents = () => {
             const params = { page, limit: 20, sortBy: 'createdAt', sortOrder: 'DESC' };
             if (filterStatus) params.status = filterStatus;
             if (filterSeverity) params.severity = filterSeverity;
+            if (filterMitre.trim()) params.mitreTechnique = filterMitre.trim();
+            if (filterFalsePositive !== '') params.falsePositive = filterFalsePositive;
             if (search.trim()) params.search = search.trim();
 
             const res = await axios.get(`${BACK}/incidents`, { withCredentials: true, params });
@@ -126,13 +131,186 @@ const Incidents = () => {
         fetchStats(); 
         fetchAnalysts();
     }, []);
-    useEffect(() => { fetchIncidents(); }, [page, filterStatus, filterSeverity]);
+    useEffect(() => { fetchIncidents(); }, [page, filterStatus, filterSeverity, filterFalsePositive]);
 
-    // Debounced search
+    // Debounced search and mitre
     useEffect(() => {
         const timer = setTimeout(() => { if (page === 1) fetchIncidents(); else setPage(1); }, 400);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, filterMitre]);
+
+    // ── Bulk Actions Helpers ─────────────────────────────────────────────────
+    const handleBulkAssign = async (assigneeName, assigneeId) => {
+        try {
+            setLoading(true);
+            await axios.post(`${BACK}/incidents/bulk`, {
+                incidentIds: selectedIds,
+                assignee: assigneeName,
+                assigneeId: assigneeId,
+                actor: user?.name || 'admin',
+                actorId: user?.id || null
+            }, { withCredentials: true });
+            toast.success(`Assigned ${selectedIds.length} incident(s) to ${assigneeName}`);
+            setSelectedIds([]);
+            fetchIncidents();
+            fetchStats();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update incidents');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleBulkClose = async (reason) => {
+        if (!reason || !reason.trim()) {
+            toast.error("A closure reason/justification is required to close incidents.");
+            return;
+        }
+        try {
+            setLoading(true);
+            await axios.post(`${BACK}/incidents/bulk`, {
+                incidentIds: selectedIds,
+                status: "closed",
+                reason: reason.trim(),
+                actor: user?.name || 'admin',
+                actorId: user?.id || null
+            }, { withCredentials: true });
+            toast.success(`Closed ${selectedIds.length} incident(s)`);
+            setSelectedIds([]);
+            fetchIncidents();
+            fetchStats();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to close incidents');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMerge = async (primaryId, childIds, reason) => {
+        try {
+            setLoading(true);
+            await axios.post(`${BACK}/incidents/merge`, {
+                primaryId,
+                childIds,
+                reason,
+                actor: user?.name || 'admin',
+                actorId: user?.id || null
+            }, { withCredentials: true });
+            toast.success(`Successfully merged child incidents into INC-${String(primaryId).padStart(5, '0')}`);
+            setSelectedIds([]);
+            fetchIncidents();
+            fetchStats();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to merge incidents');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleExportCSV = () => {
+        const targetIncidents = incidents.filter(inc => selectedIds.includes(inc.id));
+        if (targetIncidents.length === 0) return;
+
+        const headers = ['ID', 'Title', 'Status', 'Severity', 'Priority', 'Assignee', 'Category', 'TLP', 'SLA Deadline', 'Created At'];
+        const rows = targetIncidents.map(inc => [
+            `INC-${String(inc.id).padStart(5, '0')}`,
+            `"${(inc.title || '').replace(/"/g, '""')}"`,
+            inc.status || '',
+            inc.severity || '',
+            inc.priority || '',
+            inc.assignee || 'Unassigned',
+            inc.category || '',
+            inc.tlp || '',
+            inc.slaDeadline ? new Date(inc.slaDeadline).toISOString() : '',
+            new Date(inc.createdAt).toISOString()
+        ]);
+
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `deepguard_incidents_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("CSV export download started.");
+    };
+
+    const handlePrintPDF = () => {
+        const targetIncidents = incidents.filter(inc => selectedIds.includes(inc.id));
+        if (targetIncidents.length === 0) return;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast.error("Popup blocked! Please allow popups to export PDF/Print.");
+            return;
+        }
+
+        const rowsHtml = targetIncidents.map(inc => `
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-family: monospace;">INC-${String(inc.id).padStart(5, '0')}</td>
+                <td style="padding: 8px;">${inc.severity.toUpperCase()}</td>
+                <td style="padding: 8px; font-weight: bold;">${inc.title}</td>
+                <td style="padding: 8px;">${inc.status}</td>
+                <td style="padding: 8px;">${inc.priority || '—'}</td>
+                <td style="padding: 8px;">${inc.assignee || 'Unassigned'}</td>
+                <td style="padding: 8px;">${inc.category || '—'}</td>
+                <td style="padding: 8px;">${inc.slaDeadline ? new Date(inc.slaDeadline).toLocaleString() : '—'}</td>
+                <td style="padding: 8px;">${new Date(inc.createdAt).toLocaleString()}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>DeepGuard Incident Management Report</title>
+                <style>
+                    body { font-family: system-ui, sans-serif; color: #333; margin: 40px; }
+                    h1 { color: #003f7f; border-bottom: 2px solid #003f7f; padding-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { text-align: left; background-color: #f5f5f5; padding: 10px; border-bottom: 2px solid #ddd; }
+                    td { padding: 10px; border-bottom: 1px solid #eee; }
+                    .footer { margin-top: 40px; font-size: 12px; color: #777; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <h1>DeepGuard Security Incident Report</h1>
+                <p><strong>Generated on:</strong> \${new Date().toLocaleString()}</p>
+                <p><strong>Total Incidents Exported:</strong> \${targetIncidents.length}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Assignee</th>
+                            <th>Category</th>
+                            <th>SLA Deadline</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        \${rowsHtml}
+                    </tbody>
+                </table>
+                <div class="footer">
+                    DeepGuard SOC Platform Security Report. Confidential.
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        window.close();
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
 
     // ── Create incident ──────────────────────────────────────────────────────
     const handleCreate = async (e) => {
@@ -254,6 +432,16 @@ const Incidents = () => {
                     </div>
                 </div>
 
+                {/* SLA Breach Notice Banner */}
+                {stats.breachedSLA > 0 && (
+                    <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 animate-pulse animate-fade-in">
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                        <div className="flex-1 text-sm font-medium">
+                            Attention: There {stats.breachedSLA === 1 ? 'is 1 active incident' : `are ${stats.breachedSLA} active incidents`} currently breaching SLA response/remediation deadlines! Please prioritize and resolve immediately.
+                        </div>
+                    </div>
+                )}
+
                 {/* Search & Filters */}
                 <div className="flex flex-col gap-3 animate-fade-in">
                     <div className="flex flex-wrap gap-3">
@@ -288,7 +476,41 @@ const Incidents = () => {
                                 <option key={key} value={key}>{val.label}</option>
                             ))}
                         </select>
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${showFilters ? 'bg-primary/10 border-primary text-primary' : 'bg-card-dark border-gray-700 text-text-main hover:border-gray-500'}`}
+                        >
+                            <Filter size={16} />
+                            <span className="text-sm">More Filters</span>
+                        </button>
                     </div>
+
+                    {showFilters && (
+                        <div className="flex flex-wrap gap-4 p-4 bg-card-dark border border-gray-700 rounded-xl animate-fade-in">
+                            <div className="flex flex-col gap-1.5 min-w-[200px]">
+                                <label className="text-xs text-text-secondary">MITRE Technique</label>
+                                <input
+                                    type="text"
+                                    value={filterMitre}
+                                    onChange={(e) => { setFilterMitre(e.target.value); setPage(1); }}
+                                    placeholder="e.g. T1078"
+                                    className="bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-primary transition-all"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5 min-w-[200px]">
+                                <label className="text-xs text-text-secondary">False Positive Status</label>
+                                <select
+                                    value={filterFalsePositive}
+                                    onChange={(e) => { setFilterFalsePositive(e.target.value); setPage(1); }}
+                                    className="bg-background-dark border border-gray-700 text-text-main text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-primary transition-all cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    <option value="true">False Positive Only</option>
+                                    <option value="false">True Positive Only</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Incidents Table */}
@@ -307,6 +529,22 @@ const Incidents = () => {
                         <table className="w-full text-left">
                             <thead>
                                 <tr className="border-b border-gray-700 bg-background-dark/40">
+                                    {user?.role !== 'analyst' && (
+                                        <th className="p-4 w-12 text-left">
+                                            <input
+                                                type="checkbox"
+                                                checked={incidents.length > 0 && selectedIds.length === incidents.length}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedIds(incidents.map(inc => inc.id));
+                                                    } else {
+                                                        setSelectedIds([]);
+                                                    }
+                                                }}
+                                                className="rounded border-gray-700 text-primary focus:ring-primary bg-background-dark cursor-pointer h-4 w-4"
+                                            />
+                                        </th>
+                                    )}
                                     {['ID', 'Severity', 'Title', 'Status', 'Priority', 'Assignee', 'SLA', 'Created', ''].map((h, i) => (
                                         <th key={i} className="p-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">{h}</th>
                                     ))}
@@ -322,18 +560,33 @@ const Incidents = () => {
                                     return (
                                         <tr
                                             key={inc.id}
-                                            onClick={() => navigate(`/incidents/${inc.id}`)}
                                             className="hover:bg-white/5 transition-colors cursor-pointer group"
                                         >
-                                            <td className="p-4 text-sm font-mono text-primary">
+                                            {user?.role !== 'analyst' && (
+                                                <td className="p-4 w-12" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.includes(inc.id)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setSelectedIds([...selectedIds, inc.id]);
+                                                            } else {
+                                                                setSelectedIds(selectedIds.filter(id => id !== inc.id));
+                                                            }
+                                                        }}
+                                                        className="rounded border-gray-700 text-primary focus:ring-primary bg-background-dark cursor-pointer h-4 w-4"
+                                                    />
+                                                </td>
+                                            )}
+                                            <td className="p-4 text-sm font-mono text-primary" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 INC-{String(inc.id).padStart(5, '0')}
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-4" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${sev.color}`}>
                                                     {sev.label}
                                                 </span>
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-4" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-medium text-text-main truncate max-w-xs">{inc.title}</span>
                                                     {inc.category && (
@@ -343,21 +596,21 @@ const Incidents = () => {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-4" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${st.color}`}>
                                                     <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`}></span>
                                                     {st.label}
                                                 </span>
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-4" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 <span className={`px-2 py-1 rounded text-xs font-bold ${pr.color}`}>
                                                     {pr.label}
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-sm text-text-secondary">
+                                            <td className="p-4 text-sm text-text-secondary" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 {inc.assignee || <span className="text-gray-600 italic">Unassigned</span>}
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-4" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 {inc.slaDeadline ? (
                                                     <span className={`text-xs font-mono ${breached ? 'text-red-400 font-bold' : 'text-text-secondary'}`}>
                                                         {breached ? '⚠ BREACHED' : timeAgo(inc.slaDeadline).replace(' ago', ' left').replace('Just now', 'Due now')}
@@ -366,10 +619,10 @@ const Incidents = () => {
                                                     <span className="text-xs text-gray-600">—</span>
                                                 )}
                                             </td>
-                                            <td className="p-4 text-xs text-text-secondary">
+                                            <td className="p-4 text-xs text-text-secondary" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 {timeAgo(inc.createdAt)}
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-4" onClick={() => navigate(`/incidents/${inc.id}`)}>
                                                 <ArrowUpRight size={16} className="text-gray-600 group-hover:text-primary transition-colors" />
                                             </td>
                                         </tr>
@@ -403,6 +656,94 @@ const Incidents = () => {
                     )}
                 </div>
             </div>
+
+            {/* ═══ FLOATING BULK ACTIONS BAR ═══ */}
+            {selectedIds.length > 0 && user?.role !== 'analyst' && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card-dark/95 backdrop-blur-md border border-primary/30 rounded-xl px-6 py-4 flex flex-wrap items-center gap-6 shadow-2xl animate-slide-up text-text-main max-w-[90vw]">
+                    <span className="text-sm font-medium text-primary">
+                        {selectedIds.length} incident{selectedIds.length > 1 ? 's' : ''} selected
+                    </span>
+                    <div className="h-6 w-px bg-gray-700 hidden sm:block"></div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Bulk Assignment */}
+                        <select
+                            onChange={(e) => {
+                                const analystId = e.target.value;
+                                if (analystId) {
+                                    const selectedAnalyst = analysts.find(a => String(a.id) === analystId);
+                                    handleBulkAssign(selectedAnalyst ? selectedAnalyst.name : '', analystId ? parseInt(analystId) : null);
+                                    e.target.value = "";
+                                }
+                            }}
+                            className="bg-background-dark border border-gray-700 text-text-main text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary transition-all cursor-pointer"
+                        >
+                            <option value="">Assign to...</option>
+                            {analysts.map(a => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                        </select>
+
+                        {/* Bulk Close */}
+                        <button
+                            onClick={() => {
+                                const reason = prompt("Enter closure reason/justification for selected incident(s):");
+                                if (reason !== null) {
+                                    handleBulkClose(reason);
+                                }
+                            }}
+                            className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-all cursor-pointer"
+                        >
+                            Close Selected
+                        </button>
+
+                        {/* Merge Selected (Requires 2 or more) */}
+                        {selectedIds.length >= 2 && (
+                            <button
+                                onClick={() => {
+                                    const primaryIdStr = prompt(`Enter the ID (e.g. INC-00001 or just the number) of the primary incident to merge others into:`);
+                                    if (primaryIdStr) {
+                                        const numericId = parseInt(primaryIdStr.replace(/[^0-9]/g, ''));
+                                        if (isNaN(numericId)) {
+                                            toast.error("Invalid primary incident ID format.");
+                                        } else if (!selectedIds.includes(numericId)) {
+                                            toast.error("Primary incident must be one of the selected incidents.");
+                                        } else {
+                                            const reason = prompt(`Enter merge reason/justification (optional):`);
+                                            handleMerge(numericId, selectedIds.filter(id => id !== numericId), reason || "Duplicate incident");
+                                        }
+                                    }
+                                }}
+                                className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-semibold rounded-lg hover:bg-purple-500/20 transition-all cursor-pointer"
+                            >
+                                Merge
+                            </button>
+                        )}
+
+                        {/* CSV Export */}
+                        <button
+                            onClick={handleExportCSV}
+                            className="px-3 py-1.5 bg-primary text-background-dark text-xs font-bold rounded-lg hover:brightness-110 transition-all cursor-pointer"
+                        >
+                            Export CSV
+                        </button>
+
+                        {/* Print/PDF */}
+                        <button
+                            onClick={handlePrintPDF}
+                            className="px-3 py-1.5 bg-card-dark border border-gray-700 text-text-main text-xs font-semibold rounded-lg hover:border-gray-500 transition-all cursor-pointer"
+                        >
+                            Print PDF
+                        </button>
+                    </div>
+                    <div className="h-6 w-px bg-gray-700 hidden sm:block"></div>
+                    <button
+                        onClick={() => setSelectedIds([])}
+                        className="text-xs text-text-secondary hover:text-text-main transition-colors cursor-pointer"
+                    >
+                        Clear Selection
+                    </button>
+                </div>
+            )}
 
             {/* ═══ CREATE INCIDENT MODAL ═══ */}
             {showCreateModal && (
