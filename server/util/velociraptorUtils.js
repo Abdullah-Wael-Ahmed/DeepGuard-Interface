@@ -14,7 +14,7 @@ const queryVelociraptor = async (vqlQuery) => {
             'deepguard-velociraptor',
             'sh',
             '-c',
-            'if [ ! -f /tmp/api_client.yaml ]; then /velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
+            'if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then $VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; $VR_BIN --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
         ];
         
         const { stdout, stderr } = await execFilePromise('docker', cmdArgs);
