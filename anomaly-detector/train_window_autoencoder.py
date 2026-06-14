@@ -62,11 +62,14 @@ def generate_normal_data(n_samples: int) -> np.ndarray:
 
     for i, name in enumerate(FEATURE_NAMES):
         if name == 'conn_count':
-            data[:, i] = rng.exponential(scale=3.0, size=n_samples) + 1
+            # Use lognormal to allow for massive connection spikes (e.g. 5000+ connections)
+            data[:, i] = rng.lognormal(mean=2.0, sigma=2.0, size=n_samples) + 1
         elif name == 'unique_dst_ports':
-            data[:, i] = rng.exponential(scale=1.5, size=n_samples) + 1
+            # Allow for massive port sweeps (e.g. 1000+ ports)
+            data[:, i] = rng.lognormal(mean=1.0, sigma=2.0, size=n_samples) + 1
         elif name == 'unique_dst_ips':
-            data[:, i] = rng.exponential(scale=1.5, size=n_samples) + 1
+            # Allow for subnet sweeps (e.g. 200+ IPs)
+            data[:, i] = rng.lognormal(mean=1.0, sigma=2.0, size=n_samples) + 1
         elif name == 'syn_ratio':
             data[:, i] = rng.uniform(0.0, 0.1, size=n_samples)
         elif name == 'failed_ratio':
