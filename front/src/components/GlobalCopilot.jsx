@@ -273,7 +273,7 @@ const GlobalCopilot = () => {
             const res = await axios.post(
                 `${BACK}/copilot/query`,
                 { prompt: userMsg, pageContext: pageCtx },
-                { withCredentials: true, timeout: 90000 }
+                { withCredentials: true, timeout: 60000 }
             );
 
             if (res.data.rateLimit) {

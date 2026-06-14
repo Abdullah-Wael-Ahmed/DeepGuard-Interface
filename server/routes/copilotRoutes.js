@@ -384,11 +384,9 @@ function callNvidiaOnce(modelName, payload, apiKey) {
         });
 
         req.on('error', reject);
-        req.setTimeout(60000, () => {
+        req.setTimeout(30000, () => {
             req.destroy();
-            const err = new Error('NVIDIA request timed out');
-            err.isTimeout = true;
-            reject(err);
+            reject(new Error('NVIDIA request timed out'));
         });
         req.write(payload);
         req.end();
@@ -408,7 +406,7 @@ async function callNvidia(systemPrompt, liveContext, userPrompt, pageContext) {
         `\nUSER QUERY: ${userPrompt}`
     ].filter(Boolean).join('\n');
 
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 3;
     const errors = [];
 
     for (const model of MODEL_CHAIN) {
@@ -433,9 +431,9 @@ async function callNvidia(systemPrompt, liveContext, userPrompt, pageContext) {
                 errors.push({ model, attempt, message: err.message });
                 console.warn(`[Copilot] NVIDIA ${model} attempt ${attempt} failed: ${err.message}`);
 
-                // If rate-limited (quota=0 or 429) or timed out, skip to next model immediately to avoid compounding delay
-                if (err.isRateLimit || err.isTimeout) {
-                    console.warn(`[Copilot] ${model} rate-limited or timed out, skipping to next model`);
+                // If rate-limited (quota=0 or 429), skip to next model immediately
+                if (err.isRateLimit) {
+                    console.warn(`[Copilot] ${model} rate-limited, skipping to next model`);
                     break;
                 }
 
