@@ -67,6 +67,13 @@ function App() {
       element: <PersistLogin />,
       children: [
         {
+          // Redirects to "/" if the user is already authenticated
+          element: <PublicRoute />,
+          children: [
+            { path: '/login', element: <LoginPage /> }
+          ]
+        },
+        {
           element: <ProtectedRoute />,
           errorElement: <div className="p-10 text-white">Something went wrong! <a href="/" className="text-primary underline">Go Home</a></div>,
           children: [
