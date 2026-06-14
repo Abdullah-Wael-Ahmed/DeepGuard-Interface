@@ -5,6 +5,7 @@ import ExecutiveSummary from '../components/reports/ExecutiveSummary';
 import EndpointFleetHealth from '../components/reports/EndpointFleetHealth';
 import IncidentPostMortem from '../components/reports/IncidentPostMortem';
 import DeepGuardAiAnomalies from '../components/reports/DeepGuardAiAnomalies';
+import { exportReportToCSV } from '../services/exportService';
 
 const Reports = () => {
     const [activeTemplate, setActiveTemplate] = useState('executive');
@@ -68,6 +69,10 @@ const Reports = () => {
     const handleExportPDF = () => {
         // Placeholder for Step 4
         alert('PDF Export functionality will be connected to the backend generator soon.');
+    };
+
+    const handleExportCSV = () => {
+        exportReportToCSV(activeTemplate, reportData);
     };
 
     const handleIpSearch = (e) => {
@@ -142,7 +147,10 @@ const Reports = () => {
                             )}
                         </div>
                         <div className="flex gap-3">
-                            <button className="flex items-center gap-2 px-4 py-2 bg-card-dark text-text-secondary text-sm font-medium rounded-lg border border-gray-700 hover:bg-white/5 transition-colors">
+                            <button 
+                                onClick={handleExportCSV}
+                                className="flex items-center gap-2 px-4 py-2 bg-card-dark text-text-secondary text-sm font-medium rounded-lg border border-gray-700 hover:bg-white/5 transition-colors"
+                            >
                                 <Download size={16} />
                                 Export CSV
                             </button>
