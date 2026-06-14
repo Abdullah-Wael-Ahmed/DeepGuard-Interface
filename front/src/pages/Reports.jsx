@@ -67,8 +67,18 @@ const Reports = () => {
     }, [activeTemplate, timeRange, submittedIp]);
 
     const handleExportPDF = () => {
-        // Placeholder for Step 4
-        alert('PDF Export functionality will be connected to the backend generator soon.');
+        const queryParams = new URLSearchParams({
+            template: activeTemplate,
+            hours: timeRange
+        });
+        
+        if (activeTemplate === 'postmortem' && submittedIp) {
+            queryParams.append('ip', submittedIp);
+        }
+
+        // Trigger the backend PDF generation
+        const exportUrl = `${import.meta.env.VITE_BACK}/reports/export/pdf?${queryParams.toString()}`;
+        window.open(exportUrl, '_blank');
     };
 
     const handleExportCSV = () => {

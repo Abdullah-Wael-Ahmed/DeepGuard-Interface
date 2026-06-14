@@ -14,6 +14,7 @@ import Layout from './pages/Layout';
 import LoginPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
+import ReportPrintView from './pages/ReportPrintView';
 import Traffic from './pages/Traffic';
 import Firewall from './pages/Firewall';
 import Settings from './pages/Settings';
@@ -81,6 +82,7 @@ function App() {
                 { index: true, element: <Dashboard /> },
                 { path: 'dashboard', element: <Dashboard /> },
                 { path: 'reports', element: <Reports /> },
+                { path: 'reports/print/:templateId', element: <ReportPrintView /> },
                 { path: 'traffic', element: <Traffic /> },
                 { path: 'detection', element: <AnomalyDetection /> },
                 { path: 'settings', element: <Settings /> },

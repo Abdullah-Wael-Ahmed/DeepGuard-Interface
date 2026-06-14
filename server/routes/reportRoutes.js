@@ -1,5 +1,6 @@
 const express = require("express");
 const reportService = require("../services/reportService");
+const pdfService = require("../services/pdfService");
 
 const router = express.Router();
 
@@ -50,6 +51,31 @@ router.get("/ai-anomalies", async (req, res) => {
     } catch (error) {
         console.error("Error generating AI anomalies report:", error);
         res.status(500).json({ error: "Failed to generate report data" });
+    }
+});
+
+/**
+ * Trigger PDF generation via Puppeteer
+ * GET /api/reports/export/pdf?template=executive&hours=24&ip=...
+ */
+router.get("/export/pdf", async (req, res) => {
+    try {
+        const { template, hours, ip } = req.query;
+        
+        // internal frontend URL inside Docker network
+        const baseUrl = process.env.FRONTEND_INTERNAL_URL || "http://frontend:3000";
+        const printUrl = `${baseUrl}/reports/print/${template}?hours=${hours || 24}${ip ? `&ip=${ip}` : ""}`;
+
+        console.log(`[PDF] Generating report for: ${printUrl}`);
+        
+        const pdfBuffer = await pdfService.generateFromUrl(printUrl, `DeepGuard_${template}_Report`);
+
+        res.contentType("application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename=DeepGuard_${template}_Report.pdf`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error("Error exporting PDF:", error);
+        res.status(500).json({ error: "Failed to export PDF" });
     }
 });
 
