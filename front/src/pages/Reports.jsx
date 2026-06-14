@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Download, Calendar, Shield, AlertCircle, HardDrive, BrainCircuit, Search } from 'lucide-react';
+import { toast } from 'react-toastify';
 import ExecutiveSummary from '../components/reports/ExecutiveSummary';
 import EndpointFleetHealth from '../components/reports/EndpointFleetHealth';
 import IncidentPostMortem from '../components/reports/IncidentPostMortem';
@@ -66,7 +67,7 @@ const Reports = () => {
         fetchReportData();
     }, [activeTemplate, timeRange, submittedIp]);
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         const queryParams = new URLSearchParams({
             template: activeTemplate,
             hours: timeRange
@@ -76,9 +77,29 @@ const Reports = () => {
             queryParams.append('ip', submittedIp);
         }
 
-        // Trigger the backend PDF generation
-        const exportUrl = `${import.meta.env.VITE_BACK}/reports/export/pdf?${queryParams.toString()}`;
-        window.open(exportUrl, '_blank');
+        const id = toast.loading("Generating PDF Report... This may take a few seconds.");
+
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_BACK}/reports/export/pdf?${queryParams.toString()}`, {
+                responseType: 'blob',
+                withCredentials: true
+            });
+
+            // Create a blob link to trigger the download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `DeepGuard_${activeTemplate}_Report.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+            toast.update(id, { render: "PDF Downloaded Successfully!", type: "success", isLoading: false, autoClose: 3000 });
+        } catch (error) {
+            console.error("PDF Export Error:", error);
+            toast.update(id, { render: "Failed to generate PDF. Please check server logs.", type: "error", isLoading: false, autoClose: 3000 });
+        }
     };
 
     const handleExportCSV = () => {
