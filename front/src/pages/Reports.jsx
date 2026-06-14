@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Download, Calendar, Shield, AlertCircle, HardDrive, BrainCircuit } from 'lucide-react';
+import { Download, Calendar, Shield, AlertCircle, HardDrive, BrainCircuit, Search } from 'lucide-react';
 import ExecutiveSummary from '../components/reports/ExecutiveSummary';
 import EndpointFleetHealth from '../components/reports/EndpointFleetHealth';
 import IncidentPostMortem from '../components/reports/IncidentPostMortem';
@@ -8,6 +8,8 @@ import IncidentPostMortem from '../components/reports/IncidentPostMortem';
 const Reports = () => {
     const [activeTemplate, setActiveTemplate] = useState('executive');
     const [timeRange, setTimeRange] = useState(24);
+    const [targetIp, setTargetIp] = useState('');
+    const [submittedIp, setSubmittedIp] = useState('');
     const [reportData, setReportData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -33,10 +35,17 @@ const Reports = () => {
                     });
                     setReportData(res.data);
                 } else if (activeTemplate === 'postmortem') {
-                    const res = await axios.post(`${import.meta.env.VITE_BACK}/reports/postmortem`, { hours: timeRange }, {
+                    const res = await axios.post(`${import.meta.env.VITE_BACK}/reports/postmortem`, { 
+                        hours: timeRange,
+                        ip: submittedIp || null // Send the searched IP if available
+                    }, {
                         withCredentials: true
                     });
                     setReportData(res.data);
+                    // Update the input to show the IP the backend actually used
+                    if (res.data && res.data.targetIp) {
+                        setTargetIp(res.data.targetIp);
+                    }
                 } else {
                     // For now, clear data for templates that aren't implemented yet
                     setReportData(null);
@@ -49,11 +58,16 @@ const Reports = () => {
         };
 
         fetchReportData();
-    }, [activeTemplate, timeRange]);
+    }, [activeTemplate, timeRange, submittedIp]);
 
     const handleExportPDF = () => {
         // Placeholder for Step 4
         alert('PDF Export functionality will be connected to the backend generator soon.');
+    };
+
+    const handleIpSearch = (e) => {
+        e.preventDefault();
+        setSubmittedIp(targetIp);
     };
 
     return (
@@ -86,17 +100,41 @@ const Reports = () => {
                     
                     {/* Header: Controls */}
                     <div className="flex flex-wrap justify-between items-center gap-4 bg-card-dark p-4 rounded-xl border border-gray-800">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="text-gray-500" size={20} />
-                            <select 
-                                value={timeRange} 
-                                onChange={(e) => setTimeRange(Number(e.target.value))}
-                                className="bg-transparent text-text-main text-sm font-medium focus:outline-none cursor-pointer"
-                            >
-                                <option value={24} className="bg-card-dark">Last 24 Hours</option>
-                                <option value={168} className="bg-card-dark">Last 7 Days</option>
-                                <option value={720} className="bg-card-dark">Last 30 Days</option>
-                            </select>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="text-gray-500" size={20} />
+                                <select 
+                                    value={timeRange} 
+                                    onChange={(e) => setTimeRange(Number(e.target.value))}
+                                    className="bg-transparent text-text-main text-sm font-medium focus:outline-none cursor-pointer"
+                                >
+                                    <option value={24} className="bg-card-dark">Last 24 Hours</option>
+                                    <option value={168} className="bg-card-dark">Last 7 Days</option>
+                                    <option value={720} className="bg-card-dark">Last 30 Days</option>
+                                </select>
+                            </div>
+
+                            {/* Conditional Search Bar for Post-Mortem */}
+                            {activeTemplate === 'postmortem' && (
+                                <form onSubmit={handleIpSearch} className="flex items-center ml-4 pl-4 border-l border-gray-700">
+                                    <div className="relative flex items-center">
+                                        <Search className="absolute left-3 text-text-secondary" size={16} />
+                                        <input 
+                                            type="text" 
+                                            value={targetIp}
+                                            onChange={(e) => setTargetIp(e.target.value)}
+                                            placeholder="Enter target IP (e.g., 10.0.0.5)"
+                                            className="bg-background-dark border border-gray-700 text-text-main text-sm rounded-l-lg pl-9 pr-3 py-2 w-56 focus:outline-none focus:border-primary/50"
+                                        />
+                                    </div>
+                                    <button 
+                                        type="submit" 
+                                        className="px-4 py-2 bg-primary/20 text-primary text-sm font-medium rounded-r-lg border border-primary/20 border-l-0 hover:bg-primary/30 transition-colors"
+                                    >
+                                        Generate
+                                    </button>
+                                </form>
+                            )}
                         </div>
                         <div className="flex gap-3">
                             <button className="flex items-center gap-2 px-4 py-2 bg-card-dark text-text-secondary text-sm font-medium rounded-lg border border-gray-700 hover:bg-white/5 transition-colors">
