@@ -46,7 +46,11 @@ WINDOW_SIZE = 30   # seconds
 # ─── Removed static normal ranges, using distributions directly ──────────
 
 NUM_SAMPLES = 8000
-LOG_FEATURES = ['bytes_total', 'packets_total', 'avg_bytes_per_flow', 'conn_count', 'connections_per_sec']
+LOG_FEATURES = [
+    'bytes_total', 'packets_total', 'avg_bytes_per_flow', 
+    'conn_count', 'connections_per_sec',
+    'avg_duration', 'unique_dst_ports', 'unique_dst_ips'
+]
 
 
 # ─── Synthetic data generation ───────────────────────────
