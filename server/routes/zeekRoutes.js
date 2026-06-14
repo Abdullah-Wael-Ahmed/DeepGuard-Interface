@@ -178,9 +178,9 @@ router.post("/ingest/conn", async (req, res) => {
     try {
         const data = req.body;
 
-        console.log("zeek conn ---------------------------------")
-        console.log(req.body)
-        console.log('---------------------------------------------')
+        // console.log("zeek conn ---------------------------------")
+        // console.log(req.body)
+        // console.log('---------------------------------------------')
 
         // Detect SYN flood by conn_state
         const isSynFlood = data.conn_state === 'S0' && 
