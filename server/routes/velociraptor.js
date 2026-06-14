@@ -91,7 +91,7 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
         const flowId = req.params.flowId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const flowData = await queryVelociraptor(`SELECT artifacts FROM flows(client_id='${clientId}', flow_id='${flowId}')`);
+        const flowData = await queryVelociraptor(`SELECT artifacts FROM flows(client_id='${clientId}') WHERE flow_id='${flowId}'`);
         let artifact = '';
         if (flowData.Responses && flowData.Responses.length > 0) {
             let flows = flowData.Responses[0].Response || [];
@@ -134,7 +134,7 @@ router.post('/hunt', async (req, res) => {
         const safeClientId = clientId.replace(/[^a-zA-Z0-9.-]/g, '');
 
         // Use env=dict(wait=FALSE) to schedule the collection without blocking
-        const data = await queryVelociraptor(`SELECT collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'], env=dict(wait=FALSE)) AS flow_id FROM scope()`);
+        const data = await queryVelociraptor(`SELECT collect_client(client_id='${safeClientId}', artifacts=split(string='${safeArtifact}', sep=','), env=dict(wait=FALSE)) AS flow_id FROM scope()`);
         console.log(`[DEBUG] Triggered Hunt for ${safeClientId}:`, JSON.stringify(data));
         
         let result = {};

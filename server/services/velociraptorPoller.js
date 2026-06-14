@@ -53,7 +53,7 @@ class VelociraptorPoller {
 
             try {
                 // Check flow state
-                const data = await queryVelociraptor(`SELECT state FROM flows(client_id='${clientId}', flow_id='${flowId}')`);
+                const data = await queryVelociraptor(`SELECT state FROM flows(client_id='${clientId}') WHERE flow_id='${flowId}'`);
                 let state = null;
                 
                 if (data.Responses && data.Responses.length > 0) {
