@@ -97,6 +97,13 @@ const Reports = () => {
                 return;
             }
 
+            // Sanity check: confirm the browser actually received the bytes.
+            console.log(`[PDF] Received blob: ${response.data.size} bytes, type=${response.data.type}`);
+            if (!response.data.size) {
+                toast.update(id, { render: "Export Failed: received empty PDF (0 bytes) from server.", type: "error", isLoading: false, autoClose: 5000 });
+                return;
+            }
+
             // Create a blob link to trigger the download
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             const link = document.createElement('a');
@@ -104,8 +111,12 @@ const Reports = () => {
             link.setAttribute('download', `DeepGuard_${activeTemplate}_Report.pdf`);
             document.body.appendChild(link);
             link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
+            // Defer cleanup: revoking the object URL synchronously can abort the
+            // in-flight download in some browsers, producing a 0-byte file.
+            setTimeout(() => {
+                link.remove();
+                window.URL.revokeObjectURL(url);
+            }, 1000);
             
             toast.update(id, { render: "PDF Downloaded Successfully!", type: "success", isLoading: false, autoClose: 3000 });
         } catch (error) {
