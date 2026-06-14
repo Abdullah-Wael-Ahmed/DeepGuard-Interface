@@ -84,6 +84,7 @@ services:
     volumes:
       - ./anomaly-detector/model:/app/model
       - ./anomaly-detector/data:/app/data
+      - ./logs/zeek:/app/logs/zeek:ro
 
   suricata:
     image: jasonish/suricata:latest
