@@ -88,7 +88,7 @@ const Traffic = () => {
 
     useEffect(() => {
         try {
-            if (!live) return;
+            if (!live || !lastMessage) return;
             const message = JSON.parse(lastMessage.data);
             if (message.type == 'new_alert') {
                 if (page !== 1) setPage(1)
@@ -475,3 +475,4 @@ const Traffic = () => {
 }
 
 export default Traffic;
+xport default Traffic;
