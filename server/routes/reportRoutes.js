@@ -15,4 +15,16 @@ router.get("/executive", async (req, res) => {
     }
 });
 
+// GET /api/reports/endpoint-health?hours=24
+router.get("/endpoint-health", async (req, res) => {
+    try {
+        const hours = parseInt(req.query.hours) || 24;
+        const data = await reportService.getEndpointHealth(hours);
+        res.json(data);
+    } catch (error) {
+        console.error("Error generating endpoint health report:", error);
+        res.status(500).json({ error: "Failed to generate report data" });
+    }
+});
+
 module.exports = router;

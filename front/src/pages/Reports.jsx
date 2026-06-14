@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Download, Calendar, Shield, AlertCircle, HardDrive, BrainCircuit } from 'lucide-react';
 import ExecutiveSummary from '../components/reports/ExecutiveSummary';
+import EndpointFleetHealth from '../components/reports/EndpointFleetHealth';
 
 const Reports = () => {
     const [activeTemplate, setActiveTemplate] = useState('executive');
@@ -22,6 +23,11 @@ const Reports = () => {
             try {
                 if (activeTemplate === 'executive') {
                     const res = await axios.get(`${import.meta.env.VITE_BACK}/reports/executive?hours=${timeRange}`, {
+                        withCredentials: true
+                    });
+                    setReportData(res.data);
+                } else if (activeTemplate === 'endpoint') {
+                    const res = await axios.get(`${import.meta.env.VITE_BACK}/reports/endpoint-health?hours=${timeRange}`, {
                         withCredentials: true
                     });
                     setReportData(res.data);
@@ -110,6 +116,8 @@ const Reports = () => {
                             </div>
                         ) : activeTemplate === 'executive' ? (
                             <ExecutiveSummary data={reportData} />
+                        ) : activeTemplate === 'endpoint' ? (
+                            <EndpointFleetHealth data={reportData} />
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full text-text-secondary space-y-4">
                                 <AlertCircle size={48} className="text-gray-600" />
