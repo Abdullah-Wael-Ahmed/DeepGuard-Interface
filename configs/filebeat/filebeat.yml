@@ -80,6 +80,24 @@ filebeat.inputs:
   fields_under_root: true
 
 
+# ================ velociraptor ============================
+
+- type: filestream
+  id: velociraptor-collections
+  enabled: true
+  paths:
+    - /var/lib/velociraptor/clients/*/collections/**/*.json
+  parsers:
+    - ndjson:
+        overwrite_keys: true
+        keys_under_root: true
+        add_error_key: true
+
+  fields:
+    log_source: "velociraptor"
+
+  fields_under_root: true
+
     #- c:\programdata\elasticsearch\logs\*
 
   # Exclude lines. A list of regular expressions to match. It drops the lines that are

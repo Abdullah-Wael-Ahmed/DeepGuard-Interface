@@ -3,6 +3,7 @@ services:
   backend:
     build: ./server
     container_name: deepguard-backend
+    privileged: true
     restart: unless-stopped
     env_file:
       - ./server/.env
@@ -16,6 +17,7 @@ services:
       - ./logs/suricata:/app/logs/suricata:ro
       - ./logs/zeek:/app/logs/zeek:ro
       - iptables_socket:/tmp/iptables-proxy
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db:
         condition: service_healthy
@@ -62,6 +64,7 @@ services:
       - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs/suricata:/var/log/suricata:ro
       - ./logs/zeek:/usr/local/zeek/logs/current:ro
+      - ./velociraptor/data:/var/lib/velociraptor:ro
     command: ["--strict.perms=false"]
     restart: unless-stopped
 
@@ -115,6 +118,20 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+  velociraptor:
+    build: ./velociraptor
+    container_name: deepguard-velociraptor
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8889:8889"
+    volumes:
+      - ./velociraptor/data:/velociraptor
+      - ./velociraptor/config:/etc/velociraptor
+    env_file:
+      - ./server/.env
 
 volumes:
   mysql_data:

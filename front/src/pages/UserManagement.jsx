@@ -14,8 +14,11 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useSearchParams } from 'react-router-dom';
 
 const UserManagement = () => {
+    const [searchParams] = useSearchParams();
+    const search = searchParams.get('search') || '';
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -220,7 +223,11 @@ const UserManagement = () => {
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
-                {users.map((user) => (
+                {users.filter(user => 
+                    user.name?.toLowerCase().includes(search.toLowerCase()) || 
+                    user.email?.toLowerCase().includes(search.toLowerCase()) ||
+                    user.role?.toLowerCase().includes(search.toLowerCase())
+                ).map((user) => (
                     <tr
                     key={user.id}
                     className="hover:bg-white/5 transition-colors group"

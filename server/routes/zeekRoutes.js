@@ -3,6 +3,7 @@ const { Op, fn, col, literal } = require("sequelize");
 const ZeekConnection = require("../models/ZeekConnection");
 const ZeekDNS = require("../models/ZeekDNS");
 const axios = require("axios")
+const correlationEngine = require("../services/correlationEngine");
 
 const router = express.Router();
 
@@ -177,9 +178,9 @@ router.post("/ingest/conn", async (req, res) => {
     try {
         const data = req.body;
 
-        console.log("zeek conn ---------------------------------")
-        console.log(req.body)
-        console.log('---------------------------------------------')
+        // console.log("zeek conn ---------------------------------")
+        // console.log(req.body)
+        // console.log('---------------------------------------------')
 
         // Detect SYN flood by conn_state
         const isSynFlood = data.conn_state === 'S0' && 
@@ -213,7 +214,8 @@ router.post("/ingest/conn", async (req, res) => {
             "Flow IAT Mean":               isSynFlood ? 100 : flowIATMean,
             "Destination Port":            data.destination?.port || 0,
             "src_ip":                      data.source?.ip || "unknown",
-            "conn_state":                  data.conn_state || "unknown"
+            "conn_state":                  data.conn_state || "unknown",
+            "protocol":                    data.protocol || "unknown"
         }).catch((err) => console.error("Anomaly detector error:", err.message));
 
         // Convert Zeek ts (Unix timestamp in seconds) to JS Date
@@ -242,6 +244,10 @@ router.post("/ingest/conn", async (req, res) => {
 
             conn_state: data.conn_state         // Note: Ensure this isn't pruned!
         });
+
+        // Pass to backend correlation engine
+        correlationEngine.processEvent("zeek_connection", data);
+
         res.json({ status: "ok" });
     } catch (error) {
         console.log(error)

@@ -14,7 +14,8 @@ import logging
 import numpy as np
 import joblib
 from datetime import datetime, timezone
-from collections import defaultdict
+from collections import defaultdict, Counter
+import math
 
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -43,7 +44,9 @@ app = Flask(__name__)
 
 # ─── Load model artifacts ────────────────────────────────
 if not os.path.exists(MODEL_PATH):
-    log.error("No trained model found at %s. Run train_window_autoencoder.py first.", MODEL_PATH)
+    log.error("No trained model found at %s.", MODEL_PATH)
+    log.error("Please run 'train_window_autoencoder.py' locally OR")
+    log.error("train in Google Colab and place the .keras, .pkl, and .json files in the 'model/' directory.")
     exit(1)
 
 model  = keras.models.load_model(MODEL_PATH, compile=False)
@@ -92,14 +95,16 @@ init_db()
 
 # ─── Helpers ──────────────────────────────────────────────
 def _severity(error: float) -> str:
-    """Map reconstruction error to severity using ratio vs threshold."""
-    ratio = error / THRESHOLD if THRESHOLD > 0 else 0
-    if ratio > 3.0:
-        return 'HIGH'
-    elif ratio > 1.5:
+    """Graduated severity: LOW 1-2x, MEDIUM 2-10x, HIGH >10x threshold."""
+    if error <= THRESHOLD:
+        return 'LOW'
+    ratio = error / THRESHOLD
+    if ratio <= 2.0:
+        return 'LOW'
+    elif ratio <= 10.0:
         return 'MEDIUM'
     else:
-        return 'LOW'
+        return 'HIGH'
 
 
 def _save_result(src_ip: str, dest_port: int, score: float,
@@ -124,6 +129,17 @@ def _save_result(src_ip: str, dest_port: int, score: float,
     except Exception as e:
         log.error("DB write error: %s", e)
 
+def _calculate_entropy(items):
+    """Compute Shannon entropy for a list of items."""
+    if not items:
+        return 0.0
+    counts = Counter(items)
+    n = len(items)
+    entropy = 0.0
+    for count in counts.values():
+        p = count / n
+        entropy -= p * math.log2(p)
+    return entropy
 
 # ─── Feature aggregation ─────────────────────────────────
 def _aggregate(flows: list) -> dict:
@@ -136,13 +152,18 @@ def _aggregate(flows: list) -> dict:
     dst_ips     = [f.get('dst_ip', '')            for f in flows]
     conn_states = [f.get('conn_state', 'unknown') for f in flows]
     durations   = [f.get('duration', 0.0)         for f in flows]
-    bytes_list  = [f.get('bytes_sent', 0) + f.get('bytes_received', 0) for f in flows]
+    bytes_sent_list = [f.get('bytes_sent', 0) for f in flows]
+    bytes_recv_list = [f.get('bytes_received', 0) for f in flows]
+    bytes_list  = [s + r for s, r in zip(bytes_sent_list, bytes_recv_list)]
     packets_list = [f.get('total_fwd_packets', 0) + f.get('total_backward_packets', 0) for f in flows]
+    protos      = [f.get('protocol', 'unknown') for f in flows]
 
     bytes_total   = sum(bytes_list)
     packets_total = sum(packets_list)
     syn_count     = sum(1 for s in conn_states if s == 'S0')
     failed_count  = sum(1 for s in conn_states if s != 'SF')
+    tcp_count     = sum(1 for p in protos if p == 'tcp')
+    inbound_outbound = sum(bytes_recv_list) / max(sum(bytes_sent_list), 1)
 
     return {
         'conn_count':          float(n),
@@ -155,6 +176,12 @@ def _aggregate(flows: list) -> dict:
         'avg_duration':        float(np.mean(durations)) if durations else 0.0,
         'connections_per_sec': n / WINDOW_SECONDS,
         'avg_bytes_per_flow':  bytes_total / n if n > 0 else 0.0,
+        'tcp_ratio':           float(tcp_count / n),
+        'avg_pkt_size':        float(bytes_total / packets_total) if packets_total > 0 else 0.0,
+        'inbound_outbound_ratio': float(inbound_outbound),
+        'proto_diversity':     float(len(set(protos))),
+        'dst_port_entropy':    float(_calculate_entropy(dst_ports)),
+        'dst_ip_entropy':      float(_calculate_entropy(dst_ips)),
         # extra (not model input)
         '_most_common_port':   max(set(dst_ports), key=dst_ports.count) if dst_ports else 0,
     }
@@ -184,10 +211,15 @@ def flush_windows():
                 dtype=np.float32,
             )
 
-            # Scale
-            feature_scaled = scaler.transform(feature_vec)
+            # Apply log-scaling for heavy-tailed features (matching training)
+            log_features = metadata.get('log_features', [])
+            for feature in log_features:
+                if feature in FEATURE_NAMES:
+                    idx = FEATURE_NAMES.index(feature)
+                    feature_vec[0, idx] = np.log1p(feature_vec[0, idx])
 
-            # Predict (autoencoder reconstruct)
+            # Scale and Predict
+            feature_scaled = scaler.transform(feature_vec)
             reconstructed = model.predict(feature_scaled, verbose=0)
 
             # Reconstruction error (MSE)
@@ -257,6 +289,7 @@ def analyze():
             'bytes_received':        float(event.get('Total Length of Bwd Packets', 0)),
             'total_fwd_packets':     int(event.get('Total Fwd Packets', 0)),
             'total_backward_packets': int(event.get('Total Backward Packets', 0)),
+            'protocol':              str(event.get('protocol', 'unknown')).lower(),
             'timestamp':             datetime.now(timezone.utc).isoformat(),
         }
 

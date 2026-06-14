@@ -1,5 +1,5 @@
 {
-  "reconstruction_threshold": 0.06313000520755913,
+  "reconstruction_threshold": 0.01,
   "feature_names": [
     "conn_count",
     "unique_dst_ports",
@@ -10,10 +10,22 @@
     "packets_total",
     "avg_duration",
     "connections_per_sec",
-    "avg_bytes_per_flow"
+    "avg_bytes_per_flow",
+    "tcp_ratio",
+    "avg_pkt_size",
+    "inbound_outbound_ratio",
+    "proto_diversity"
+  ],
+  "log_features": [
+    "bytes_total",
+    "packets_total",
+    "avg_bytes_per_flow",
+    "avg_pkt_size"
   ],
   "window_size": 30,
-  "training_samples": 5000,
-  "mean_error": 0.03011619371395491,
-  "max_error": 0.11129687807305962
+  "training_samples": 36296,
+  "mean_error": 0.00018729201110545546,
+  "max_error": 0.07441195100545883,
+  "std_error": 0.0009022174635902047,
+  "threshold_method": "f1_optimized"
 }
