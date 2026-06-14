@@ -23,6 +23,7 @@
     "ndjson": "^2.0.0",
     "nodemailer": "^9.0.0",
     "nodemon": "^3.1.10",
+    "puppeteer": "^22.10.0",
     "sequelize": "^6.37.7",
     "ws": "^8.18.3"
   }
