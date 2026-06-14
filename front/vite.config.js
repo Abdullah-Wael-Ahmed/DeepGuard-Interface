@@ -12,6 +12,7 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     strictPort: true,
+    allowedHosts: ['deepguard-frontend-dev', 'deepguard-frontend'],
     watch: {
       usePolling: true
     },
@@ -21,6 +22,26 @@ export default defineConfig({
       overlay: true
     },
     proxy: {
+      // Dedicated rule for the PDF export: Vite's default proxy handling
+      // corrupts this binary response (delivers 0 bytes as text/xml), so we
+      // self-handle and pipe the raw stream through untouched.
+      '/api/reports/export/pdf': {
+        target: "http://backend:5000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        selfHandleResponse: true,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            // Copy upstream headers (Content-Type, Content-Disposition, etc.)
+            Object.keys(proxyRes.headers).forEach((key) => {
+              res.setHeader(key, proxyRes.headers[key]);
+            });
+            res.statusCode = proxyRes.statusCode;
+            // Pipe raw binary — never buffer or .toString() it.
+            proxyRes.pipe(res);
+          });
+        }
+      },
       '/api': {
         target: "http://backend:5000",
         changeOrigin: true,

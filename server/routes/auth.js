@@ -60,6 +60,7 @@ router.post("/register", verifyJWT, requireAdmin, async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+    console.log('login try')
     try {
         const { email, password } = req.body;
 
@@ -99,27 +100,29 @@ router.get("/refresh", async (req, res) => {
         const cookies = req.cookies;
         if (!cookies?.jwt) return res.status(401).json("Unauthorized");
         const refreshToken = cookies.jwt;
-        jwt.verify(
-            refreshToken,
-            process.env.REFRESH_TOKEN_SECRET,
-            async (err, decoded) => {
-                if (err) return res.status(403).json("Forbidden");
-                const user = await User.findByPk(decoded.id);
-                if (!user) return res.status(401).json("Unauthorized");
-                const accessToken = generateAccessToken(user);
-                res.json({ 
-                    accessToken,
-                    user: { 
-                        id: user.id,
-                        name: user.name, 
-                        email: user.email, 
-                        role: user.role 
-                    }
-                });
+        
+        let decoded;
+        try {
+            decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        } catch (err) {
+            return res.status(403).json("Forbidden");
+        }
+
+        const user = await User.findByPk(decoded.id);
+        if (!user) return res.status(401).json("Unauthorized");
+        
+        const accessToken = generateAccessToken(user);
+        res.json({ 
+            accessToken,
+            user: { 
+                id: user.id,
+                name: user.name, 
+                email: user.email, 
+                role: user.role 
             }
-        );
+        });
     } catch (error) {
-        console.log(error);
+        console.error("Refresh token error:", error);
         res.status(500).json("Server Error");
     }
 });

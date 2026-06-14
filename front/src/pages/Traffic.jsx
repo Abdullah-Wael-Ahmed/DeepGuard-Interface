@@ -12,7 +12,7 @@ const Traffic = () => {
     const [searchParams] = useSearchParams();
     const initialSearch = searchParams.get('search') || '';
 
-    const [data, setData] = useState([]);
+    const [data, setData] = useState({ alerts: [], alertCount: 0, noItems: 10 });
     // const [totalAlertCount, setTotalAlertCount] = useState(0);
     const [loader, setLoader] = useState(true);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -88,7 +88,7 @@ const Traffic = () => {
 
     useEffect(() => {
         try {
-            if (!live) return;
+            if (!live || !lastMessage) return;
             const message = JSON.parse(lastMessage.data);
             if (message.type == 'new_alert') {
                 if (page !== 1) setPage(1)
