@@ -15,11 +15,13 @@ const incidentRouter = require("./routes/incidentRoutes")
 const correlationRouter = require("./routes/correlationRoutes")
 const playbookRouter = require("./routes/playbookRoutes")
 const correlationEngine = require("./services/correlationEngine")
+const velociraptorPoller = require("./services/velociraptorPoller")
 const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
 const { seedSuperAdmin } = require('./util/seeder');
 const verifyJWT = require("./middleware/verifyJWT")
+const { restrictWriteToAdminOrOperator } = require("./middleware/authorize");
 
 const app = express()
 
@@ -35,9 +37,10 @@ async function connectWithRetry(retries = 10, delay = 3000) {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             await db.authenticate();
-            await db.sync({ alter: true });
+            await db.sync();
             console.log(`Database synced (attempt ${attempt})`);
             await correlationEngine.init(); // Init backend correlation
+            velociraptorPoller.start(); // Init Velociraptor flow polling
             await seedSuperAdmin();
             return;
         } catch (e) {
@@ -54,17 +57,17 @@ async function connectWithRetry(retries = 10, delay = 3000) {
 connectWithRetry();
 app.use("/auth", auth)
 // if (process.env.NODE_ENV === "dep") app.use(verifyJWT)
-app.use("/logs", logRouter)
-app.use("/firewall", fireWallRouter)
-app.use("/threat-intel", threatIntelRouter)
-app.use("/zeek", zeekRouter)
-app.use("/mitre", mitreRouter)
-app.use("/anomaly", anomalyRouter)
-app.use("/copilot", copilotRouter)
-app.use("/api/velociraptor", velociraptorRoutes)
-app.use("/incidents", incidentRouter)
-app.use("/rules", correlationRouter)
-app.use("/playbooks", playbookRouter)
+app.use("/logs", verifyJWT, logRouter)
+app.use("/firewall", verifyJWT, restrictWriteToAdminOrOperator, fireWallRouter)
+app.use("/threat-intel", verifyJWT, restrictWriteToAdminOrOperator, threatIntelRouter)
+app.use("/zeek", verifyJWT, zeekRouter)
+app.use("/mitre", verifyJWT, mitreRouter)
+app.use("/anomaly", verifyJWT, anomalyRouter)
+app.use("/copilot", verifyJWT, copilotRouter)
+app.use("/api/velociraptor", verifyJWT, restrictWriteToAdminOrOperator, velociraptorRoutes)
+app.use("/incidents", verifyJWT, incidentRouter)
+app.use("/rules", verifyJWT, restrictWriteToAdminOrOperator, correlationRouter)
+app.use("/playbooks", verifyJWT, restrictWriteToAdminOrOperator, playbookRouter)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");

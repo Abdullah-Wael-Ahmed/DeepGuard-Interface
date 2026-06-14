@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GitPullRequestDraft, Settings, Plus, Play, MoreVertical, Layers, CheckCircle2, Zap, Clock, ShieldAlert } from 'lucide-react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const BACK = import.meta.env.VITE_BACK;
@@ -18,6 +18,8 @@ const Playbooks = () => {
     const [stats, setStats] = useState({ totalExecutions: 0, last24h: 0, successRate: 0, awaitingApproval: 0 });
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const search = searchParams.get('search') || '';
 
     const fetchPlaybooks = async () => {
         setLoading(true);
@@ -193,7 +195,10 @@ const Playbooks = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-800">
-                                {playbooks.map(pb => (
+                                {playbooks.filter(pb => 
+                                    pb.name?.toLowerCase().includes(search.toLowerCase()) || 
+                                    pb.description?.toLowerCase().includes(search.toLowerCase())
+                                ).map(pb => (
                                     <tr key={pb.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={(e) => {
                                         // Ignore if clicking actions
                                         if (e.target.closest('button')) return;

@@ -51,11 +51,11 @@ router.get("/", async (req, res) => {
             where: {
                 [Op.or]: [
                     where(
-                        literal("src_ip || ':' || src_port"),
+                        literal("CONCAT(src_ip, ':', src_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     where(
-                        literal("dest_ip || ':' || dest_port"),
+                        literal("CONCAT(dest_ip, ':', dest_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     { protocol: { [Op.like]: `%${search}%` } }
@@ -68,11 +68,11 @@ router.get("/", async (req, res) => {
         const alertCount = await Alert.count({where: {
                 [Op.or]: [
                     where(
-                        literal("src_ip || ':' || src_port"),
+                        literal("CONCAT(src_ip, ':', src_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     where(
-                        literal("dest_ip || ':' || dest_port"),
+                        literal("CONCAT(dest_ip, ':', dest_port)"),
                         { [Op.like]: `%${search}%` }
                     ),
                     { protocol: { [Op.like]: `%${search}%` } }

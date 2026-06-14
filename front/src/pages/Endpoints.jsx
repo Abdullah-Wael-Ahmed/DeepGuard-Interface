@@ -87,6 +87,10 @@ const Endpoints = () => {
     // Collections
     const [collections, setCollections] = useState([]);
     const [loadingCollections, setLoadingCollections] = useState(false);
+    const [showResultsModal, setShowResultsModal] = useState(false);
+    const [resultsData, setResultsData] = useState([]);
+    const [loadingResults, setLoadingResults] = useState(false);
+    const [selectedFlowInfo, setSelectedFlowInfo] = useState(null);
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchStatus = async () => {
@@ -142,6 +146,22 @@ const Endpoints = () => {
             console.error('Error fetching collections:', error);
         } finally {
             setLoadingCollections(false);
+        }
+    };
+
+    const fetchFlowResults = async (clientId, flowId, artifactName) => {
+        setSelectedFlowInfo({ clientId, flowId, artifactName });
+        setShowResultsModal(true);
+        setLoadingResults(true);
+        try {
+            const res = await axios.get(`${import.meta.env.VITE_BACK}/api/velociraptor/clients/${clientId}/collections/${flowId}/results`, { withCredentials: true });
+            setResultsData(res.data.items || []);
+        } catch (error) {
+            console.error('Error fetching flow results:', error);
+            toast.error('Failed to load raw data from Velociraptor');
+            setResultsData([]);
+        } finally {
+            setLoadingResults(false);
         }
     };
 
@@ -723,21 +743,40 @@ const Endpoints = () => {
                                                             {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-800 rounded-lg w-full"></div>)}
                                                         </div>
                                                     ) : collections.length > 0 ? (
-                                                        collections.map((col, i) => (
-                                                            <div key={i} className="p-4 bg-background-dark/50 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">
-                                                                <div className="flex justify-between items-start mb-1">
-                                                                    <span className="text-sm font-medium text-primary">{col.artifacts ? col.artifacts.join(', ') : col.artifact || 'Custom Hunt'}</span>
-                                                                    <span className={`text-xs px-2 py-0.5 rounded border ${
-                                                                        col.state === 'FINISHED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                                        col.state === 'RUNNING' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
-                                                                        'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-                                                                    }`}>
-                                                                        {col.state}
-                                                                    </span>
+                                                        collections.map((col, i) => {
+                                                            const flowId = col.urn || col.flow_id || col.session_id || col.Urn || col.FlowId || col.SessionId || col.flowId || col.Flow_id || 'N/A';
+                                                            const colArtifacts = col.artifacts || col.Artifacts || col.request?.artifacts || col.Request?.Artifacts;
+                                                            const artifactName = colArtifacts ? (Array.isArray(colArtifacts) ? colArtifacts.join(', ') : colArtifacts) : col.artifact || col.Artifact || 'Custom Hunt';
+                                                            const isFinished = col.state === 'FINISHED' || col.State === 'FINISHED';
+                                                            
+                                                            return (
+                                                                <div key={i} className="p-4 bg-background-dark/50 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">
+                                                                    <div className="flex justify-between items-start mb-1">
+                                                                        <span className="text-sm font-medium text-primary">{artifactName}</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className={`text-xs px-2 py-0.5 rounded border ${
+                                                                                isFinished ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                                                col.state === 'RUNNING' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
+                                                                                'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                                                            }`}>
+                                                                                {col.state}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-end mt-2">
+                                                                        <p className="text-xs text-text-secondary font-mono">Flow: {flowId}</p>
+                                                                        {isFinished && flowId !== 'N/A' && (
+                                                                            <button 
+                                                                                onClick={() => fetchFlowResults(col.client_id || selectedEndpoint.client_id, flowId, artifactName)}
+                                                                                className="text-xs px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors"
+                                                                            >
+                                                                                View Results
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                                <p className="text-xs text-text-secondary font-mono">Flow: {col.urn || col.flow_id || 'N/A'}</p>
-                                                            </div>
-                                                        ))
+                                                            );
+                                                        })
                                                     ) : (
                                                         <EmptyState icon={Database} message="No artifact collections found. Run a hunt to collect data." />
                                                     )}
@@ -974,6 +1013,51 @@ const Endpoints = () => {
                                     Confirm Isolation
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ─── Hunt Results Viewer Modal ── */}
+            {showResultsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-card-dark border border-primary/30 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="p-4 flex justify-between items-center border-b border-gray-700 bg-background-dark/50">
+                            <div>
+                                <h3 className="text-lg font-medium text-text-main flex items-center gap-2">
+                                    <Database size={18} className="text-primary" /> 
+                                    Hunt Results: {selectedFlowInfo?.artifactName}
+                                </h3>
+                                <p className="text-xs text-text-secondary font-mono mt-1">Flow ID: {selectedFlowInfo?.flowId}</p>
+                            </div>
+                            <button onClick={() => { setShowResultsModal(false); setResultsData([]); setSelectedFlowInfo(null); }} className="text-text-secondary hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden p-0 relative bg-[#0d1117]">
+                            {loadingResults ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-text-secondary">
+                                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-sm">Fetching raw forensic evidence...</p>
+                                </div>
+                            ) : resultsData.length > 0 ? (
+                                <div className="h-full overflow-auto p-4">
+                                    <pre className="text-xs font-mono text-gray-300 whitespace-pre-wrap font-mono custom-scrollbar">
+                                        {JSON.stringify(resultsData, null, 2)}
+                                    </pre>
+                                </div>
+                            ) : (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-secondary p-8 text-center">
+                                    <Database size={32} className="opacity-20 mb-2" />
+                                    <p className="text-sm font-medium text-text-main">No data found</p>
+                                    <p className="text-xs">The hunt completed, but the artifact didn't return any matching evidence or rows from the client.</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-gray-700 bg-background-dark/50 flex justify-between items-center">
+                            <span className="text-xs text-text-secondary">{resultsData.length} row(s) returned</span>
+                            <button onClick={() => { setShowResultsModal(false); setResultsData([]); setSelectedFlowInfo(null); }} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                Close Viewer
+                            </button>
                         </div>
                     </div>
                 </div>

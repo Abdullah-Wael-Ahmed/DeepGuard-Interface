@@ -73,9 +73,15 @@ const Traffic = () => {
         return options
     }
 
+    const search = searchParams.get('search') || '';
     useEffect(() => {
-        getData()
-    }, [page])
+        setSearchQuery(search);
+        setPage(1);
+    }, [search]);
+
+    useEffect(() => {
+        getData(searchQuery);
+    }, [page, searchQuery]);
 
 
     // web socket

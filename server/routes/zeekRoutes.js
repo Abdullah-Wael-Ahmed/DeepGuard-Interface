@@ -214,7 +214,8 @@ router.post("/ingest/conn", async (req, res) => {
             "Flow IAT Mean":               isSynFlood ? 100 : flowIATMean,
             "Destination Port":            data.destination?.port || 0,
             "src_ip":                      data.source?.ip || "unknown",
-            "conn_state":                  data.conn_state || "unknown"
+            "conn_state":                  data.conn_state || "unknown",
+            "protocol":                    data.protocol || "unknown"
         }).catch((err) => console.error("Anomaly detector error:", err.message));
 
         // Convert Zeek ts (Unix timestamp in seconds) to JS Date

@@ -77,6 +77,7 @@ const ACTIONS = {
             const ip = extractIP(payload);
             if (!ip) return { valid: false, errors: ["No IP found in context (src_ip, ip, source_ip)"] };
             if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) return { valid: false, errors: [`Invalid IP format: ${ip}`] };
+            if (ip === "192.168.192.1" || ip === "127.0.0.1" || ip === "192.168.192.138" || ip.startsWith("172.18.")) return { valid: false, errors: ["Cannot block localhost/host IP"] };
             return { valid: true, errors: [] };
         },
         async execute(payload, context) {

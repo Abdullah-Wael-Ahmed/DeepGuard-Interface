@@ -89,6 +89,23 @@ const Incident = db.define("Incident", {
         validate: {
             isIn: [["white", "green", "amber", "red"]]
         }
+    },
+    mitreTechnique: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    falsePositive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
+    },
+    falsePositiveReason: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    escalationReason: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 });
 

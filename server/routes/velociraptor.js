@@ -6,61 +6,8 @@ const ZeekConnection = require('../models/ZeekConnection');
 
 const router = express.Router();
 
-const https = require('https');
-
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
-
-// Helper to query Velociraptor via local docker exec
-const queryVelociraptor = async (vqlQuery) => {
-    try {
-        // Escape single quotes for the shell command
-        const safeQuery = vqlQuery.replace(/'/g, "'\\''");
-        
-        // Execute the VQL query directly against the live server by generating and using a temporary API client
-        const cmd = `docker exec deepguard-velociraptor sh -c "/opt/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; /opt/velociraptor --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
-        const { stdout, stderr } = await execPromise(cmd);
-        
-        if (stderr && stderr.trim()) {
-            console.error('[Velociraptor CLI Stderr]:', stderr);
-        }
-
-        if (!stdout || !stdout.trim()) {
-            return { Responses: [{ Response: [] }] };
-        }
-        
-        let rows = [];
-        try {
-            // First try parsing the whole thing as a single JSON array
-            rows = JSON.parse(stdout);
-        } catch (e) {
-            // If it fails, try to extract just the JSON array portion (handles docker warnings)
-            try {
-                const startIndex = stdout.indexOf('[');
-                const endIndex = stdout.lastIndexOf(']') + 1;
-                if (startIndex !== -1 && endIndex !== 0) {
-                    rows = JSON.parse(stdout.substring(startIndex, endIndex));
-                } else {
-                    // Fallback to line-by-line parsing
-                    const lines = stdout.split('\n').filter(l => l.trim());
-                    for (const line of lines) {
-                        try { rows.push(JSON.parse(line)); } catch (err) {}
-                    }
-                }
-            } catch (err) {
-                console.error('[Velociraptor JSON extraction failed]:', err.message);
-            }
-        }
-        
-        return { Responses: [{ Response: rows }] };
-    } catch (error) {
-        console.error('Docker exec query failed:', error.message);
-        if (error.stdout) console.error('Stdout:', error.stdout);
-        if (error.stderr) console.error('Stderr:', error.stderr);
-        throw new Error('Failed to query velociraptor datastore locally: ' + error.message);
-    }
-};
+const { queryVelociraptor } = require('../util/velociraptorUtils');
+const velociraptorPoller = require('../services/velociraptorPoller');
 
 // GET /api/velociraptor/clients — fetch all enrolled endpoint agents
 router.get('/clients', async (req, res) => {
@@ -118,7 +65,7 @@ router.get('/clients/:clientId', async (req, res) => {
 router.get('/clients/:clientId/collections', async (req, res) => {
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const data = await queryVelociraptor(`SELECT client_id, flow_id, artifacts, create_time, active_time, state FROM flows(client_id='${clientId}') ORDER BY create_time DESC LIMIT 50`);
+        const data = await queryVelociraptor(`SELECT * FROM flows(client_id='${clientId}') ORDER BY create_time DESC LIMIT 50`);
         console.log(`[DEBUG] Flows for ${clientId}:`, JSON.stringify(data));
         
         let collections = [];
@@ -139,6 +86,31 @@ router.get('/clients/:clientId/collections', async (req, res) => {
     }
 });
 
+// GET /api/velociraptor/clients/:clientId/collections/:flowId/results — fetch raw results of a specific hunt flow
+router.get('/clients/:clientId/collections/:flowId/results', async (req, res) => {
+    try {
+        const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+        const flowId = req.params.flowId.replace(/[^a-zA-Z0-9.-]/g, '');
+        const data = await queryVelociraptor(`SELECT * FROM flow_results(client_id='${clientId}', flow_id='${flowId}')`);
+        
+        let results = [];
+        if (data.Responses && data.Responses.length > 0) {
+            results = data.Responses[0].Response || [];
+            if (typeof results === 'string') {
+                try {
+                    results = JSON.parse(results);
+                } catch(e) {
+                    results = results.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+                }
+            }
+        }
+        res.json({ items: results });
+    } catch (error) {
+        console.error(`Error fetching flow results:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch flow results' });
+    }
+});
+
 // POST /api/velociraptor/hunt — trigger a VQL artifact hunt on a specific client
 router.post('/hunt', async (req, res) => {
     try {
@@ -149,7 +121,8 @@ router.post('/hunt', async (req, res) => {
         const safeArtifact = artifact.replace(/[^a-zA-Z0-9.-_]/g, '');
         const safeClientId = clientId.replace(/[^a-zA-Z0-9.-]/g, '');
 
-        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'])`);
+        // Use env=dict(wait=FALSE) to schedule the collection without blocking
+        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'], env=dict(wait=FALSE))`);
         console.log(`[DEBUG] Triggered Hunt for ${safeClientId}:`, JSON.stringify(data));
         
         let result = {};
@@ -161,7 +134,15 @@ router.post('/hunt', async (req, res) => {
             if (Array.isArray(flows) && flows.length > 0) result = flows[0];
         }
         
-        res.json({ status: 'started', flow: result });
+        // Ensure flow ID exists and begin polling
+        if (result && result.flow_id) {
+            console.log(`[DEBUG] Captured flow_id: ${result.flow_id} for client: ${safeClientId}`);
+            velociraptorPoller.addHunt(safeClientId, result.flow_id, safeArtifact);
+        } else {
+            console.warn(`[WARNING] Failed to capture flow_id for artifact: ${safeArtifact} on client: ${safeClientId}`);
+        }
+        
+        res.status(202).json({ status: 'started', flow: result });
     } catch (error) {
         console.error('Error triggering velociraptor hunt:', error.message);
         res.status(500).json({ error: 'Failed to trigger hunt' });
@@ -194,6 +175,7 @@ router.get('/hunts', async (req, res) => {
 router.get('/status', async (req, res) => {
     try {
         // Ping the Velociraptor GUI port to check if the container is up and running
+        const https = require('https');
         const agent = new https.Agent({ rejectUnauthorized: false });
         const response = await axios.get(process.env.VR_SERVER_URL || 'https://deepguard-velociraptor:8889', { 
             httpsAgent: agent,
@@ -214,7 +196,7 @@ router.get('/status', async (req, res) => {
 router.get('/context/:ip', async (req, res) => {
     try {
         const ip = req.params.ip;
-        const hours = parseInt(req.query.hours) || 24;
+        const hours = parseInt(req.query.hours) || 720; // Default to 30 days so older test data appears
         const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
         // 1. Suricata alerts for this IP (as source or destination)
@@ -301,8 +283,8 @@ router.get('/context/:ip', async (req, res) => {
 // GET /api/velociraptor/overview — summary stats for the endpoints page KPIs
 router.get('/overview', async (req, res) => {
     try {
-        // Get counts of IPs seen in the last 24 hours from Zeek connections
-        const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        // Get counts of IPs seen in the last 30 days (changed from 24h)
+        const since24h = new Date(Date.now() - 720 * 60 * 60 * 1000);
         const recentConnections = await ZeekConnection.findAll({
             attributes: ['id_orig_h'],
             where: { createdAt: { [Op.gte]: since24h } },
