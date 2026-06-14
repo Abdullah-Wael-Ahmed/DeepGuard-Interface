@@ -278,107 +278,55 @@ GOAL
 
 Help the user understand threats, reduce analysis time, and support decision-making inside DeepGuard.`;
 
-// ── Model fallback chain — ordered by preference (NVIDIA NIM)
+// ── Model fallback chain — ordered by preference
+// gemini-2.5-flash is primary (best quality, 5 RPM quota)
+// gemini-2.5-flash-lite is first fallback (lite variant, separate quota)
+// gemini-flash-latest is the alias fallback (always resolves to latest)
 const MODEL_CHAIN = [
-    'meta/llama-3.3-70b-instruct',
-    'meta/llama-3.1-70b-instruct',
-    'nvidia/llama-3.1-nemotron-70b-instruct',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-flash-latest',
 ];
 
-// ── Rate Limit Tracking State
-let requestHistory = []; // Timestamps of queries (ms)
-let lastRemoteLimit = null; // Quota parsed from headers
-const RPM_LIMIT = 40;
-
-/** Calculate rate limit status from local history */
-function getRateLimitEstimate() {
-    const now = Date.now();
-    // Keep only requests from the last 60 seconds
-    requestHistory = requestHistory.filter(timestamp => now - timestamp < 60000);
-
-    const remaining = Math.max(0, RPM_LIMIT - requestHistory.length);
-    let resetSeconds = 0;
-    if (requestHistory.length > 0) {
-        resetSeconds = Math.max(0, Math.ceil((requestHistory[0] + 60000 - now) / 1000));
-    }
-
-    return {
-        limit: RPM_LIMIT,
-        remaining,
-        reset: resetSeconds,
-        source: 'local'
-    };
-}
-
-/** Return the hybrid rate limit state (preferring fresh remote header data if available) */
-function getRateLimitState() {
-    const local = getRateLimitEstimate();
-    // If we have a fresh remote limit state (less than 10 seconds old), return it
-    if (lastRemoteLimit && (Date.now() - lastRemoteLimit.timestamp < 10000)) {
-        return {
-            limit: lastRemoteLimit.limit,
-            remaining: lastRemoteLimit.remaining,
-            reset: lastRemoteLimit.reset,
-            source: 'remote'
-        };
-    }
-    return local;
-}
-
-// ── Single NVIDIA NIM API call (no retry — that's handled by the caller)
-function callNvidiaOnce(modelName, payload, apiKey) {
+// ── Single Gemini API call (no retry — that's handled by the caller)
+function callGeminiOnce(modelName, payload, apiKey) {
     return new Promise((resolve, reject) => {
         const options = {
-            hostname: 'integrate.api.nvidia.com',
-            path: '/v1/chat/completions',
+            hostname: 'generativelanguage.googleapis.com',
+            path: `/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
                 'Content-Length': Buffer.byteLength(payload),
             },
         };
 
         const req = https.request(options, (res) => {
-            // Read headers for rate limit info
-            const limitHeader = res.headers['x-ratelimit-limit'] || res.headers['x-ratelimit-limit-requests'];
-            const remainingHeader = res.headers['x-ratelimit-remaining'] || res.headers['x-ratelimit-remaining-requests'];
-            const resetHeader = res.headers['x-ratelimit-reset'];
-
-            if (remainingHeader !== undefined) {
-                lastRemoteLimit = {
-                    limit: parseInt(limitHeader) || RPM_LIMIT,
-                    remaining: parseInt(remainingHeader),
-                    reset: parseInt(resetHeader) || 60,
-                    timestamp: Date.now()
-                };
-            }
-
             let data = '';
             res.on('data', chunk => { data += chunk; });
             res.on('end', () => {
                 try {
                     const parsed = JSON.parse(data);
-                    if (res.statusCode !== 200 || parsed.error) {
-                        const errMsg = parsed.error?.message || `NVIDIA API error (status: ${res.statusCode})`;
-                        const errCode = parsed.error?.code || res.statusCode;
+                    if (parsed.error) {
+                        const errMsg = parsed.error.message || 'Gemini API error';
+                        const errCode = parsed.error.code || res.statusCode;
+                        const retryMatch = errMsg.match(/Please retry in ([\d.]+)s/);
+                        const retryAfter = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : null;
                         const err = new Error(errMsg);
-                        err.statusCode = res.statusCode;
-                        err.isRateLimit = res.statusCode === 429 || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate limit');
+                        err.retryAfter = retryAfter;
+                        err.statusCode = errCode;
+                        err.isRateLimit = errCode === 429 || errMsg.toLowerCase().includes('quota');
+                        err.isOverloaded = errCode === 503 || errMsg.toLowerCase().includes('high demand') || errMsg.toLowerCase().includes('overloaded');
                         err.modelUsed = modelName;
-                        if (res.statusCode === 429) {
-                            const retryAfter = res.headers['retry-after'];
-                            err.retryAfter = retryAfter ? parseInt(retryAfter) : 15;
-                        }
                         return reject(err);
                     }
-                    const text = parsed?.choices?.[0]?.message?.content;
+                    const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (!text) {
-                        return reject(new Error('No content in NVIDIA response'));
+                        return reject(new Error('No content in Gemini response'));
                     }
                     resolve({ text, model: modelName });
                 } catch (e) {
-                    reject(new Error('Failed to parse NVIDIA response: ' + e.message));
+                    reject(new Error('Failed to parse Gemini response: ' + e.message));
                 }
             });
         });
@@ -386,7 +334,7 @@ function callNvidiaOnce(modelName, payload, apiKey) {
         req.on('error', reject);
         req.setTimeout(30000, () => {
             req.destroy();
-            reject(new Error('NVIDIA request timed out'));
+            reject(new Error('Gemini request timed out'));
         });
         req.write(payload);
         req.end();
@@ -394,10 +342,13 @@ function callNvidiaOnce(modelName, payload, apiKey) {
 }
 
 // ── Retry + fallback orchestrator
-async function callNvidia(systemPrompt, liveContext, userPrompt, pageContext) {
-    const apiKey = process.env.NVIDIA_API_KEY;
+// 1. Try each model in MODEL_CHAIN
+// 2. For each model, retry up to MAX_RETRIES with exponential backoff if overloaded
+// 3. Skip to next model if rate-limited (quota=0)
+async function callGemini(systemPrompt, liveContext, userPrompt, pageContext) {
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        throw new Error('NVIDIA_API_KEY not configured in server/.env');
+        throw new Error('GEMINI_API_KEY not configured in server/.env');
     }
 
     const fullUserMessage = [
@@ -406,35 +357,53 @@ async function callNvidia(systemPrompt, liveContext, userPrompt, pageContext) {
         `\nUSER QUERY: ${userPrompt}`
     ].filter(Boolean).join('\n');
 
+    const payload = JSON.stringify({
+        system_instruction: {
+            parts: [{ text: systemPrompt }]
+        },
+        contents: [
+            {
+                role: 'user',
+                parts: [{ text: fullUserMessage }]
+            }
+        ],
+        generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1024,
+            topP: 0.8,
+        },
+        safetySettings: [
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+        ]
+    });
+
     const MAX_RETRIES = 3;
     const errors = [];
 
     for (const model of MODEL_CHAIN) {
-        const payload = JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: fullUserMessage }
-            ],
-            temperature: 0.2,
-            top_p: 0.7,
-            max_tokens: 1024,
-        });
-
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                console.log(`[Copilot] Trying NVIDIA model ${model} (attempt ${attempt}/${MAX_RETRIES})...`);
-                const result = await callNvidiaOnce(model, payload, apiKey);
+                console.log(`[Copilot] Trying ${model} (attempt ${attempt}/${MAX_RETRIES})...`);
+                const result = await callGeminiOnce(model, payload, apiKey);
                 console.log(`[Copilot] Success with ${result.model}`);
                 return result;
             } catch (err) {
                 errors.push({ model, attempt, message: err.message });
-                console.warn(`[Copilot] NVIDIA ${model} attempt ${attempt} failed: ${err.message}`);
+                console.warn(`[Copilot] ${model} attempt ${attempt} failed: ${err.message}`);
 
-                // If rate-limited (quota=0 or 429), skip to next model immediately
+                // If rate-limited (quota=0), skip to next model immediately
                 if (err.isRateLimit) {
                     console.warn(`[Copilot] ${model} rate-limited, skipping to next model`);
                     break;
+                }
+
+                // If overloaded (503), wait and retry same model
+                if (err.isOverloaded && attempt < MAX_RETRIES) {
+                    const backoff = Math.min(1000 * Math.pow(2, attempt - 1), 8000); // 1s, 2s, 4s
+                    console.log(`[Copilot] ${model} overloaded, retrying in ${backoff}ms...`);
+                    await new Promise(r => setTimeout(r, backoff));
+                    continue;
                 }
 
                 // If last attempt for this model, move to next
@@ -442,9 +411,6 @@ async function callNvidia(systemPrompt, liveContext, userPrompt, pageContext) {
                     console.warn(`[Copilot] ${model} exhausted all retries, trying next model`);
                     break;
                 }
-
-                // Wait 1s and retry
-                await new Promise(r => setTimeout(r, 1000));
             }
         }
     }
@@ -458,13 +424,6 @@ async function callNvidia(systemPrompt, liveContext, userPrompt, pageContext) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /copilot/limit — Fetch current rate limit status
-// ─────────────────────────────────────────────────────────────────────────────
-router.get('/limit', (req, res) => {
-    res.json(getRateLimitState());
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // POST /copilot/query — Main AI copilot endpoint
 // Body: { prompt: string, pageContext?: string }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -475,12 +434,9 @@ router.post('/query', async (req, res) => {
         return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    // Track request count
-    requestHistory.push(Date.now());
-
     try {
         const liveContext = await buildLiveContext();
-        const result = await callNvidia(SYSTEM_PROMPT, liveContext, prompt.trim(), pageContext || '');
+        const result = await callGemini(SYSTEM_PROMPT, liveContext, prompt.trim(), pageContext || '');
 
         res.json({
             analysis: result.text,
@@ -488,20 +444,19 @@ router.post('/query', async (req, res) => {
             timestamp: new Date().toISOString(),
             model: result.model,
             context_alerts: getMitreDetections().length,
-            rateLimit: getRateLimitState()
         });
     } catch (error) {
         console.error('[Copilot] All models failed:', error.message);
-        const isRateLimit = error.isRateLimit || error.message?.toLowerCase().includes('quota') || error.message?.toLowerCase().includes('rate limit');
-        const isOverloaded = error.isOverloaded || error.message?.toLowerCase().includes('high demand') || error.message?.toLowerCase().includes('overloaded');
-        const retryAfter = error.retryAfter || (isOverloaded ? 15 : (isRateLimit ? getRateLimitState().reset || 15 : null));
+        const isRateLimit = error.isRateLimit || error.message?.toLowerCase().includes('quota');
+        const isOverloaded = error.isOverloaded || error.message?.toLowerCase().includes('high demand');
+        const retryAfter = error.retryAfter || (isOverloaded ? 15 : null);
         const status = isRateLimit ? 429 : 503;
 
         let errorMessage;
         if (isOverloaded) {
-            errorMessage = 'All NVIDIA models are currently experiencing high demand. This is a temporary provider-side issue. Please wait a few seconds and try again.';
+            errorMessage = 'All Gemini models are currently experiencing high demand. This is a temporary Google-side issue. Please wait a few seconds and try again.';
         } else if (isRateLimit) {
-            errorMessage = 'Rate limit reached. The NVIDIA NIM free tier quota is temporarily exhausted.';
+            errorMessage = 'Rate limit reached. The Gemini free tier quota is temporarily exhausted.';
         } else {
             errorMessage = 'DeepGuard Copilot inference engine unavailable';
         }
@@ -512,7 +467,6 @@ router.post('/query', async (req, res) => {
             retryAfter,
             isRateLimit,
             isOverloaded,
-            rateLimit: getRateLimitState()
         });
     }
 });
@@ -526,15 +480,12 @@ router.get('/health', (req, res) => {
         models: MODEL_CHAIN,
         primary_model: MODEL_CHAIN[0],
         gemini_configured: !!process.env.GEMINI_API_KEY,
-        nvidia_configured: !!process.env.NVIDIA_API_KEY,
         active_mitre_detections: getMitreDetections().length,
         data_sources: ['Alert', 'ZeekConnection', 'ZeekDNS', 'BlockedIP', 'IOC', 'MITRE', 'iptables', 'Incident'],
         cache_ttl_seconds: CACHE_TTL_MS / 1000,
         timestamp: new Date().toISOString(),
-        rateLimit: getRateLimitState()
     });
 });
 
 module.exports = router;
-
 
