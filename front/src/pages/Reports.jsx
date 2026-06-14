@@ -24,6 +24,7 @@ const Reports = () => {
     useEffect(() => {
         const fetchReportData = async () => {
             setLoading(true);
+            setReportData(null); // Clear old data to prevent component crashes
             try {
                 if (activeTemplate === 'executive') {
                     const res = await axios.get(`${import.meta.env.VITE_BACK}/reports/executive?hours=${timeRange}`, {
