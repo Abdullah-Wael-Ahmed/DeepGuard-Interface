@@ -168,6 +168,8 @@ const Reports = () => {
                             <EndpointFleetHealth data={reportData} />
                         ) : activeTemplate === 'postmortem' ? (
                             <IncidentPostMortem data={reportData} />
+                        ) : activeTemplate === 'ai' ? (
+                            <DeepGuardAiAnomalies data={reportData} />
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full text-text-secondary space-y-4">
                                 <AlertCircle size={48} className="text-gray-600" />
