@@ -91,15 +91,19 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
         const flowId = req.params.flowId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const flowData = await queryVelociraptor(`SELECT request.artifacts AS artifacts FROM flows(client_id='${clientId}') WHERE session_id='${flowId}'`);
+        const flowData = await queryVelociraptor(`SELECT request FROM flows(client_id='${clientId}') WHERE session_id='${flowId}'`);
         let artifact = '';
         if (flowData.Responses && flowData.Responses.length > 0) {
             let flows = flowData.Responses[0].Response || [];
             if (typeof flows === 'string') {
                 try { flows = JSON.parse(flows); } catch(e) {}
             }
-            if (Array.isArray(flows) && flows.length > 0 && flows[0].artifacts) {
-                artifact = flows[0].artifacts[0] || '';
+            if (Array.isArray(flows) && flows.length > 0 && flows[0].request) {
+                const req = flows[0].request;
+                const artifactsList = req.artifacts || req.Artifacts || req.ArtifactList || [];
+                if (Array.isArray(artifactsList) && artifactsList.length > 0) {
+                    artifact = artifactsList[0];
+                }
             }
         }
 

@@ -28,7 +28,7 @@ class VelociraptorPoller {
     async pollGlobalHunts() {
         try {
             // This query fetches all flows from all clients in the last 60 minutes
-            const vql = `SELECT client_id, session_id, state, request.artifacts AS artifacts FROM foreach(row={SELECT client_id FROM clients()}, query={SELECT client_id, session_id, state, request.artifacts FROM flows(client_id=client_id) WHERE create_time > timestamp(epoch=now() - 3600)})`;
+            const vql = `SELECT client_id, session_id, state, request FROM foreach(row={SELECT client_id FROM clients()}, query={SELECT client_id, session_id, state, request FROM flows(client_id=client_id) WHERE create_time > timestamp(epoch=now() - 3600)})`;
             
             const data = await queryVelociraptor(vql);
             
@@ -43,10 +43,11 @@ class VelociraptorPoller {
             if (!Array.isArray(flows)) return;
 
             for (const flow of flows) {
-                const { client_id, session_id, state, artifacts } = flow;
+                const { client_id, session_id, state, request } = flow;
                 
                 if (state === 'FINISHED' && !this.processedFlows.has(session_id)) {
-                    const primaryArtifact = Array.isArray(artifacts) && artifacts.length > 0 ? artifacts[0] : '';
+                    const artifactsList = request?.artifacts || request?.Artifacts || request?.ArtifactList || [];
+                    const primaryArtifact = Array.isArray(artifactsList) && artifactsList.length > 0 ? artifactsList[0] : '';
                     
                     if (primaryArtifact) {
                         console.log(`[VelociraptorPoller] Found new completed hunt ${session_id} for artifact ${primaryArtifact}. Fetching results...`);
