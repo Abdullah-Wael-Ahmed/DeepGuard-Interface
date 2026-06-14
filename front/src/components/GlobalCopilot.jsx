@@ -171,6 +171,7 @@ const GlobalCopilot = () => {
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
     const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+    const [rateLimit, setRateLimit] = useState({ limit: 40, remaining: 40, reset: 0 });
     const [chatHistory, setChatHistory] = useState([
         {
             role: 'bot',
@@ -188,6 +189,50 @@ const GlobalCopilot = () => {
     const currentPage = location.pathname.split('/')[1] || '';
     const suggestedPrompts = PAGE_PROMPTS[currentPage] || PAGE_PROMPTS[''];
     const pageCtx = PAGE_CONTEXT[currentPage] || PAGE_CONTEXT[''];
+
+    // Fetch rate limit
+    const fetchRateLimit = useCallback(async () => {
+        try {
+            const res = await axios.get(`${BACK}/copilot/limit`, { withCredentials: true });
+            setRateLimit(res.data);
+            if (res.data.remaining === 0 && res.data.reset > 0) {
+                startCountdown(res.data.reset);
+            }
+        } catch (err) {
+            console.error("Failed to fetch rate limit", err);
+        }
+    }, [BACK]);
+
+    // Start countdown timer helper
+    const startCountdown = useCallback((seconds) => {
+        if (seconds <= 0) return;
+        setRateLimitCountdown(seconds);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+            setRateLimitCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(countdownRef.current);
+                    fetchRateLimit();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }, [fetchRateLimit]);
+
+    // Fetch limits on open
+    useEffect(() => {
+        if (copilotOpen) {
+            fetchRateLimit();
+        }
+    }, [copilotOpen, fetchRateLimit]);
+
+    // Clear timers on unmount
+    useEffect(() => {
+        return () => {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+        };
+    }, []);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -231,12 +276,19 @@ const GlobalCopilot = () => {
                 { withCredentials: true, timeout: 60000 }
             );
 
+            if (res.data.rateLimit) {
+                setRateLimit(res.data.rateLimit);
+                if (res.data.rateLimit.remaining === 0 && res.data.rateLimit.reset > 0) {
+                    startCountdown(res.data.rateLimit.reset);
+                }
+            }
+
             const botEntry = {
                 role: 'bot',
                 text: res.data.analysis || 'No response received.',
                 timestamp: res.data.timestamp || new Date().toISOString(),
                 severity: res.data.severity || null,
-                model: res.data.model || 'gemini-2.5-flash',
+                model: res.data.model || 'meta/llama-3.3-70b-instruct',
             };
             setChatHistory(prev => [...prev, botEntry]);
         } catch (error) {
@@ -244,26 +296,19 @@ const GlobalCopilot = () => {
             const responseData = error.response?.data;
             const isRateLimit = error.response?.status === 429 || responseData?.isRateLimit;
             const isOverloaded = error.response?.status === 503 || responseData?.isOverloaded;
-            const retryAfter = responseData?.retryAfter || null;
+            const retryAfter = responseData?.retryAfter || (responseData?.rateLimit?.reset) || null;
+
+            if (responseData?.rateLimit) {
+                setRateLimit(responseData.rateLimit);
+            }
 
             let errText;
             if (isOverloaded) {
-                errText = `Gemini models are experiencing **high demand** on Google's servers. The backend tried multiple models with retries but all returned 503. This is temporary — please try again in a few seconds.`;
+                errText = `NVIDIA NIM models are experiencing **high demand**. The backend tried multiple models with retries but all failed. Please try again in a few seconds.`;
             } else if (isRateLimit) {
-                errText = `Rate limit reached — Gemini free tier quota exhausted.${retryAfter ? ` Cooling down for **${retryAfter}s**...` : ' Please wait a moment and try again.'}`;
-                // Start countdown timer
+                errText = `Rate limit reached — NVIDIA free tier quota exhausted.${retryAfter ? ` Cooling down for **${retryAfter}s**...` : ' Please wait a moment and try again.'}`;
                 if (retryAfter) {
-                    setRateLimitCountdown(retryAfter);
-                    if (countdownRef.current) clearInterval(countdownRef.current);
-                    countdownRef.current = setInterval(() => {
-                        setRateLimitCountdown(prev => {
-                            if (prev <= 1) {
-                                clearInterval(countdownRef.current);
-                                return 0;
-                            }
-                            return prev - 1;
-                        });
-                    }, 1000);
+                    startCountdown(retryAfter);
                 }
             } else if (isTimeout) {
                 errText = 'Request timed out. The backend retried multiple models but none responded in time. Please try again.';
@@ -284,7 +329,7 @@ const GlobalCopilot = () => {
         } finally {
             setChatLoading(false);
         }
-    }, [chatLoading, BACK, pageCtx]);
+    }, [chatLoading, BACK, pageCtx, startCountdown, fetchRateLimit]);
 
     const handleChatSubmit = (e) => {
         e.preventDefault();
@@ -379,11 +424,26 @@ const GlobalCopilot = () => {
                                     </h3>
                                     <p className="text-[10px] text-gray-500 flex items-center gap-1">
                                         <Sparkles size={9} className="text-violet-500" />
-                                        Gemini 2.5 Flash — SOC Analyst
+                                        NVIDIA NIM — Llama 3.3 — SOC Analyst
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                {/* Quota Telemetry Badge */}
+                                <div
+                                    title={`NVIDIA NIM API Quota (${rateLimit.source === 'remote' ? 'Sync' : 'Estimated'})`}
+                                    className="flex items-center gap-1.5 bg-gray-800/80 border border-gray-700/80 px-2.5 py-1 rounded-full text-[10px] font-mono select-none"
+                                >
+                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                        rateLimit.remaining > 15
+                                            ? 'bg-[#64FFDA] animate-pulse'
+                                            : rateLimit.remaining > 5
+                                                ? 'bg-yellow-400'
+                                                : 'bg-red-500'
+                                    }`} />
+                                    <span className="text-gray-300">{rateLimit.remaining}/{rateLimit.limit} RPM</span>
+                                </div>
+
                                 <button
                                     onClick={handleClearHistory}
                                     title="Clear chat"
@@ -399,14 +459,14 @@ const GlobalCopilot = () => {
                                 </button>
                             </div>
                         </div>
-
+ 
                         {/* Page context badge */}
                         <div className="mt-2 px-2 py-1 rounded-lg bg-gray-800/60 border border-gray-700/40 flex items-center gap-1.5">
                             <Cpu size={10} className="text-violet-500 flex-shrink-0" />
                             <span className="text-[10px] text-gray-400 truncate">{pageCtx}</span>
                         </div>
                     </div>
-
+ 
                     {/* ── Chat History ── */}
                     <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 scroll-smooth">
                         {chatHistory.map((msg, idx) =>
@@ -414,7 +474,7 @@ const GlobalCopilot = () => {
                                 ? <UserMessage key={idx} msg={msg} />
                                 : <BotMessage key={idx} msg={msg} />
                         )}
-
+ 
                         {/* Loading indicator */}
                         {chatLoading && (
                             <div className="flex justify-start">
@@ -424,10 +484,10 @@ const GlobalCopilot = () => {
                                 </div>
                             </div>
                         )}
-
+ 
                         <div ref={chatEndRef} />
                     </div>
-
+ 
                     {/* ── Input Area ── */}
                     <div className="flex-shrink-0 border-t border-gray-700/60 bg-[#0d0f14]">
                         {/* Suggested prompts */}
@@ -437,21 +497,21 @@ const GlobalCopilot = () => {
                                     key={q}
                                     type="button"
                                     onClick={() => handleSuggestedPrompt(q)}
-                                    disabled={chatLoading}
+                                    disabled={chatLoading || rateLimitCountdown > 0 || rateLimit.remaining === 0}
                                     className="flex-shrink-0 px-2.5 py-1 text-[10px] bg-gray-800/70 border border-gray-700/60 text-gray-400 rounded-full hover:bg-gray-700 hover:text-gray-200 hover:border-violet-500/40 transition-all disabled:opacity-40"
                                 >
                                     {q}
                                 </button>
                             ))}
                         </div>
-
+ 
                         {/* Text input */}
                         <form onSubmit={handleChatSubmit} className="px-3 pb-3">
                             {/* Rate limit cooldown banner */}
-                            {rateLimitCountdown > 0 && (
-                                <div className="mb-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center gap-2 text-[11px] text-orange-400">
+                            {(rateLimitCountdown > 0 || rateLimit.remaining === 0) && (
+                                <div className="mb-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center gap-2 text-[11px] text-orange-400 animate-pulse">
                                     <LoaderCircle size={12} className="animate-spin flex-shrink-0" />
-                                    <span>Rate limit — cooling down. Ready in <strong>{rateLimitCountdown}s</strong></span>
+                                    <span>Rate limit reached — cooling down. Ready in <strong>{rateLimitCountdown || rateLimit.reset || 15}s</strong></span>
                                 </div>
                             )}
                             <div className="relative flex items-center gap-2">
@@ -462,14 +522,14 @@ const GlobalCopilot = () => {
                                     value={chatInput}
                                     onChange={(e) => setChatInput(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder={rateLimitCountdown > 0 ? `Cooling down... retry in ${rateLimitCountdown}s` : "Ask DeepGuard Copilot..."}
-                                    disabled={chatLoading || rateLimitCountdown > 0}
+                                    placeholder={rateLimitCountdown > 0 || rateLimit.remaining === 0 ? `Cooling down... retry in ${rateLimitCountdown || rateLimit.reset || 15}s` : "Ask DeepGuard Copilot..."}
+                                    disabled={chatLoading || rateLimitCountdown > 0 || rateLimit.remaining === 0}
                                     className="w-full bg-gray-800/60 border border-gray-700 rounded-xl py-3 pl-4 pr-12 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-violet-500/70 focus:ring-1 focus:ring-violet-500/30 transition-all disabled:opacity-50"
                                 />
                                 <button
                                     type="submit"
                                     id="copilot-send"
-                                    disabled={chatLoading || !chatInput.trim() || rateLimitCountdown > 0}
+                                    disabled={chatLoading || !chatInput.trim() || rateLimitCountdown > 0 || rateLimit.remaining === 0}
                                     className="absolute right-2 w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-700 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:from-violet-400 hover:to-purple-600 active:scale-95"
                                 >
                                     {chatLoading
