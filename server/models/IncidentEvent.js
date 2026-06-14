@@ -14,7 +14,7 @@ const IncidentEvent = db.define("IncidentEvent", {
                 "created", "status_change", "severity_change", "priority_change",
                 "assigned", "unassigned", "comment", "evidence_added",
                 "evidence_removed", "tag_added", "tag_removed", "escalated",
-                "sla_updated", "closed", "reopened"
+                "sla_updated", "closed", "reopened", "bulk_update", "merged"
             ]]
         }
     },

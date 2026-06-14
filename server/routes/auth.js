@@ -85,7 +85,7 @@ router.post("/login", async (req, res) => {
         // send access token to frontend
         res.json({
             accessToken,
-            user: { name: user.name, email: user.email, role: user.role }
+            user: { id: user.id, name: user.name, email: user.email, role: user.role }
         });
     } catch (error) {
         console.log(error);
@@ -110,6 +110,7 @@ router.get("/refresh", async (req, res) => {
                 res.json({ 
                     accessToken,
                     user: { 
+                        id: user.id,
                         name: user.name, 
                         email: user.email, 
                         role: user.role 

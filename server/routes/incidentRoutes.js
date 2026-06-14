@@ -539,14 +539,16 @@ router.patch("/:id", requireIncidentWriteAccess, async (req, res) => {
         if (category !== undefined) {
             incident.category = category;
         }
-        if (assignee !== undefined && assignee !== incident.assignee) {
+        if (assignee !== undefined || assigneeId !== undefined) {
             const oldAssignee = incident.assignee;
-            incident.assignee = assignee || null;
-            incident.assigneeId = assigneeId || null;
-            if (assignee) {
-                await logEvent(incident.id, "assigned", actor, `Reassigned from ${oldAssignee || "unassigned"} to ${assignee}`, { from: oldAssignee, to: assignee }, actorId);
-            } else {
-                await logEvent(incident.id, "unassigned", actor, `Unassigned from ${oldAssignee}`, { from: oldAssignee }, actorId);
+            if (assignee !== incident.assignee || assigneeId !== incident.assigneeId) {
+                incident.assignee = assignee || null;
+                incident.assigneeId = assigneeId || null;
+                if (incident.assignee) {
+                    await logEvent(incident.id, "assigned", actor, `Reassigned from ${oldAssignee || "unassigned"} to ${incident.assignee}`, { from: oldAssignee, to: incident.assignee }, actorId);
+                } else {
+                    await logEvent(incident.id, "unassigned", actor, `Unassigned from ${oldAssignee}`, { from: oldAssignee }, actorId);
+                }
             }
         }
         if (tags !== undefined) {
