@@ -302,8 +302,10 @@ const Incidents = () => {
                 </div>
                 <script>
                     window.onload = function() {
-                        window.print();
-                        window.close();
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 300);
                     }
                 </script>
             </body>
