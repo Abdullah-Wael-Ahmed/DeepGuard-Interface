@@ -268,8 +268,8 @@ def main():
     
     # 99.9th percentile
     threshold = float(np.percentile(mae_errors, 99.9))
-    # Ensure a minimum threshold
-    threshold = max(threshold, 0.05)
+    # Add 15% safety buffer and ensure a minimum floor of 0.45
+    threshold = max(threshold * 1.15, 0.45)
     
     print(f"[+] MAE Threshold (99.9th percentile): {threshold:.6f}")
 

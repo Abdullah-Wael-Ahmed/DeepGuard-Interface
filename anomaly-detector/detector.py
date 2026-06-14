@@ -95,13 +95,13 @@ init_db()
 
 # ─── Helpers ──────────────────────────────────────────────
 def _severity(error: float) -> str:
-    """Graduated severity: LOW 1-2x, MEDIUM 2-10x, HIGH >10x threshold."""
+    """Graduated severity: LOW <= 2.5x, MEDIUM <= 5.0x, HIGH > 5.0x threshold."""
     if error <= THRESHOLD:
         return 'LOW'
     ratio = error / THRESHOLD
-    if ratio <= 2.0:
+    if ratio <= 2.5:
         return 'LOW'
-    elif ratio <= 10.0:
+    elif ratio <= 5.0:
         return 'MEDIUM'
     else:
         return 'HIGH'
