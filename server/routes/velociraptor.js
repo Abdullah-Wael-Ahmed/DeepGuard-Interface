@@ -134,7 +134,7 @@ router.post('/hunt', async (req, res) => {
         const safeClientId = clientId.replace(/[^a-zA-Z0-9.-]/g, '');
 
         // Use env=dict(wait=FALSE) to schedule the collection without blocking
-        const data = await queryVelociraptor(`SELECT collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'], env=dict(wait=FALSE)).flow_id AS flow_id FROM scope()`);
+        const data = await queryVelociraptor(`SELECT * FROM collect_client(client_id='${safeClientId}', artifacts=['${safeArtifact}'], env=dict(wait=FALSE))`);
         console.log(`[DEBUG] Triggered Hunt for ${safeClientId}:`, JSON.stringify(data));
         
         let result = {};
@@ -146,10 +146,9 @@ router.post('/hunt', async (req, res) => {
             if (Array.isArray(flows) && flows.length > 0) result = flows[0];
         }
         
-        // Ensure flow ID exists and begin polling
-        if (result && result.flow_id) {
-            console.log(`[DEBUG] Captured flow_id: ${result.flow_id} for client: ${safeClientId}`);
-            velociraptorPoller.addHunt(safeClientId, result.flow_id, safeArtifact);
+        // Ensure flow ID exists
+        if (result && (result.flow_id || result.session_id)) {
+            console.log(`[DEBUG] Successfully scheduled hunt ${result.flow_id || result.session_id} for client: ${safeClientId}. Global sync engine will pick this up automatically.`);
         } else {
             console.warn(`[WARNING] Failed to capture flow_id for artifact: ${safeArtifact} on client: ${safeClientId}`);
         }
