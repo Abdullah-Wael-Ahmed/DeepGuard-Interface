@@ -76,11 +76,11 @@ router.get("/export/pdf", async (req, res) => {
             return res.status(500).json({ error: "Generated PDF was empty" });
         }
 
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Length", pdfBuffer.length);
-        res.setHeader("Content-Disposition", `attachment; filename="DeepGuard_${template}_Report.pdf"`);
-        res.send(pdfBuffer);
-        console.log(`[PDF] Successfully sent ${pdfBuffer.length} bytes`);
+        // Send as base64 to avoid ANY proxy binary corruption (Vite or Nginx)
+        const base64Pdf = pdfBuffer.toString('base64');
+        res.json({ pdfBase64: base64Pdf });
+        
+        console.log(`[PDF] Successfully sent base64 PDF (${base64Pdf.length} chars)`);
     } catch (error) {
         console.error("Error exporting PDF:", error);
         // We can't send JSON if headers were already sent, but here they shouldn't be

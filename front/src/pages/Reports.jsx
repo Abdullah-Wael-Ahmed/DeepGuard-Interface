@@ -80,39 +80,34 @@ const Reports = () => {
         const id = toast.loading("Generating PDF Report... This may take a few seconds.");
 
         try {
+            // Fetch the PDF as a base64 encoded string to completely bypass proxy binary corruption
             const response = await axios.get(`${import.meta.env.VITE_BACK}/reports/export/pdf?${queryParams.toString()}`, {
-                responseType: 'blob',
                 withCredentials: true
             });
 
-            // Double check if we actually got a PDF
-            if (response.data.type === 'application/json') {
-                // This means the backend returned an error but axios didn't throw (rare)
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const errorData = JSON.parse(reader.result);
-                    toast.update(id, { render: `Export Failed: ${errorData.error || 'Unknown error'}`, type: "error", isLoading: false, autoClose: 5000 });
-                };
-                reader.readAsText(response.data);
+            if (!response.data || !response.data.pdfBase64) {
+                toast.update(id, { render: "Export Failed: Invalid response from server.", type: "error", isLoading: false, autoClose: 5000 });
                 return;
             }
 
-            // Sanity check: confirm the browser actually received the bytes.
-            console.log(`[PDF] Received blob: ${response.data.size} bytes, type=${response.data.type}`);
-            if (!response.data.size) {
-                toast.update(id, { render: "Export Failed: received empty PDF (0 bytes) from server.", type: "error", isLoading: false, autoClose: 5000 });
-                return;
+            // Convert base64 to binary buffer
+            const byteCharacters = atob(response.data.pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
             }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
 
             // Create a blob link to trigger the download
-            const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `DeepGuard_${activeTemplate}_Report.pdf`);
             document.body.appendChild(link);
             link.click();
-            // Defer cleanup: revoking the object URL synchronously can abort the
-            // in-flight download in some browsers, producing a 0-byte file.
+            
+            // Defer cleanup
             setTimeout(() => {
                 link.remove();
                 window.URL.revokeObjectURL(url);
@@ -121,22 +116,8 @@ const Reports = () => {
             toast.update(id, { render: "PDF Downloaded Successfully!", type: "success", isLoading: false, autoClose: 3000 });
         } catch (error) {
             console.error("PDF Export Error:", error);
-            
-            // If the error response is a blob, try to read it as text
-            if (error.response && error.response.data instanceof Blob) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    try {
-                        const errorData = JSON.parse(reader.result);
-                        toast.update(id, { render: `Failed: ${errorData.details || errorData.error}`, type: "error", isLoading: false, autoClose: 5000 });
-                    } catch (e) {
-                        toast.update(id, { render: "Failed to generate PDF. Check server logs.", type: "error", isLoading: false, autoClose: 5000 });
-                    }
-                };
-                reader.readAsText(error.response.data);
-            } else {
-                toast.update(id, { render: "Failed to generate PDF. Server unreachable.", type: "error", isLoading: false, autoClose: 5000 });
-            }
+            const errorMsg = error.response?.data?.error || error.response?.data?.details || "Server unreachable";
+            toast.update(id, { render: `Failed: ${errorMsg}`, type: "error", isLoading: false, autoClose: 5000 });
         }
     };
 
