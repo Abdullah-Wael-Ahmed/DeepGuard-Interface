@@ -18,6 +18,7 @@ const ReportPrintView = () => {
 
     const hours = searchParams.get('hours') || 24;
     const ip = searchParams.get('ip');
+    const secret = searchParams.get('secret');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -25,6 +26,10 @@ const ReportPrintView = () => {
                 let endpoint = '';
                 let method = 'get';
                 let body = null;
+                
+                const config = {
+                    headers: secret ? { 'X-DeepGuard-Print-Secret': secret } : {}
+                };
 
                 switch (templateId) {
                     case 'executive':
@@ -46,8 +51,8 @@ const ReportPrintView = () => {
                 }
 
                 const res = method === 'post' 
-                    ? await axios.post(`${import.meta.env.VITE_BACK}${endpoint}`, body)
-                    : await axios.get(`${import.meta.env.VITE_BACK}${endpoint}`);
+                    ? await axios.post(`/api${endpoint}`, body, config)
+                    : await axios.get(`/api${endpoint}`, config);
                 
                 setData(res.data);
             } catch (err) {

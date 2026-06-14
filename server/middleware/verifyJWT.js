@@ -1,6 +1,15 @@
 const jwt = require("jsonwebtoken");
 
 const verifyJWT = (req, res, next) => {
+    // Check for internal print secret (from Puppeteer)
+    const printSecret = req.headers['x-deepguard-print-secret'];
+    if (printSecret && printSecret === process.env.PRINT_SECRET) {
+        // Attach a system user role
+        req.userId = 0;
+        req.userRole = 'admin';
+        return next();
+    }
+
     // Exempt logging and network monitoring ingestion endpoints (from external containers)
     if (
         req.path?.startsWith('/filebeat') ||

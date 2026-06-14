@@ -32,11 +32,17 @@ class PdfService {
 
             // Navigate to the URL
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-            console.log(`[PDF] Navigation successful. Waiting for animations...`);
+            console.log(`[PDF] Navigation successful. Waiting for data to load...`);
+
+            // Wait for the "Preparing for print..." loading text to disappear
+            await page.waitForFunction(
+                () => !document.body.innerText.includes("Preparing for print..."),
+                { timeout: 30000 }
+            );
 
             // Wait a little extra for Recharts animations to finish
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            console.log(`[PDF] Animation wait complete. Rendering PDF...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            console.log(`[PDF] Page content ready. Rendering PDF...`);
 
             // Generate PDF
             const pdfBuffer = await page.pdf({

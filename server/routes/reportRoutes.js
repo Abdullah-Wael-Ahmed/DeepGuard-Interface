@@ -64,9 +64,10 @@ router.get("/export/pdf", async (req, res) => {
         
         // internal frontend URL inside Docker network
         const baseUrl = process.env.FRONTEND_INTERNAL_URL || "http://frontend:3000";
-        const printUrl = `${baseUrl}/reports/print/${template}?hours=${hours || 24}${ip ? `&ip=${ip}` : ""}`;
+        const secret = process.env.PRINT_SECRET || "dg_system_secret_2024";
+        const printUrl = `${baseUrl}/reports/print/${template}?hours=${hours || 24}${ip ? `&ip=${ip}` : ""}&secret=${secret}`;
 
-        console.log(`[PDF] Request received for: ${printUrl}`);
+        console.log(`[PDF] Request received for: ${printUrl.replace(secret, '****')}`);
         
         const pdfBuffer = await pdfService.generateFromUrl(printUrl, `DeepGuard_${template}_Report`);
 
