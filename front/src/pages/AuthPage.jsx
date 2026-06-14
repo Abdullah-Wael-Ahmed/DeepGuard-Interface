@@ -10,7 +10,6 @@ import { toast } from 'react-toastify';
 import axios from 'axios'; // Import axios
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext'; // Import your Auth Context
-import DeepGuard from '../assets/DeepGaurdDark.svg';
 
 const LoginPage = () => {
     const { setAuth } = useAuth(); // Get the setter from context
@@ -102,22 +101,25 @@ const LoginPage = () => {
                 
                 {/* Header */}
                 <div className="text-center mb-8 flex flex-col items-center">
-                    <div className="flex gap-3.5 items-center mb-5 bg-background-dark/30 p-3.5 rounded-xl border border-gray-700/80 shadow-[0_0_15px_rgba(0,0,0,0.2)]">
-                        <div className="size-12 flex-shrink-0">
-                            <img src={DeepGuard} alt="DeepGuard Logo" className="w-full h-full object-contain" />
-                        </div>
-                        <div className="flex flex-col text-left">
-                            <h2 className="text-xl font-extrabold text-white tracking-tight leading-none">
-                                Deep<span className="text-primary">Guard</span>
-                            </h2>
-                            <p className="text-[9px] uppercase font-bold text-text-secondary tracking-wider mt-1.5 leading-none">Next-Generation SOC Platform</p>
-                            <p className="text-[8px] uppercase font-semibold text-primary tracking-wider mt-1 leading-none">Powered by AI</p>
-                        </div>
-                    </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
+                    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136.788 171.25" className="w-14 h-16 mb-4">
+                        <g fill="#64FFDA">
+                            <path d="M107.71,137.94c-9.13,11.65-22.21,24.63-39.55,33.31-18.88-9.44-32.59-24.05-41.68-36.51-2.05-2.82-3.88-5.53-5.47-8.04,10.01-2.78,24.77-3.79,42.06,4.58,6.6,3.2,13.6,5.56,20.86,6.68,6.84,1.04,15.24,1.52,23.77-.02h0Z"/>
+                            <path d="M122.01,115.87s-.03.06-.05.09c-1.46,2.82-3.67,6.76-6.65,11.34-10.65,3.31-21.67,2.9-30.25,1.59-7.26-1.12-14.26-3.48-20.86-6.68-20.74-10.05-37.84-6.59-47.48-2.78-1.68-3.03-2.84-5.41-3.49-6.83h0c-.28-.64-.48-1.07-.57-1.29,8.2-4.14,28.16-11.22,53.38.69,6.77,3.2,13.95,5.56,21.39,6.68,9.75,1.45,22.6,1.8,34.57-2.81h.01Z"/>
+                            <path d="M28.47,57.84c40.83,51.03,80.52,0,80.52,0-45.36-48.77-80.52,0-80.52,0ZM68.73,73.71c-8.46,0-15.31-6.85-15.31-15.31s6.85-15.31,15.31-15.31,15.31,6.85,15.31,15.31-6.85,15.31-15.31,15.31Z"/>
+                            <circle cx="68.73" cy="58.4" r="6.24"/>
+                            <path d="M136.71,19.81c-.02-.82-.61-1.51-1.42-1.64-6.93-1.2-38.86-7.11-65.99-18.17h-1.13C41.03,11.06,8.53,16.77,1.5,17.92c-.81.14-1.41.83-1.42,1.64-.2,8.96-.84,58.11,9.61,85.2,4.99-3.07,27.08-14.75,56.24-.95,6.76,3.2,13.92,5.56,21.34,6.67,11.16,1.68,26.39,1.89,39.7-5.17.1-.24.19-.49.28-.73,10.29-27.2,9.65-75.9,9.45-84.77h.01ZM17.13,57.84s47.63-68.04,103.2,0c0,0-51.03,70.31-103.2,0Z"/>
+                            <path d="M28.47,57.84c40.83,51.03,80.52,0,80.52,0-45.36-48.77-80.52,0-80.52,0ZM68.73,73.71c-8.46,0-15.31-6.85-15.31-15.31s6.85-15.31,15.31-15.31,15.31,6.85,15.31,15.31-6.85,15.31-15.31,15.31Z"/>
+                            <circle cx="68.73" cy="58.4" r="6.24"/>
+                            <path d="M28.47,57.84c40.83,51.03,80.52,0,80.52,0-45.36-48.77-80.52,0-80.52,0ZM68.73,73.71c-8.46,0-15.31-6.85-15.31-15.31s6.85-15.31,15.31-15.31,15.31,6.85,15.31,15.31-6.85,15.31-15.31,15.31Z"/>
+                            <circle cx="68.73" cy="58.4" r="6.24"/>
+                            <circle cx="68.73" cy="58.4" r="6.24"/>
+                            <circle cx="68.73" cy="58.4" r="6.24"/>
+                        </g>
+                    </svg>
+                    <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
                         Welcome Back
                     </h1>
-                    <p className="text-text-secondary text-sm">
+                    <p className="text-text-secondary">
                         Enter your credentials to access the DeepGuard network.
                     </p>
                 </div>
