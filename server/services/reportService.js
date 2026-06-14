@@ -16,7 +16,7 @@ class ReportService {
         const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
         // 1. Global Metrics
-        const totalAlerts = await Alert.count({ where: { createdAt: { [Op.gte]: sinceDate } } });
+        const totalAlerts = await Alert.count({ where: { timestamp: { [Op.gte]: sinceDate } } });
         
         let totalAnomalies = 0;
         try {
@@ -37,12 +37,12 @@ class ReportService {
         
         const trends = await Alert.findAll({
             attributes: [
-                [fn("DATE_FORMAT", col("createdAt"), timeFormat), "time"],
+                [fn("DATE_FORMAT", col("timestamp"), timeFormat), "time"],
                 "severity",
                 [fn("COUNT", col("id")), "count"]
             ],
-            where: { createdAt: { [Op.gte]: sinceDate } },
-            group: [literal(`DATE_FORMAT(createdAt, '${timeFormat}')`), "severity"],
+            where: { timestamp: { [Op.gte]: sinceDate } },
+            group: [literal(`DATE_FORMAT(timestamp, '${timeFormat}')`), "severity"],
             order: [[literal("time"), "ASC"]],
             raw: true
         });
@@ -53,7 +53,7 @@ class ReportService {
                 "src_ip",
                 [fn("COUNT", col("id")), "count"]
             ],
-            where: { createdAt: { [Op.gte]: sinceDate } },
+            where: { timestamp: { [Op.gte]: sinceDate } },
             group: ["src_ip"],
             order: [[literal("count"), "DESC"]],
             limit: 5,
@@ -65,7 +65,7 @@ class ReportService {
                 "dest_ip",
                 [fn("COUNT", col("id")), "count"]
             ],
-            where: { createdAt: { [Op.gte]: sinceDate } },
+            where: { timestamp: { [Op.gte]: sinceDate } },
             group: ["dest_ip"],
             order: [[literal("count"), "DESC"]],
             limit: 5,
@@ -77,7 +77,7 @@ class ReportService {
                 "signature",
                 [fn("COUNT", col("id")), "count"]
             ],
-            where: { createdAt: { [Op.gte]: sinceDate } },
+            where: { timestamp: { [Op.gte]: sinceDate } },
             group: ["signature"],
             order: [[literal("count"), "DESC"]],
             limit: 5,
@@ -206,7 +206,7 @@ class ReportService {
                 [fn('COUNT', col('id')), 'totalAlerts'],
                 [fn('SUM', literal('CASE WHEN severity = 1 THEN 3 WHEN severity = 2 THEN 1.5 ELSE 0.5 END')), 'riskScore']
             ],
-            where: { createdAt: { [Op.gte]: sinceDate } },
+            where: { timestamp: { [Op.gte]: sinceDate } },
             group: ['src_ip'],
             having: literal('riskScore > 7'),
             order: [[literal('riskScore'), 'DESC']],
@@ -240,8 +240,8 @@ class ReportService {
         if (!targetIp) {
             const topAlert = await Alert.findOne({
                 attributes: ['src_ip'],
-                where: { createdAt: { [Op.gte]: sinceDate } },
-                order: [['severity', 'ASC'], ['createdAt', 'DESC']], // 1 is critical
+                where: { timestamp: { [Op.gte]: sinceDate } },
+                order: [['severity', 'ASC'], ['timestamp', 'DESC']], // 1 is critical
                 raw: true
             });
             targetIp = topAlert ? topAlert.src_ip : '10.0.0.5'; // fallback
@@ -251,9 +251,9 @@ class ReportService {
         const alerts = await Alert.findAll({
             where: {
                 [Op.or]: [{ src_ip: targetIp }, { dest_ip: targetIp }],
-                createdAt: { [Op.gte]: sinceDate }
+                timestamp: { [Op.gte]: sinceDate }
             },
-            order: [['createdAt', 'DESC']],
+            order: [['timestamp', 'DESC']],
             limit: 100,
             raw: true
         });
@@ -261,9 +261,9 @@ class ReportService {
         const zeekConnections = await ZeekConnection.findAll({
             where: {
                 [Op.or]: [{ id_orig_h: targetIp }, { id_resp_h: targetIp }],
-                createdAt: { [Op.gte]: sinceDate }
+                timestamp: { [Op.gte]: sinceDate }
             },
-            order: [['createdAt', 'DESC']],
+            order: [['timestamp', 'DESC']],
             limit: 100,
             raw: true
         });
@@ -282,7 +282,7 @@ class ReportService {
         const timeline = [];
         alerts.forEach(a => timeline.push({
             id: `alert-${a.id}`,
-            timestamp: new Date(a.createdAt).getTime(),
+            timestamp: new Date(a.timestamp).getTime(),
             type: 'suricata',
             title: a.signature,
             severity: a.severity,
@@ -293,7 +293,7 @@ class ReportService {
 
         zeekConnections.forEach(c => timeline.push({
             id: `zeek-${c.id}`,
-            timestamp: new Date(c.createdAt).getTime(),
+            timestamp: new Date(c.timestamp).getTime(),
             type: 'zeek',
             title: `Connection to ${c.id_resp_h}`,
             severity: 4, // Info
@@ -406,7 +406,7 @@ class ReportService {
             
             // If the ML container doesn't return total_analyzed, fallback to total Zeek connections in timeframe
             if (!totalAnalyzed) {
-                totalAnalyzed = await ZeekConnection.count({ where: { createdAt: { [Op.gte]: sinceDate } } });
+                totalAnalyzed = await ZeekConnection.count({ where: { timestamp: { [Op.gte]: sinceDate } } });
             }
 
             const anomalyRes = await axios.get(`${ANOMALY_BASE}/results`, { timeout: 5000 });
@@ -416,7 +416,7 @@ class ReportService {
         } catch (error) {
             console.error("Error fetching AI anomalies for report:", error.message);
             // Fallback for total analyzed if ML container is completely down
-            totalAnalyzed = await ZeekConnection.count({ where: { createdAt: { [Op.gte]: sinceDate } } });
+            totalAnalyzed = await ZeekConnection.count({ where: { timestamp: { [Op.gte]: sinceDate } } });
         }
 
         // 1. ML Performance Metrics
