@@ -1033,15 +1033,15 @@ const Endpoints = () => {
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-hidden p-0 relative bg-[#0d1117]">
+                        <div className="flex-1 overflow-hidden p-0 relative bg-[#0d1117] min-h-[400px]">
                             {loadingResults ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-text-secondary">
                                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                                     <p className="text-sm">Fetching raw forensic evidence...</p>
                                 </div>
                             ) : resultsData.length > 0 ? (
-                                <div className="h-full overflow-auto p-4">
-                                    <pre className="text-xs font-mono text-gray-300 whitespace-pre-wrap font-mono custom-scrollbar">
+                                <div className="absolute inset-0 overflow-auto p-4 custom-scrollbar">
+                                    <pre className="text-xs font-mono text-gray-300 whitespace-pre">
                                         {JSON.stringify(resultsData, null, 2)}
                                     </pre>
                                 </div>

@@ -1,83 +1,668 @@
-
-master@deepguard-gw:~/dockerized-DeepGuard/DeepGuard-Interface$ cat suricata-config/rules/local.rules
-# Line test by KAREEM GHORAB
-
-alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Ping Detected"; sid:1000001; rev:1;)
-
-alert icmp any any -> any any (msg:"ICMP Echo Request Detected"; itype:8; sid:9000001; rev:1;)
-
-alert tcp any any -> any any (flags:S; msg:"Possible TCP SYN Scan Detected"; \
-    threshold:type both, track by_src, count 20, seconds 3; sid:1000002; rev:2;)
-
-#alert http any any -> any ![80,443] (msg:"HTTP traffic on non-standard port"; flow:to_server,established; sid:1000005; rev:4;)
-
-alert http any any -> any ![80,443,8080,5000] (msg:"HTTP traffic on non-standard port"; flow:to_server,established; sid:1000005; rev:5;)
-
-alert tcp any any -> any 80 (msg:"EXPLOIT: Possible Shellcode Execution"; \
-content:"|90 90 90 90|"; nocase; \
-classtype:shellcode-detect; \
-sid:1000008; rev:1;)
-
-alert tcp any any -> any 22 (msg:"TEST P2 - attempted-admin-username"; \
-content:"root"; nocase; flow:to_server,established; \
-classtype:attempted-admin; sid:1001002; rev:1;)
+# ═══════════════════════════════════════════════════════════════════════════════
+# DeepGuard — Suricata Local Rules
+# Reconstructed by DeepGuard Team
+# Suricata 7.0 | HOME_NET: 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# SID Allocation:
+#   1000001–1000099  ICMP & Connectivity
+#   1000100–1000199  TCP/UDP Scan Detection
+#   1000200–1000299  Brute Force
+#   1000300–1000399  Web Application Attacks
+#   1000400–1000499  Malware & C2 Communication
+#   1000500–1000599  Protocol Anomalies
+#   1000600–1000699  Data Exfiltration
+#   1000700–1000799  Lateral Movement
+#   1000800–1000899  Suspicious Domains & TLDs
+#   1000900–1000999  Exploit Detection
+#   1001000–1001099  Credential Theft & Auth Anomalies
 
 
-#--------- first message -----------
-alert udp any any -> any 53 (msg:"SURICATA DNS Query to a Suspicious *.ws Domain"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; content:"|02|ws|00|"; nocase; sid:2500003; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.ws Domain"; flow:established,to_server; content:".ws"; http_host; isdataat:!1,relative; sid:2500004; rev:1;)
-alert udp any any -> any 53 (msg:"SURICATA DNS Query to a Suspicious *.to Domain"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; content:"|02|to|00|"; nocase; sid:2500005; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.to Domain"; flow:established,to_server; content:".to"; http_host; isdataat:!1,relative; sid:2500006; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.to Domain"; flow:established,to_server; content:".onion.to"; http_host; isdataat:!1,relative; sid:2500007; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.city Domain"; flow:established,to_server; content:".onion.city"; http_host; isdataat:!1,relative; sid:2500008; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.cab Domain"; flow:established,to_server; content:".onion.cab"; http_host; isdataat:!1,relative; sid:2500009; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious *.onion.direct Domain"; flow:established,to_server; content:".onion.direct"; http_host; isdataat:!1,relative; sid:2500010; rev:1;)
-alert http any any -> any any (msg:"SURICATA HTTP Request to a Suspicious .onion. Domain"; flow:established,to_server; content:".onion."; http_host; isdataat:!1,relative; sid:2500011; rev:1;)
-alert udp any any -> any 53 (msg:"SURICATA DNS Query to a Suspicious *.onion Domain"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; content:"|02|onion|00|"; nocase; sid:2500012; rev:1;)
-alert tls any any -> any any (msg:"SURICATA SSL session to suspicious onion.to"; tls.subject:"CN=.onion.to, OU=Domain Control Validated"; sid:2500013; rev:1;)
-#-----------------------------------
+# ═══════════════════════════════════════════════════════════════════════════════
+# 1. ICMP & CONNECTIVITY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+alert icmp $EXTERNAL_NET any -> $HOME_NET any (msg:"DEEPGUARD: ICMP Echo Request from External"; itype:8; sid:1000001; rev:1;)
+
+alert icmp $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: ICMP Echo Reply to External"; itype:0; sid:1000002; rev:1;)
+
+alert icmp any any -> $HOME_NET any (msg:"DEEPGUARD: ICMP Flood Detected"; itype:8; \
+    threshold:type both, track by_src, count 100, seconds 10; \
+    classtype:attempted-dos; sid:1000003; rev:1;)
+
+alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Destination Unreachable Storm"; itype:3; \
+    threshold:type both, track by_src, count 50, seconds 10; \
+    classtype:attempted-dos; sid:1000004; rev:1;)
+
+alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Timestamp Request"; itype:13; \
+    classtype:attempted-recon; sid:1000005; rev:1;)
+
+alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Address Mask Request"; itype:17; \
+    classtype:attempted-recon; sid:1000006; rev:1;)
+
+alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Large Packet — Possible Tunneling"; itype:8; dsize:>800; \
+    classtype:bad-unknown; sid:1000007; rev:1;)
+
+alert icmp any any -> any any (msg:"DEEPGUARD: ICMP Redirect Host"; itype:5; icode:1; \
+    classtype:bad-unknown; sid:1000008; rev:1;)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. TCP/UDP SCAN DETECTION
+# ═══════════════════════════════════════════════════════════════════════════════
 
-#--------- second message ----------
-# HTTP
-alert tcp any any -> any 443 (msg:"SURICATA HTTP clear text on port 443"; flow:to_server; app-layer-protocol:http; threshold: type limit, track by_src, seconds 3600, count 1; sid:2271019; rev:1;)
-alert tcp any any -> any !80 (msg:"SURICATA HTTP on unusual port"; flow:to_server; app-layer-protocol:http; threshold: type limit, track by_src, seconds 60, count 1; sid:2271001; rev:1;)
-alert tcp any any -> any 80 (msg:"SURICATA non-HTTP on TCP port 80"; flow:to_server; app-layer-protocol:!http; threshold: type limit, track by_src, seconds 60, count 1; sid:2271002; rev:1;)
+# --- TCP SYN Scan ---
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"DEEPGUARD: TCP SYN Scan Detected"; flags:S,12; \
+    threshold:type both, track by_src, count 30, seconds 5; \
+    classtype:attempted-recon; sid:1000100; rev:1;)
 
-# SSL
-alert tcp any any -> any ![443,465,587] (msg:"SURICATA TLS on unusual port"; flow:to_server; app-layer-protocol:tls; threshold: type limit, track by_src, seconds 60, count 1; sid:2271004; rev:1;)
-alert tcp any any -> any [443,465] (msg:"SURICATA non-TLS on TLS port"; flow:to_server; app-layer-protocol:!tls; threshold: type limit, track by_src, seconds 60, count 1; sid:2271003; rev:1;)
+# --- TCP SYN Scan from Internal (compromised host) ---
+alert tcp $HOME_NET any -> $HOME_NET any (msg:"DEEPGUARD: Internal TCP SYN Scan — Possible Compromised Host"; flags:S,12; \
+    threshold:type both, track by_src, count 50, seconds 10; \
+    classtype:attempted-recon; sid:1000101; rev:1;)
 
-# FTP
-alert tcp any any -> any ![20,21,6667] (msg:"SURICATA FTP on unusual TCP port"; flow:to_server; app-layer-protocol:ftp; threshold: type limit, track by_src, seconds 60, count 1; sid:2271005; rev:1;)
-alert tcp any any -> any [20,21] (msg:"SURICATA non-FTP on TCP port 21"; flow:to_server; app-layer-protocol:!ftp; threshold: type limit, track by_src, seconds 60, count 1; sid:2271006; rev:1;)
+# --- TCP FIN Scan (stealth) ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: TCP FIN Scan Detected"; flags:F,12; \
+    threshold:type both, track by_src, count 15, seconds 5; \
+    classtype:attempted-recon; sid:1000102; rev:1;)
 
-# SSH
-alert tcp any any -> any !22 (msg:"SURICATA SSH on unusual port"; flow:to_server; app-layer-protocol:ssh; threshold: type limit, track by_src, seconds 60, count 1; sid:2271009; rev:1;)
-alert tcp any any -> any 22 (msg:"SURICATA non-SSH on TCP port 22"; flow:to_server; app-layer-protocol:!ssh; threshold: type limit, track by_src, seconds 60, count 1; sid:2271010; rev:1;)
+# --- TCP XMAS Scan ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: TCP XMAS Scan Detected"; flags:FPU,12; \
+    threshold:type both, track by_src, count 10, seconds 5; \
+    classtype:attempted-recon; sid:1000103; rev:1;)
 
-alert tcp any any -> any !143 (msg:"SURICATA IMAP on unusual port"; flow:to_server; app-layer-protocol:imap; threshold: type limit, track by_src, seconds 60, count 1; sid:2271011; rev:1;)
-alert tcp any any -> any 143 (msg:"SURICATA non-IMAP on TCP port 143"; flow:to_server; app-layer-protocol:!imap; threshold: type limit, track by_src, seconds 60, count 1; sid:2271012; rev:1;)
+# --- TCP NULL Scan ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: TCP NULL Scan Detected"; flags:0,12; \
+    threshold:type both, track by_src, count 10, seconds 5; \
+    classtype:attempted-recon; sid:1000104; rev:1;)
 
-# SMB
-alert tcp any any -> any 139 (msg:"SURICATA non-SMB on TCP port 139"; flow:to_server; app-layer-protocol:!smb; threshold: type limit, track by_src, seconds 60, count 1; sid:2271013; rev:1;)
-alert tcp any any -> any [80,8080] (msg:"SURICATA DCERPC detected over port tcp 80,8080"; flow:to_server; app-layer-protocol:dcerpc; threshold: type limit, track by_src, seconds 60, count 1; sid:2271014; rev:1;)
+# --- TCP ACK Scan (firewall mapping) ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: TCP ACK Scan — Firewall Mapping"; flags:A,12; \
+    threshold:type both, track by_src, count 50, seconds 5; \
+    classtype:attempted-recon; sid:1000105; rev:1;)
 
-# DNS
-alert tcp any any -> any !53 (msg:"SURICATA DNS-TCP on unusual port"; flow:to_server; app-layer-protocol:dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271015; rev:1;)
+# --- UDP Port Sweep ---
+alert udp $EXTERNAL_NET any -> $HOME_NET any (msg:"DEEPGUARD: UDP Port Sweep Detected"; \
+    threshold:type both, track by_src, count 30, seconds 10; \
+    classtype:attempted-recon; sid:1000106; rev:1;)
 
-alert tcp any any -> any 53 (msg:"SURICATA non-DNS-TCP on TCP port 53"; flow:to_server; app-layer-protocol:!dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271016; rev:1;)
+# --- Vertical Port Scan (many ports, one host) ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: Vertical Port Scan — Single Target Multiple Ports"; flags:S,12; \
+    threshold:type both, track by_src, count 100, seconds 30; \
+    classtype:attempted-recon; sid:1000107; rev:1;)
 
-alert udp any any -> any !53 (msg:"SURICATA DNS-UDP on unusual port"; flow:to_server; app-layer-protocol:dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271017; rev:1;)
+# --- VNC Scan ---
+alert tcp any any -> $HOME_NET 5900:5910 (msg:"DEEPGUARD: VNC Port Scan Detected"; flags:S,12; \
+    threshold:type both, track by_src, count 5, seconds 10; \
+    classtype:attempted-recon; sid:1000108; rev:1;)
 
-alert udp any any -> any 53 (msg:"SURICATA non-DNS-UDP on UDP port 53"; flow:to_server; app-layer-protocol:!dns; threshold: type limit, track by_src, seconds 60, count 1; sid:2271018; rev:1;)
-
-# MODBUS
-#alert tcp any any -> any 502 (msg:"SURICATA TCP port 502 but not MODBUS"; flow:to_server; app-layer-protocol:!modbus; threshold: type limit, track by_src, seconds 60, count 1; sid:2271019; rev:1;)
-#alert tcp any any -> any any (msg:"SURICATA TCP port 502 MODBUS"; flow:to_server; app-layer-protocol:modbus; threshold: type limit, track by_src, seconds 60, count 1; sid:2271020; rev:1;)
-
-
-#-----------------------------------
+# --- RDP Scan ---
+alert tcp any any -> $HOME_NET 3389 (msg:"DEEPGUARD: RDP Port Scan Detected"; flags:S,12; \
+    threshold:type both, track by_src, count 10, seconds 10; \
+    classtype:attempted-recon; sid:1000109; rev:1;)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 3. BRUTE FORCE DETECTION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- SSH Brute Force ---
+alert tcp any any -> $HOME_NET 22 (msg:"DEEPGUARD: SSH Brute Force Attempt"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000200; rev:1;)
+
+# --- SSH Root Login Attempt ---
+alert tcp any any -> $HOME_NET 22 (msg:"DEEPGUARD: SSH Root Login Attempt"; \
+    flow:to_server,established; content:"root"; nocase; \
+    classtype:attempted-admin; sid:1000201; rev:1;)
+
+# --- FTP Brute Force ---
+alert tcp any any -> $HOME_NET 21 (msg:"DEEPGUARD: FTP Brute Force Attempt"; \
+    flow:to_server,established; content:"USER"; nocase; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000202; rev:1;)
+
+# --- FTP Anonymous Login ---
+alert tcp any any -> $HOME_NET 21 (msg:"DEEPGUARD: FTP Anonymous Login Attempt"; \
+    flow:to_server,established; content:"USER anonymous"; nocase; \
+    classtype:suspicious-login; sid:1000203; rev:1;)
+
+# --- HTTP Authentication Brute Force (401 flood) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: HTTP Authentication Brute Force"; \
+    flow:established,to_server; content:"Authorization"; http_header; \
+    threshold:type both, track by_src, count 15, seconds 60; \
+    classtype:attempted-admin; sid:1000204; rev:1;)
+
+# --- RDP Brute Force ---
+alert tcp any any -> $HOME_NET 3389 (msg:"DEEPGUARD: RDP Brute Force Attempt"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000205; rev:1;)
+
+# --- SMTP Authentication Brute Force ---
+alert tcp any any -> $HOME_NET 25 (msg:"DEEPGUARD: SMTP AUTH Brute Force"; \
+    flow:to_server,established; content:"AUTH"; nocase; \
+    threshold:type both, track by_src, count 10, seconds 120; \
+    classtype:attempted-admin; sid:1000206; rev:1;)
+
+# --- Telnet Brute Force ---
+alert tcp any any -> $HOME_NET 23 (msg:"DEEPGUARD: Telnet Brute Force Attempt"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000207; rev:1;)
+
+# --- MySQL Brute Force ---
+alert tcp any any -> $HOME_NET 3306 (msg:"DEEPGUARD: MySQL Brute Force Attempt"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000208; rev:1;)
+
+# --- MSSQL Brute Force ---
+alert tcp any any -> $HOME_NET 1433 (msg:"DEEPGUARD: MSSQL Brute Force Attempt"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000209; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. WEB APPLICATION ATTACKS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- SQL Injection (UNION-based) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: SQL Injection — UNION SELECT"; \
+    flow:established,to_server; content:"UNION"; nocase; content:"SELECT"; nocase; \
+    http_uri; classtype:web-application-attack; sid:1000300; rev:1;)
+
+# --- SQL Injection (Error-based) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: SQL Injection — OR 1=1"; \
+    flow:established,to_server; content:"OR"; nocase; content:"1=1"; \
+    http_uri; classtype:web-application-attack; sid:1000301; rev:1;)
+
+# --- SQL Injection (Single Quote probe) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: SQL Injection Probe — Single Quote"; \
+    flow:established,to_server; content:"'"; http_uri; content:"--"; http_uri; \
+    classtype:web-application-attack; sid:1000302; rev:1;)
+
+# --- SQL Injection (Comment-based) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: SQL Injection — Comment Bypass"; \
+    flow:established,to_server; content:"/*"; http_uri; content:"*/"; http_uri; \
+    classtype:web-application-attack; sid:1000303; rev:1;)
+
+# --- Cross-Site Scripting (XSS) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: XSS — Script Tag in URI"; \
+    flow:established,to_server; content:"<script"; nocase; http_uri; \
+    classtype:web-application-attack; sid:1000304; rev:1;)
+
+# --- XSS via Event Handler ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: XSS — Event Handler Injection"; \
+    flow:established,to_server; content:"onerror"; nocase; http_uri; \
+    classtype:web-application-attack; sid:1000305; rev:1;)
+
+# --- Directory Traversal ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: Directory Traversal — ../ in URI"; \
+    flow:established,to_server; content:"../"; http_uri; \
+    classtype:web-application-attack; sid:1000306; rev:1;)
+
+# --- Directory Traversal (encoded) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: Directory Traversal — Encoded %2e%2e"; \
+    flow:established,to_server; content:"%2e%2e"; nocase; http_uri; \
+    classtype:web-application-attack; sid:1000307; rev:1;)
+
+# --- Command Injection ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: OS Command Injection — Pipe"; \
+    flow:established,to_server; content:"|"; http_uri; content:"/bin/"; http_uri; \
+    classtype:web-application-attack; sid:1000308; rev:1;)
+
+# --- Command Injection (semicolon chaining) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: OS Command Injection — Semicolon Chain"; \
+    flow:established,to_server; content:"|3B|"; http_uri; content:"cat "; nocase; http_uri; \
+    classtype:web-application-attack; sid:1000309; rev:1;)
+
+# --- Local File Inclusion ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: LFI — /etc/passwd Access Attempt"; \
+    flow:established,to_server; content:"/etc/passwd"; nocase; http_uri; \
+    classtype:web-application-attack; sid:1000310; rev:1;)
+
+# --- Remote File Inclusion ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: RFI — External PHP Include"; \
+    flow:established,to_server; content:"=http"; nocase; http_uri; content:".php"; nocase; http_uri; \
+    classtype:web-application-attack; sid:1000311; rev:1;)
+
+# --- Log4Shell (CVE-2021-44228) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: Log4Shell JNDI Injection Attempt"; \
+    flow:established,to_server; content:"${jndi:"; nocase; \
+    classtype:exploit-kit; sid:1000312; rev:1;)
+
+# --- PHP Backdoor Access ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: PHP Webshell Access — eval/base64"; \
+    flow:established,to_server; content:"eval("; nocase; content:"base64"; nocase; \
+    classtype:web-application-attack; sid:1000313; rev:1;)
+
+# --- WordPress xmlrpc Brute Force ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: WordPress xmlrpc.php Brute Force"; \
+    flow:established,to_server; content:"POST"; http_method; content:"/xmlrpc.php"; http_uri; \
+    threshold:type both, track by_src, count 10, seconds 30; \
+    classtype:web-application-attack; sid:1000314; rev:1;)
+
+# --- ShellShock (CVE-2014-6271) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: ShellShock Bash Injection"; \
+    flow:established,to_server; content:"() {"; http_header; \
+    classtype:exploit-kit; sid:1000315; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5. MALWARE & C2 COMMUNICATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- DNS Tunneling (long subdomain queries) ---
+alert dns $HOME_NET any -> any any (msg:"DEEPGUARD: DNS Tunneling — Excessive Subdomain Length"; \
+    dns.query; content:"."; content:"."; distance:1; content:"."; distance:1; content:"."; distance:1; \
+    pcre:"/^[a-z0-9]{30,}\./i"; \
+    classtype:command-and-control; sid:1000400; rev:1;)
+
+# --- DNS TXT Record Exfil ---
+alert dns $HOME_NET any -> any any (msg:"DEEPGUARD: DNS TXT Query — Possible Data Exfiltration"; \
+    dns.query; content:"."; \
+    threshold:type both, track by_src, count 20, seconds 60; \
+    classtype:command-and-control; sid:1000401; rev:1;)
+
+# --- DNS Beaconing (periodic queries) ---
+alert udp $HOME_NET any -> any 53 (msg:"DEEPGUARD: DNS Beaconing — High Query Volume to Single Domain"; \
+    threshold:type both, track by_src, count 60, seconds 300; \
+    classtype:command-and-control; sid:1000402; rev:1;)
+
+# --- HTTP C2 — Suspicious User-Agent (empty) ---
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP Empty User-Agent — Possible C2"; \
+    flow:established,to_server; content:!"User-Agent"; http_header; \
+    threshold:type limit, track by_src, count 1, seconds 300; \
+    classtype:command-and-control; sid:1000403; rev:1;)
+
+# --- HTTP C2 — PowerShell User-Agent ---
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP PowerShell User-Agent — Possible C2"; \
+    flow:established,to_server; content:"PowerShell"; nocase; http_user_agent; \
+    classtype:command-and-control; sid:1000404; rev:1;)
+
+# --- HTTP C2 — curl/wget from internal host to external ---
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP wget/curl from Internal — Suspicious Download"; \
+    flow:established,to_server; content:"wget"; nocase; http_user_agent; \
+    classtype:command-and-control; sid:1000405; rev:1;)
+
+# --- IRC C2 Channel ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 6667 (msg:"DEEPGUARD: IRC Connection — Possible Botnet C2"; \
+    flow:to_server,established; content:"NICK"; nocase; \
+    classtype:command-and-control; sid:1000406; rev:1;)
+
+# --- Cobalt Strike Default Certificate ---
+alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: TLS Certificate — Cobalt Strike Default"; \
+    tls.subject:"CN=Major Cobalt Strike"; \
+    classtype:command-and-control; sid:1000407; rev:1;)
+
+# --- Outbound to Known Malware Port (4444 — Metasploit default) ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 4444 (msg:"DEEPGUARD: Outbound to Port 4444 — Metasploit Reverse Shell"; \
+    flow:to_server,established; \
+    classtype:trojan-activity; sid:1000408; rev:1;)
+
+# --- Outbound to Known Malware Port (1234 — common reverse shell) ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 1234 (msg:"DEEPGUARD: Outbound to Port 1234 — Possible Reverse Shell"; \
+    flow:to_server,established; \
+    classtype:trojan-activity; sid:1000409; rev:1;)
+
+# --- DGA Domain Detection (high entropy) ---
+alert dns $HOME_NET any -> any any (msg:"DEEPGUARD: DGA-Like Domain Query — High Consonant Density"; \
+    dns.query; pcre:"/^[bcdfghjklmnpqrstvwxyz]{5,}/i"; \
+    classtype:command-and-control; sid:1000410; rev:1;)
+
+# --- Tor Connection Detected ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 9001 (msg:"DEEPGUARD: Outbound Tor Connection — Port 9001"; \
+    flow:to_server; classtype:policy-violation; sid:1000411; rev:1;)
+
+alert tcp $HOME_NET any -> $EXTERNAL_NET 9030 (msg:"DEEPGUARD: Outbound Tor Directory — Port 9030"; \
+    flow:to_server; classtype:policy-violation; sid:1000412; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6. PROTOCOL ANOMALIES (wrong protocol on wrong port)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- HTTP ---
+alert tcp any any -> any 443 (msg:"DEEPGUARD: HTTP Cleartext on TLS Port 443"; \
+    flow:to_server; app-layer-protocol:http; \
+    threshold:type limit, track by_src, count 1, seconds 3600; \
+    classtype:non-standard-protocol; sid:1000500; rev:1;)
+
+alert tcp any any -> any !80 (msg:"DEEPGUARD: HTTP on Non-Standard Port"; \
+    flow:to_server; app-layer-protocol:http; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000501; rev:1;)
+
+alert tcp any any -> any 80 (msg:"DEEPGUARD: Non-HTTP Traffic on TCP/80"; \
+    flow:to_server; app-layer-protocol:!http; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000502; rev:1;)
+
+# --- TLS/SSL ---
+alert tcp any any -> any ![443,465,587,993,995,8443] (msg:"DEEPGUARD: TLS on Unusual Port"; \
+    flow:to_server; app-layer-protocol:tls; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000503; rev:1;)
+
+alert tcp any any -> any [443,465] (msg:"DEEPGUARD: Non-TLS on TLS Port"; \
+    flow:to_server; app-layer-protocol:!tls; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000504; rev:1;)
+
+# --- SSH ---
+alert tcp any any -> any !22 (msg:"DEEPGUARD: SSH on Non-Standard Port"; \
+    flow:to_server; app-layer-protocol:ssh; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000505; rev:1;)
+
+alert tcp any any -> any 22 (msg:"DEEPGUARD: Non-SSH on TCP/22"; \
+    flow:to_server; app-layer-protocol:!ssh; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000506; rev:1;)
+
+# --- FTP ---
+alert tcp any any -> any ![20,21] (msg:"DEEPGUARD: FTP on Non-Standard Port"; \
+    flow:to_server; app-layer-protocol:ftp; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000507; rev:1;)
+
+alert tcp any any -> any [20,21] (msg:"DEEPGUARD: Non-FTP on TCP/21"; \
+    flow:to_server; app-layer-protocol:!ftp; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000508; rev:1;)
+
+# --- DNS ---
+alert tcp any any -> any !53 (msg:"DEEPGUARD: DNS-TCP on Non-Standard Port"; \
+    flow:to_server; app-layer-protocol:dns; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000509; rev:1;)
+
+alert udp any any -> any !53 (msg:"DEEPGUARD: DNS-UDP on Non-Standard Port"; \
+    flow:to_server; app-layer-protocol:dns; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000510; rev:1;)
+
+alert udp any any -> any 53 (msg:"DEEPGUARD: Non-DNS on UDP/53 — Possible Tunneling"; \
+    flow:to_server; app-layer-protocol:!dns; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000511; rev:1;)
+
+# --- IMAP ---
+alert tcp any any -> any !143 (msg:"DEEPGUARD: IMAP on Non-Standard Port"; \
+    flow:to_server; app-layer-protocol:imap; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000512; rev:1;)
+
+# --- SMB ---
+alert tcp any any -> any 139 (msg:"DEEPGUARD: Non-SMB on TCP/139"; \
+    flow:to_server; app-layer-protocol:!smb; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000513; rev:1;)
+
+# --- DCERPC over HTTP ---
+alert tcp any any -> any [80,8080] (msg:"DEEPGUARD: DCERPC over HTTP/8080 — Possible Exploit"; \
+    flow:to_server; app-layer-protocol:dcerpc; \
+    threshold:type limit, track by_src, count 1, seconds 60; \
+    classtype:non-standard-protocol; sid:1000514; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 7. DATA EXFILTRATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- Large Outbound HTTP Transfer ---
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: Large Outbound HTTP POST — Possible Data Exfil"; \
+    flow:established,to_server; content:"POST"; http_method; \
+    http_content_len; content:!"0"; \
+    threshold:type both, track by_src, count 5, seconds 60; \
+    classtype:bad-unknown; sid:1000600; rev:1;)
+
+# --- DNS Exfiltration (unusually long queries) ---
+alert dns $HOME_NET any -> any any (msg:"DEEPGUARD: DNS Query Exfiltration — Query > 50 chars"; \
+    dns.query; pcre:"/^.{50,}/"; \
+    classtype:bad-unknown; sid:1000601; rev:1;)
+
+# --- ICMP Tunneling (data in ICMP payload) ---
+alert icmp $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: ICMP Tunneling — Large Echo Payload"; \
+    itype:8; dsize:>100; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:bad-unknown; sid:1000602; rev:1;)
+
+# --- Outbound on Unusual High Port ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 31337 (msg:"DEEPGUARD: Outbound to Port 31337 — Back Orifice / Suspicious"; \
+    flow:to_server; classtype:trojan-activity; sid:1000603; rev:1;)
+
+# --- FTP Data Exfil to External ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 21 (msg:"DEEPGUARD: FTP Upload to External Server"; \
+    flow:to_server,established; content:"STOR"; nocase; \
+    classtype:bad-unknown; sid:1000604; rev:1;)
+
+# --- Outbound Encrypted Traffic on Non-Standard Port ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET ![443,993,995,8443] (msg:"DEEPGUARD: TLS on Non-Standard Port — Possible Covert Channel"; \
+    flow:to_server; app-layer-protocol:tls; \
+    threshold:type limit, track by_src, count 1, seconds 300; \
+    classtype:bad-unknown; sid:1000605; rev:1;)
+
+# --- Bulk DNS Queries (possible DNS exfil tooling) ---
+alert udp $HOME_NET any -> any 53 (msg:"DEEPGUARD: Bulk DNS Queries — Possible Exfil Tool"; \
+    threshold:type both, track by_src, count 200, seconds 60; \
+    classtype:bad-unknown; sid:1000606; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 8. LATERAL MOVEMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- SMB Admin Share Access (C$, ADMIN$) ---
+alert tcp $HOME_NET any -> $HOME_NET 445 (msg:"DEEPGUARD: SMB Admin Share Access — C$"; \
+    flow:to_server,established; content:"|00|C|00|$"; \
+    classtype:attempted-admin; sid:1000700; rev:1;)
+
+alert tcp $HOME_NET any -> $HOME_NET 445 (msg:"DEEPGUARD: SMB Admin Share Access — ADMIN$"; \
+    flow:to_server,established; content:"|00|A|00|D|00|M|00|I|00|N|00|$"; \
+    classtype:attempted-admin; sid:1000701; rev:1;)
+
+# --- SMB IPC$ Access (enumeration / PsExec staging) ---
+alert tcp $HOME_NET any -> $HOME_NET 445 (msg:"DEEPGUARD: SMB IPC$ Access — Possible Enumeration"; \
+    flow:to_server,established; content:"|00|I|00|P|00|C|00|$"; \
+    threshold:type both, track by_src, count 5, seconds 60; \
+    classtype:attempted-recon; sid:1000702; rev:1;)
+
+# --- PsExec Service Binary ---
+alert tcp $HOME_NET any -> $HOME_NET 445 (msg:"DEEPGUARD: PsExec — PSEXESVC Binary Transfer"; \
+    flow:to_server,established; content:"PSEXESVC"; nocase; \
+    classtype:attempted-admin; sid:1000703; rev:1;)
+
+# --- Internal RDP to Multiple Hosts ---
+alert tcp $HOME_NET any -> $HOME_NET 3389 (msg:"DEEPGUARD: Internal RDP Sweep — Lateral Movement"; \
+    flow:to_server; flags:S,12; \
+    threshold:type both, track by_src, count 5, seconds 120; \
+    classtype:attempted-admin; sid:1000704; rev:1;)
+
+# --- WinRM Remote Execution ---
+alert tcp $HOME_NET any -> $HOME_NET 5985 (msg:"DEEPGUARD: WinRM HTTP Connection — Possible Remote Execution"; \
+    flow:to_server,established; \
+    classtype:attempted-admin; sid:1000705; rev:1;)
+
+alert tcp $HOME_NET any -> $HOME_NET 5986 (msg:"DEEPGUARD: WinRM HTTPS Connection — Possible Remote Execution"; \
+    flow:to_server,established; \
+    classtype:attempted-admin; sid:1000706; rev:1;)
+
+# --- Internal SSH Sweep ---
+alert tcp $HOME_NET any -> $HOME_NET 22 (msg:"DEEPGUARD: Internal SSH Sweep — Lateral Movement"; \
+    flow:to_server; flags:S,12; \
+    threshold:type both, track by_src, count 5, seconds 120; \
+    classtype:attempted-admin; sid:1000707; rev:1;)
+
+# --- DCOM/WMI Remote Execution ---
+alert tcp $HOME_NET any -> $HOME_NET 135 (msg:"DEEPGUARD: DCOM/WMI — Remote Execution via RPC"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 10, seconds 60; \
+    classtype:attempted-admin; sid:1000708; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 9. SUSPICIOUS DOMAINS & TLDs
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- Onion Proxy Domains ---
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to .onion.to Proxy"; \
+    flow:established,to_server; content:".onion.to"; http_host; isdataat:!1,relative; \
+    classtype:policy-violation; sid:1000800; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to .onion.city Proxy"; \
+    flow:established,to_server; content:".onion.city"; http_host; isdataat:!1,relative; \
+    classtype:policy-violation; sid:1000801; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to .onion.cab Proxy"; \
+    flow:established,to_server; content:".onion.cab"; http_host; isdataat:!1,relative; \
+    classtype:policy-violation; sid:1000802; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to .onion.direct Proxy"; \
+    flow:established,to_server; content:".onion.direct"; http_host; isdataat:!1,relative; \
+    classtype:policy-violation; sid:1000803; rev:1;)
+
+# --- Suspicious TLDs ---
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to Suspicious .ws Domain"; \
+    flow:established,to_server; content:".ws"; http_host; isdataat:!1,relative; \
+    classtype:bad-unknown; sid:1000804; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to Suspicious .tk Domain"; \
+    flow:established,to_server; content:".tk"; http_host; isdataat:!1,relative; \
+    classtype:bad-unknown; sid:1000805; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to Suspicious .ml Domain"; \
+    flow:established,to_server; content:".ml"; http_host; isdataat:!1,relative; \
+    classtype:bad-unknown; sid:1000806; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to Suspicious .ga Domain"; \
+    flow:established,to_server; content:".ga"; http_host; isdataat:!1,relative; \
+    classtype:bad-unknown; sid:1000807; rev:1;)
+
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Request to Suspicious .cf Domain"; \
+    flow:established,to_server; content:".cf"; http_host; isdataat:!1,relative; \
+    classtype:bad-unknown; sid:1000808; rev:1;)
+
+# --- DNS to Suspicious TLDs ---
+alert udp any any -> any 53 (msg:"DEEPGUARD: DNS Query to .onion Domain"; \
+    content:"|05|onion|00|"; nocase; \
+    classtype:policy-violation; sid:1000809; rev:1;)
+
+alert udp any any -> any 53 (msg:"DEEPGUARD: DNS Query to .to Domain"; \
+    content:"|02|to|00|"; nocase; \
+    classtype:bad-unknown; sid:1000810; rev:1;)
+
+# --- TLS to Suspicious Onion Proxy ---
+alert tls any any -> any any (msg:"DEEPGUARD: TLS SNI to Onion Proxy"; \
+    tls.sni; content:".onion."; \
+    classtype:policy-violation; sid:1000811; rev:1;)
+
+# --- HTTP on Non-Standard Port (application layer) ---
+alert http any any -> any ![80,443,8080,8443,5000] (msg:"DEEPGUARD: HTTP on Non-Standard Port"; \
+    flow:to_server,established; \
+    threshold:type limit, track by_src, count 1, seconds 300; \
+    classtype:non-standard-protocol; sid:1000812; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 10. EXPLOIT DETECTION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- NOP Sled / Shellcode ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: Possible Shellcode — NOP Sled Detected"; \
+    content:"|90 90 90 90 90 90 90 90|"; \
+    classtype:shellcode-detect; sid:1000900; rev:1;)
+
+# --- x86 Shellcode Pattern ---
+alert tcp any any -> $HOME_NET 80 (msg:"DEEPGUARD: Possible x86 Shellcode in HTTP"; \
+    flow:to_server,established; content:"|eb|"; content:"|5e|"; within:50; \
+    classtype:shellcode-detect; sid:1000901; rev:1;)
+
+# --- EternalBlue (MS17-010) SMB Exploit ---
+alert tcp any any -> $HOME_NET 445 (msg:"DEEPGUARD: SMB EternalBlue Exploit Attempt — MS17-010"; \
+    flow:to_server,established; \
+    content:"|ff|SMB|73 00 00 00|"; offset:4; depth:9; \
+    content:"|09 00|"; distance:52; within:2; \
+    classtype:exploit-kit; sid:1000902; rev:1;)
+
+# --- Apache Struts RCE ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: Apache Struts RCE — Content-Type OGNL Injection"; \
+    flow:established,to_server; content:"multipart/form-data"; http_header; \
+    content:"%{"; http_header; \
+    classtype:exploit-kit; sid:1000903; rev:1;)
+
+# --- Spring4Shell (CVE-2022-22965) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: Spring4Shell — Class Loader Manipulation"; \
+    flow:established,to_server; content:"class.module.classLoader"; nocase; http_uri; \
+    classtype:exploit-kit; sid:1000904; rev:1;)
+
+# --- NTP Amplification DDoS ---
+alert udp any any -> $HOME_NET 123 (msg:"DEEPGUARD: NTP Amplification DDoS — monlist Request"; \
+    content:"|17 00 03 2a|"; offset:0; depth:4; \
+    classtype:attempted-dos; sid:1000905; rev:1;)
+
+# --- DNS Amplification DDoS ---
+alert udp any any -> $HOME_NET 53 (msg:"DEEPGUARD: DNS Amplification — ANY Query Flood"; \
+    content:"|00 ff|"; \
+    threshold:type both, track by_src, count 20, seconds 10; \
+    classtype:attempted-dos; sid:1000906; rev:1;)
+
+# --- SSDP Amplification ---
+alert udp any any -> $HOME_NET 1900 (msg:"DEEPGUARD: SSDP Amplification — M-SEARCH Flood"; \
+    content:"M-SEARCH"; nocase; \
+    threshold:type both, track by_src, count 20, seconds 10; \
+    classtype:attempted-dos; sid:1000907; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 11. CREDENTIAL THEFT & AUTH ANOMALIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- NTLM Authentication over HTTP (relay risk) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: NTLM Authentication via HTTP — Relay Risk"; \
+    flow:established,to_server; content:"NTLMSSP"; http_header; \
+    classtype:credential-theft; sid:1001000; rev:1;)
+
+# --- Kerberos AS-REQ for Service Account (Kerberoasting) ---
+alert tcp $HOME_NET any -> $HOME_NET 88 (msg:"DEEPGUARD: Kerberos AS-REQ Burst — Possible Kerberoasting"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 15, seconds 30; \
+    classtype:credential-theft; sid:1001001; rev:1;)
+
+# --- LDAP Bind Flood (credential spray) ---
+alert tcp any any -> $HOME_NET 389 (msg:"DEEPGUARD: LDAP Bind Flood — Credential Spray Attempt"; \
+    flow:to_server,established; \
+    threshold:type both, track by_src, count 20, seconds 60; \
+    classtype:credential-theft; sid:1001002; rev:1;)
+
+# --- SMB NTLM Negotiate (pass-the-hash indicator) ---
+alert tcp $HOME_NET any -> $HOME_NET 445 (msg:"DEEPGUARD: SMB NTLM Auth to Multiple Hosts — Pass-the-Hash"; \
+    flow:to_server,established; content:"NTLMSSP"; \
+    threshold:type both, track by_src, count 5, seconds 120; \
+    classtype:credential-theft; sid:1001003; rev:1;)
+
+# --- HTTP Cleartext Credentials ---
+alert http any any -> any any (msg:"DEEPGUARD: HTTP Basic Auth over Cleartext — Credential Exposure"; \
+    flow:established,to_server; content:"Authorization|3a| Basic"; nocase; http_header; \
+    threshold:type limit, track by_src, count 1, seconds 300; \
+    classtype:credential-theft; sid:1001004; rev:1;)
+
+# --- Default Credentials (admin/admin) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: Default Credentials Attempt — admin/admin"; \
+    flow:established,to_server; content:"admin"; http_client_body; content:"admin"; http_client_body; \
+    classtype:default-login-attempt; sid:1001005; rev:1;)
+
+# --- SNMP Default Community String ---
+alert udp any any -> $HOME_NET 161 (msg:"DEEPGUARD: SNMP Default Community — public"; \
+    content:"public"; nocase; \
+    classtype:default-login-attempt; sid:1001006; rev:1;)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# END OF DEEPGUARD LOCAL RULES
+# Total: 110 rules across 11 categories
+# Generated by DeepGuard Team
+# ═══════════════════════════════════════════════════════════════════════════════

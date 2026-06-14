@@ -1,17 +1,23 @@
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const util = require('util');
-const execPromise = util.promisify(exec);
+const execFilePromise = util.promisify(execFile);
 
 // Helper to query Velociraptor via local docker exec
 const queryVelociraptor = async (vqlQuery) => {
     try {
-        // Escape single quotes for the shell command
-        const safeQuery = vqlQuery.replace(/'/g, "'\\''");
+        // We pass the VQL query as an environment variable to the docker container.
+        // This completely bypasses any shell positional argument ($0, $1) parsing inconsistencies
+        // and guarantees the query is executed exactly as intended.
+        const cmdArgs = [
+            'exec',
+            '-e', `VQL_QUERY=${vqlQuery}`,
+            'deepguard-velociraptor',
+            'sh',
+            '-c',
+            'if [ ! -f /tmp/api_client.yaml ]; then /velociraptor/velociraptor --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; /velociraptor/velociraptor --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
+        ];
         
-        // Execute the VQL query directly against the live server
-        // We cache the api_client.yaml to significantly reduce the execution time of 'docker exec'
-        const cmd = `docker exec deepguard-velociraptor sh -c "if [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; elif [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then \\$VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; \\$VR_BIN --api_config /tmp/api_client.yaml query '${safeQuery}' --format json"`;
-        const { stdout, stderr } = await execPromise(cmd);
+        const { stdout, stderr } = await execFilePromise('docker', cmdArgs);
         
         if (stderr && stderr.trim()) {
             console.error('[Velociraptor CLI Stderr]:', stderr);

@@ -46,7 +46,8 @@ FEATURE_NAMES = [
 LOG_FEATURES = [
     'bytes_total', 'packets_total', 'avg_bytes_per_flow', 
     'conn_count', 'connections_per_sec',
-    'avg_duration', 'unique_dst_ports', 'unique_dst_ips'
+    'avg_duration', 'unique_dst_ports', 'unique_dst_ips',
+    'avg_pkt_size', 'inbound_outbound_ratio'
 ]
 
 def _calculate_entropy(items):
@@ -169,14 +170,15 @@ def parse_zeek_logs(filepath):
 
     print(f"[+] Found {len(windows)} unique windows.")
     
-    data = []
+    # Store data with src_ip context
+    data_with_context = []
     for (src_ip, w_idx), flows in windows.items():
         agg = _aggregate(flows)
         if agg:
             row = [agg[name] for name in FEATURE_NAMES]
-            data.append(row)
+            data_with_context.append({'src_ip': src_ip, 'features': row})
             
-    return np.array(data, dtype=np.float32)
+    return data_with_context
 
 def build_autoencoder(input_dim: int) -> keras.Model:
     inputs = keras.Input(shape=(input_dim,))
@@ -187,36 +189,64 @@ def build_autoencoder(input_dim: int) -> keras.Model:
     x = layers.Dense(32, activation='relu')(x)
     outputs = layers.Dense(input_dim, activation='linear')(x)
     model = keras.Model(inputs, outputs)
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='mse')
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='mae')
     return model
 
 def main():
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-    data = parse_zeek_logs(LOG_FILE)
-    if len(data) == 0:
+    raw_data_context = parse_zeek_logs(LOG_FILE)
+    if len(raw_data_context) == 0:
         print("[!] No data extracted. Aborting.")
         return
 
-    print(f"[*] Extracted shape: {data.shape}")
+    # Extract raw array for feature processing
+    data_array = np.array([item['features'] for item in raw_data_context], dtype=np.float32)
+    print(f"[*] Extracted shape: {data_array.shape}")
 
     # Log scale
     for feature in LOG_FEATURES:
         idx = FEATURE_NAMES.index(feature)
-        data[:, idx] = np.log1p(data[:, idx])
+        data_array[:, idx] = np.log1p(data_array[:, idx])
 
-    # Scale
-    print("[*] Fitting RobustScaler...")
-    scaler = RobustScaler()
-    data_scaled = scaler.fit_transform(data)
-    joblib.dump(scaler, SCALER_PATH)
+    # Put scaled values back into context dict
+    for i, item in enumerate(raw_data_context):
+        item['features'] = data_array[i]
+
+    # Per-Host Scaling
+    print("[*] Fitting per-host RobustScalers...")
+    scalers = {}
+    
+    # Group data by IP
+    ip_groups = defaultdict(list)
+    for i, item in enumerate(raw_data_context):
+        ip_groups[item['src_ip']].append(item['features'])
+        
+    for ip, features in ip_groups.items():
+        scaler = RobustScaler()
+        scaler.fit(features)
+        scalers[ip] = scaler
+        
+    # Global fallback scaler
+    global_scaler = RobustScaler()
+    global_scaler.fit(data_array)
+    scalers['__GLOBAL__'] = global_scaler
+    
+    joblib.dump(scalers, SCALER_PATH)
+
+    # Scale data using appropriate per-host scaler
+    data_scaled = np.zeros_like(data_array)
+    for i, item in enumerate(raw_data_context):
+        scaler = scalers[item['src_ip']]
+        scaled_features = scaler.transform([item['features']])[0]
+        data_scaled[i] = scaled_features
 
     # Build & train
     model = build_autoencoder(input_dim=len(FEATURE_NAMES))
     
     # If not enough windows, increase epochs or duplicate data for stability
     epochs = 100
-    if len(data) < 1000:
+    if len(data_scaled) < 1000:
         epochs = 300
 
     print("[*] Training autoencoder...")
@@ -224,31 +254,31 @@ def main():
         data_scaled, data_scaled,
         epochs=epochs,
         batch_size=64,
-        validation_split=0.1 if len(data) > 100 else 0.0,
+        validation_split=0.1 if len(data_scaled) > 100 else 0.0,
         verbose=1,
     )
 
     model.save(MODEL_PATH)
     print(f"[+] Model saved to {MODEL_PATH}")
 
-    # Compute threshold
+    # Compute threshold using MAE
     print("[*] Computing reconstruction threshold...")
     predictions = model.predict(data_scaled, verbose=0)
-    mse_errors = np.mean(np.square(data_scaled - predictions), axis=1)
+    mae_errors = np.mean(np.abs(data_scaled - predictions), axis=1)
     
-    # 99th percentile or higher if data is small
-    threshold = float(np.percentile(mse_errors, 99))
-    # Ensure a minimum threshold so it doesn't trigger on every slight variation if data is extremely homogenous
-    threshold = max(threshold, 0.05)
+    # 99.9th percentile
+    threshold = float(np.percentile(mae_errors, 99.9))
+    # Add 15% safety buffer and ensure a minimum floor of 0.45
+    threshold = max(threshold * 1.15, 0.45)
     
-    print(f"[+] Threshold (99th percentile): {threshold:.6f}")
+    print(f"[+] MAE Threshold (99.9th percentile): {threshold:.6f}")
 
     metadata = {
         'reconstruction_threshold': threshold,
         'feature_names': FEATURE_NAMES,
         'log_features': LOG_FEATURES,
         'window_size': WINDOW_SECONDS,
-        'training_samples': len(data),
+        'training_samples': len(data_scaled),
     }
     with open(METADATA_PATH, 'w') as f:
         json.dump(metadata, f, indent=2)
