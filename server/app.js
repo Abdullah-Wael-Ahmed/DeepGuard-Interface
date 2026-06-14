@@ -38,7 +38,7 @@ async function connectWithRetry(retries = 10, delay = 3000) {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             await db.authenticate();
-            await db.sync({ alter: true });
+            await db.sync();
             console.log(`Database synced (attempt ${attempt})`);
             await correlationEngine.init(); // Init backend correlation
             velociraptorPoller.start(); // Init Velociraptor flow polling
