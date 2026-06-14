@@ -12,7 +12,7 @@ const Traffic = () => {
     const [searchParams] = useSearchParams();
     const initialSearch = searchParams.get('search') || '';
 
-    const [data, setData] = useState([]);
+    const [data, setData] = useState({ alerts: [], alertCount: 0, noItems: 10 });
     // const [totalAlertCount, setTotalAlertCount] = useState(0);
     const [loader, setLoader] = useState(true);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -475,4 +475,3 @@ const Traffic = () => {
 }
 
 export default Traffic;
-xport default Traffic;
