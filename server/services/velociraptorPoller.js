@@ -66,7 +66,7 @@ class VelociraptorPoller {
 
     async fetchAndFanOutResults(clientId, flowId, artifact) {
         try {
-            const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}')`);
+            const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}') LIMIT 500`);
             
             const parseResponse = (resData) => {
                 let res = [];
@@ -87,7 +87,7 @@ class VelociraptorPoller {
                 const fallbackSources = ['BasicInformation', 'Pslist', 'NetworkConnections', 'Users'];
                 for (const src of fallbackSources) {
                     try {
-                        const retryData = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}', source='${src}')`);
+                        const retryData = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifact}', source='${src}') LIMIT 500`);
                         const retryResults = parseResponse(retryData);
                         if (retryResults.length > 0) {
                             results = retryResults;
