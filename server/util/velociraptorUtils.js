@@ -17,11 +17,11 @@ const queryVelociraptor = async (vqlQuery) => {
             'if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then $VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; $VR_BIN --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
         ];
         
-        // Add a 15-second timeout and a large 50MB maxBuffer. 
+        // Add a 60-second timeout and a large 50MB maxBuffer. 
         // If Velociraptor hangs, this prevents infinite overlapping docker execs.
         // The maxBuffer prevents crashes when querying large artifacts or many clients.
         const { stdout, stderr } = await execFilePromise('docker', cmdArgs, { 
-            timeout: 15000, 
+            timeout: 60000, 
             killSignal: 'SIGKILL',
             maxBuffer: 1024 * 1024 * 50 // 50 MB
         });
