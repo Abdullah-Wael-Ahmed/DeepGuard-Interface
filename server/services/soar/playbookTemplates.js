@@ -294,7 +294,7 @@ async function seedPlaybooks() {
         const { nodes, edges } = template.build();
         
         if (exists) {
-            await exists.update({ nodes, edges, status: template.defaultStatus || "active" });
+            await exists.update({ nodes, edges, status: template.defaultStatus || "disabled" });
             created++;
             continue;
         }
@@ -302,7 +302,7 @@ async function seedPlaybooks() {
         await Playbook.create({
             name: template.name,
             description: template.description,
-            status: template.defaultStatus || "draft",
+            status: template.defaultStatus || "disabled",
             triggerType: template.triggerType,
             triggerConditions: template.triggerConditions,
             mitreTags: template.mitreTags,
