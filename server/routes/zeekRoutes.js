@@ -259,9 +259,9 @@ router.post("/ingest/dns", async (req, res) => {
     try {
         const data = req.body;
 
-        console.log("zeek dns------------------------------")
-        console.log(req.body)
-        console.log("--------------------------------------")
+        // console.log("zeek dns------------------------------")
+        // console.log(req.body)
+        // console.log("--------------------------------------")
 
         // 1. Handle Timestamp
         const timestamp = data["@timestamp"] ? new Date(data["@timestamp"]) : new Date();

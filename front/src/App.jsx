@@ -14,6 +14,7 @@ import Layout from './pages/Layout';
 import LoginPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
+import ReportPrintView from './pages/ReportPrintView';
 import Traffic from './pages/Traffic';
 import Firewall from './pages/Firewall';
 import Settings from './pages/Settings';
@@ -60,21 +61,23 @@ const AxiosInterceptorSetup = ({ children }) => {
 function App() {
   const router = createBrowserRouter([
     {
+      path: '/reports/print/:templateId',
+      element: <ReportPrintView />
+    },
+    {
       // wraps everything so we check for the "Remember Me" cookie
       element: <PersistLogin />,
       children: [
         {
+          // Redirects to "/" if the user is already authenticated
           element: <PublicRoute />,
           children: [
-            {
-              path: '/login',
-              element: <LoginPage />
-            }
+            { path: '/login', element: <LoginPage /> }
           ]
         },
         {
           element: <ProtectedRoute />,
-          errorElement: <div className="p-10 text-white">Page not found! <a href="/" className="text-primary underline">Go Home</a></div>,
+          errorElement: <div className="p-10 text-white">Something went wrong! <a href="/" className="text-primary underline">Go Home</a></div>,
           children: [
             {
               path: '/',
@@ -133,6 +136,7 @@ function App() {
             position='top-right'
             autoClose={3000}
             theme='dark'
+            limit={5}
           />
         </AxiosInterceptorSetup>
       </AuthProvider>

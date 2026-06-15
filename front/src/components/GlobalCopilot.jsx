@@ -184,7 +184,7 @@ const GlobalCopilot = () => {
     const countdownRef = useRef(null);
     const location = useLocation();
 
-    const BACK = import.meta.env.VITE_BACK || 'http://localhost:5000';
+    const BACK = import.meta.env.VITE_BACK || '/api';
     const currentPage = location.pathname.split('/')[1] || '';
     const suggestedPrompts = PAGE_PROMPTS[currentPage] || PAGE_PROMPTS[''];
     const pageCtx = PAGE_CONTEXT[currentPage] || PAGE_CONTEXT[''];

@@ -61,7 +61,7 @@ const MitreAttack = () => {
     const [techniqueDetail, setTechniqueDetail] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
 
-    const BACK = import.meta.env.VITE_BACK || 'http://localhost:5000';
+    const BACK = import.meta.env.VITE_BACK || '/api';
 
     // ─────────────── Data Fetching ───────────────
 
@@ -164,7 +164,6 @@ const MitreAttack = () => {
                 <div className="flex flex-wrap justify-between items-center gap-4 animate-fade-in">
                     <div className="flex flex-col gap-2">
                         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gradient flex items-center gap-3">
-                            <Crosshair className="text-red-500" size={32} />
                             MITRE ATT&CK Mapping
                         </h1>
                         <p className="text-text-secondary text-sm sm:text-base max-w-2xl">

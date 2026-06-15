@@ -9,6 +9,8 @@ services:
       - ./server/.env
     environment:
       NODE_ENV: dep
+      # Puppeteer target: prod frontend runs nginx on :80
+      FRONTEND_INTERNAL_URL: http://deepguard-frontend:80
     ports:
       - "5000:5000"
     cap_add:
@@ -39,6 +41,13 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  mdns-publisher:
+    image: ghcr.io/ensody/avahi
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - SERVICES=deepguard.local:80
 
   db:
     image: mysql:8.0

@@ -6,7 +6,10 @@ const Evidence = require("../models/Evidence");
 const Alert = require("../models/Alert");
 const soarEngine = require("../services/soar/engine");
 const IOC = require("../models/IOC");
+const User = require("../models/User");
+const { sendAssignmentEmail } = require("../services/mailService");
 const { requireAdminOrOperator } = require("../middleware/authorize");
+
 
 const router = express.Router();
 
@@ -63,6 +66,32 @@ function calculateSLA(severity) {
 function formatIncidentId(id) {
     return `INC-${String(id).padStart(5, "0")}`;
 }
+
+async function handleEmailNotification(assigneeId, incident) {
+    if (!assigneeId) return;
+    try {
+        const user = await User.findByPk(assigneeId);
+        if (user && user.email) {
+            const ref = formatIncidentId(incident.id);
+            // Run email sending asynchronously so we don't block requests
+            sendAssignmentEmail(
+                user.email,
+                user.name,
+                ref,
+                incident.title,
+                incident.severity,
+                incident.priority
+            ).catch(err => {
+                console.error(`[IncidentMail] Async send failed for user ${user.email}:`, err);
+            });
+        } else {
+            console.warn(`[IncidentMail] Assignee user ${assigneeId} not found or has no email.`);
+        }
+    } catch (err) {
+        console.error(`[IncidentMail] Error loading assignee user for notification:`, err);
+    }
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET /incidents — List all incidents with filters and pagination
@@ -245,6 +274,19 @@ router.post("/bulk", requireAdminOrOperator, async (req, res) => {
         await Incident.update(updates, {
             where: { id: { [Op.in]: incidentIds } }
         });
+
+        // Trigger email alerts asynchronously for bulk reassignment
+        if (assigneeId !== undefined && assigneeId !== null) {
+            Incident.findAll({
+                where: { id: { [Op.in]: incidentIds } }
+            }).then(incidents => {
+                for (const inc of incidents) {
+                    handleEmailNotification(assigneeId, inc);
+                }
+            }).catch(err => {
+                console.error("[Incidents] Bulk update mail fetch error:", err);
+            });
+        }
 
         // Log timeline events for all updated incidents
         const actor = req.body?.actor || "system";
@@ -482,6 +524,10 @@ router.post("/", requireAdminOrOperator, async (req, res) => {
                 `Assigned to ${assignee}`,
                 { assignee },
             );
+
+            if (assigneeId) {
+                handleEmailNotification(assigneeId, incident);
+            }
         }
 
         const { broadcast } = require("../util/websocket");
@@ -541,11 +587,15 @@ router.patch("/:id", requireIncidentWriteAccess, async (req, res) => {
         }
         if (assignee !== undefined || assigneeId !== undefined) {
             const oldAssignee = incident.assignee;
+            const oldAssigneeId = incident.assigneeId;
             if (assignee !== incident.assignee || assigneeId !== incident.assigneeId) {
                 incident.assignee = assignee || null;
                 incident.assigneeId = assigneeId || null;
                 if (incident.assignee) {
                     await logEvent(incident.id, "assigned", actor, `Reassigned from ${oldAssignee || "unassigned"} to ${incident.assignee}`, { from: oldAssignee, to: incident.assignee }, actorId);
+                    if (incident.assigneeId && incident.assigneeId !== oldAssigneeId) {
+                        handleEmailNotification(incident.assigneeId, incident);
+                    }
                 } else {
                     await logEvent(incident.id, "unassigned", actor, `Unassigned from ${oldAssignee}`, { from: oldAssignee }, actorId);
                 }

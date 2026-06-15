@@ -58,11 +58,11 @@ Client:
     filename_windows: $TEMP/Velociraptor_Buffer.bin
     filename_darwin: /var/tmp/Velociraptor_Buffer.bin
 API:
-  bind_address: 127.0.0.1
+  bind_address: 0.0.0.0
   bind_port: 8001
   bind_scheme: tcp
 GUI:
-  bind_address: 127.0.0.1
+  bind_address: 0.0.0.0
   bind_port: 8889
   gw_certificate: |
     -----BEGIN CERTIFICATE-----
@@ -215,8 +215,8 @@ Frontend:
     expected_clients: 30000
 Datastore:
   implementation: FileBaseDataStore
-  location: /var/tmp/velociraptor/
-  filestore_directory: /var/tmp/velociraptor/
+  location: /velociraptor/
+  filestore_directory: /velociraptor/
 Logging:
   separate_logs_per_component: true
   debug:
@@ -228,7 +228,7 @@ Logging:
     rotation_time: 604800
     max_age: 31536000
 Monitoring:
-  bind_address: 127.0.0.1
+  bind_address: 0.0.0.0
   bind_port: 8003
 api_config: {}
 obfuscation_nonce: 1ybY9WMVd7o=

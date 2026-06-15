@@ -2,7 +2,22 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-RUN apk update && apk add sudo iptables docker-cli nmap
+# Install dependencies, Docker CLI, Nmap (for port scanning simulation), and Chromium for Puppeteer
+RUN apk update && apk add --no-cache \
+    sudo \
+    iptables \
+    docker-cli \
+    nmap \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Tell Puppeteer to use the system-installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 COPY package*.json ./
 

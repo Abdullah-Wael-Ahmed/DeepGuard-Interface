@@ -14,6 +14,7 @@ const velociraptorRoutes = require('./routes/velociraptor');
 const incidentRouter = require("./routes/incidentRoutes")
 const correlationRouter = require("./routes/correlationRoutes")
 const playbookRouter = require("./routes/playbookRoutes")
+const reportRouter = require("./routes/reportRoutes")
 const correlationEngine = require("./services/correlationEngine")
 const velociraptorPoller = require("./services/velociraptorPoller")
 const cors = require('cors');
@@ -42,7 +43,7 @@ async function connectWithRetry(retries = 10, delay = 3000) {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             await db.authenticate();
-            await db.sync({ alter: true });
+            await db.sync();
             console.log(`Database synced (attempt ${attempt})`);
             await correlationEngine.init(); // Init backend correlation
             velociraptorPoller.start(); // Init Velociraptor flow polling
@@ -80,6 +81,7 @@ app.use("/api/velociraptor", verifyJWT, restrictWriteToAdminOrOperator, velocira
 app.use("/incidents", verifyJWT, incidentRouter)
 app.use("/rules", verifyJWT, restrictWriteToAdminOrOperator, correlationRouter)
 app.use("/playbooks", verifyJWT, restrictWriteToAdminOrOperator, playbookRouter)
+app.use("/reports", verifyJWT, reportRouter)
 
 server.listen(5000, () => {
     console.log("server running on port 5000");

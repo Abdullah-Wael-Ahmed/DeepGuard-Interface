@@ -47,7 +47,7 @@ export default function NetworkBehaviorAnalytics() {
     const [loading, setLoading] = useState(true);
 
     // Use the env var like Dashboard.jsx or fallback to localhost
-    const API_BASE = (import.meta.env.VITE_BACK || "http://localhost:5000") + "/zeek";
+    const API_BASE = (import.meta.env.VITE_BACK || "/api") + "/zeek";
 
     const fetchData = async () => {
         try {
