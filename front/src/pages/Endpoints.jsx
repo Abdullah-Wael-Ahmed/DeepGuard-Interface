@@ -176,7 +176,11 @@ const Endpoints = () => {
     const selectEndpoint = useCallback((client) => {
         setSelectedEndpoint(client);
         setActiveTab('overview');
-        const ip = client.os_info?.ip || client.ip || '';
+        let ip = client.os_info?.ip || client.ip || client.last_ip || '';
+        // If last_ip contains port (e.g. 192.168.2.11:54321), extract just the IP
+        if (ip && ip.includes(':')) {
+            ip = ip.split(':')[0];
+        }
         if (ip) fetchEndpointContext(ip);
         if (client.client_id) fetchCollections(client.client_id);
     }, []);

@@ -12,7 +12,7 @@ const velociraptorPoller = require('../services/velociraptorPoller');
 // GET /api/velociraptor/clients — fetch all enrolled endpoint agents
 router.get('/clients', async (req, res) => {
     try {
-        const data = await queryVelociraptor('SELECT client_id, os_info, labels, last_seen_at FROM clients()');
+        const data = await queryVelociraptor('SELECT client_id, os_info, labels, last_seen_at, last_ip FROM clients()');
         
         // VQL returns an array of objects in data.Responses[0].Response (usually JSON string or object array)
         let clients = [];
@@ -39,7 +39,7 @@ router.get('/clients', async (req, res) => {
 router.get('/clients/:clientId', async (req, res) => {
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const data = await queryVelociraptor(`SELECT * FROM clients() WHERE client_id = '${clientId}'`);
+        const data = await queryVelociraptor(`SELECT client_id, os_info, labels, last_seen_at, last_ip FROM clients() WHERE client_id = '${clientId}'`);
         
         let client = {};
         if (data.Responses && data.Responses.length > 0) {
