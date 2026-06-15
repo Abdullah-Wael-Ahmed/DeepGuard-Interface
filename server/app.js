@@ -29,7 +29,13 @@ const app = express()
 
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost,http://localhost:80,http://localhost:3000").split(",");
 app.use(cors({
-    origin: (origin, cb) => (!origin || ALLOWED_ORIGINS.includes(origin)) ? cb(null, true) : cb(new Error("CORS blocked")),
+    origin: (origin, cb) => {
+        if (!origin || process.env.NODE_ENV === 'dev' || ALLOWED_ORIGINS.includes(origin)) {
+            cb(null, origin || true);
+        } else {
+            cb(new Error("CORS blocked"));
+        }
+    },
     credentials: true
 }))
 app.use(express.json())
