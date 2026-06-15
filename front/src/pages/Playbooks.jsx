@@ -254,7 +254,7 @@ const Playbooks = () => {
                                             )}
                                         </td>
                                         <td className="py-4 px-6 text-gray-300 font-mono">
-                                            {pb.runCounter || 0}
+                                            {pb.runs || 0}
                                         </td>
                                         <td className="py-4 px-6 text-gray-400 flex items-center gap-2">
                                             <Clock size={14}/> {new Date(pb.updatedAt).toLocaleDateString()}

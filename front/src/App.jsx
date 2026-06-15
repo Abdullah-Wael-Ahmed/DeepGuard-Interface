@@ -31,28 +31,30 @@ import Playbooks from './pages/Playbooks'
 import PlaybookBuilder from './pages/PlaybookBuilder'
 import ExecutionHistory from './pages/ExecutionHistory'
 import RoleRoute from './components/RoleRoute';
-import { useEffect } from 'react';
-import axios from 'axios'
+import React, { useEffect } from 'react';
+import axios from 'axios';
 const AxiosInterceptorSetup = ({ children }) => {
   const { auth } = useAuth();
+  const authRef = React.useRef(auth);
+
+  // Update ref synchronously during render so children's useEffects see the latest token
+  authRef.current = auth;
 
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
-        // Automatically attach the token to every request
-        if (auth?.accessToken) {
-          config.headers.Authorization = `Bearer ${auth.accessToken}`;
+        if (authRef.current?.accessToken) {
+          config.headers.Authorization = `Bearer ${authRef.current.accessToken}`;
         }
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    // Cleanup interceptor to prevent memory leaks
     return () => {
       axios.interceptors.request.eject(requestInterceptor);
     };
-  }, [auth]);
+  }, []);
 
   return children;
 };

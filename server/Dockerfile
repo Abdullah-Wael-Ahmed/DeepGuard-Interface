@@ -2,11 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install dependencies, Docker CLI, and Chromium for Puppeteer
+# Install dependencies, Docker CLI, Nmap (for port scanning simulation), and Chromium for Puppeteer
 RUN apk update && apk add --no-cache \
     sudo \
     iptables \
     docker-cli \
+    nmap \
     chromium \
     nss \
     freetype \

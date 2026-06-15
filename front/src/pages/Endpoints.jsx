@@ -132,6 +132,7 @@ const Endpoints = () => {
     const [vrConnections, setVrConnections] = useState([]);
     const [loadingVrConnections, setLoadingVrConnections] = useState(false);
     const [hasFetchedVrConnections, setHasFetchedVrConnections] = useState(false);
+    const [hiddenCollections, setHiddenCollections] = useState(() => JSON.parse(localStorage.getItem('hiddenCollections') || '[]'));
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchStatus = async () => {
@@ -777,22 +778,13 @@ const Endpoints = () => {
                                                                 </thead>
                                                                 <tbody>
                                                                     {vrConnections.map((conn, i) => {
-                                                                        let laddrStr = '0.0.0.0:0';
-                                                                        let raddrStr = '0.0.0.0:0';
-                                                                        
-                                                                        const laddr = conn.Laddr || conn.laddr || conn.LocalAddress || conn.localAddress;
-                                                                        if (typeof laddr === 'string') {
-                                                                            laddrStr = laddr;
-                                                                        } else if (typeof laddr === 'object' && laddr !== null) {
-                                                                            laddrStr = `${laddr.IP || laddr.ip || '0.0.0.0'}:${laddr.Port || laddr.port || '0'}`;
-                                                                        }
+                                                                        const laddrIp = conn['Laddr.IP'] || conn['laddr.ip'] || conn['Laddr.ip'] || conn.LocalIP || '0.0.0.0';
+                                                                        const laddrPort = conn['Laddr.Port'] || conn['laddr.port'] || conn['Laddr.port'] || conn.LocalPort || '0';
+                                                                        const laddrStr = `${laddrIp}:${laddrPort}`;
 
-                                                                        const raddr = conn.Raddr || conn.raddr || conn.RemoteAddress || conn.remoteAddress;
-                                                                        if (typeof raddr === 'string') {
-                                                                            raddrStr = raddr;
-                                                                        } else if (typeof raddr === 'object' && raddr !== null) {
-                                                                            raddrStr = `${raddr.IP || raddr.ip || '0.0.0.0'}:${raddr.Port || raddr.port || '0'}`;
-                                                                        }
+                                                                        const raddrIp = conn['Raddr.IP'] || conn['raddr.ip'] || conn['Raddr.ip'] || conn.RemoteIP || '0.0.0.0';
+                                                                        const raddrPort = conn['Raddr.Port'] || conn['raddr.port'] || conn['Raddr.port'] || conn.RemotePort || '0';
+                                                                        const raddrStr = `${raddrIp}:${raddrPort}`;
                                                                         
                                                                         return (
                                                                         <tr key={i} className="border-b border-gray-800 hover:bg-white/5">
@@ -833,7 +825,10 @@ const Endpoints = () => {
                                                             {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-800 rounded-lg w-full"></div>)}
                                                         </div>
                                                     ) : collections.length > 0 ? (
-                                                        collections.map((col, i) => {
+                                                        collections.filter(col => {
+                                                            const flowId = col.urn || col.flow_id || col.session_id || col.Urn || col.FlowId || col.SessionId || col.flowId || col.Flow_id || 'N/A';
+                                                            return !hiddenCollections.includes(flowId);
+                                                        }).map((col, i) => {
                                                             const flowId = col.urn || col.flow_id || col.session_id || col.Urn || col.FlowId || col.SessionId || col.flowId || col.Flow_id || 'N/A';
                                                             const colArtifacts = col.artifacts || col.Artifacts || col.request?.artifacts || col.Request?.Artifacts;
                                                             const artifactName = colArtifacts ? (Array.isArray(colArtifacts) ? colArtifacts.join(', ') : colArtifacts) : col.artifact || col.Artifact || 'Custom Hunt';
@@ -858,14 +853,27 @@ const Endpoints = () => {
                                                                             <p className="text-xs text-text-secondary font-mono">Flow: {flowId}</p>
                                                                             <p className="text-xs text-text-secondary">{col.create_time ? formatDateTime(col.create_time) : 'Unknown Time'}</p>
                                                                         </div>
-                                                                        {isFinished && flowId !== 'N/A' && (
+                                                                        <div className="flex items-center gap-2">
+                                                                            {isFinished && flowId !== 'N/A' && (
+                                                                                <button 
+                                                                                    onClick={() => fetchFlowResults(col.client_id || selectedEndpoint.client_id, flowId, artifactName)}
+                                                                                    className="text-xs px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors"
+                                                                                >
+                                                                                    View Results
+                                                                                </button>
+                                                                            )}
                                                                             <button 
-                                                                                onClick={() => fetchFlowResults(col.client_id || selectedEndpoint.client_id, flowId, artifactName)}
-                                                                                className="text-xs px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors"
+                                                                                onClick={() => {
+                                                                                    const updated = [...hiddenCollections, flowId];
+                                                                                    setHiddenCollections(updated);
+                                                                                    localStorage.setItem('hiddenCollections', JSON.stringify(updated));
+                                                                                }}
+                                                                                className="flex items-center justify-center p-1.5 text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                                                title="Hide this collection"
                                                                             >
-                                                                                View Results
+                                                                                <X size={14} />
                                                                             </button>
-                                                                        )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             );

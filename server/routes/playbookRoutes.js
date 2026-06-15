@@ -30,7 +30,22 @@ router.get("/", async (req, res) => {
             attributes: ["id", "name", "description", "status", "triggerType", "author", "updatedAt", "createdAt"],
             order: [["updatedAt", "DESC"]]
         });
-        res.json(playbooks);
+
+        // Count executions per playbook
+        const runCounts = await PlaybookExecution.count({
+            group: ['playbookId']
+        });
+        const runMap = {};
+        runCounts.forEach(r => {
+            runMap[r.playbookId] = r.count;
+        });
+
+        const result = playbooks.map(pb => ({
+            ...pb.toJSON(),
+            runs: runMap[pb.id] || 0
+        }));
+
+        res.json(result);
     } catch (error) {
         console.error("[SOAR Routes] List error:", error);
         res.status(500).json({ error: "Server error" });
@@ -144,7 +159,7 @@ router.post("/seed", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET /playbooks/force-seed — Forcefully wipe and recreate all playbooks
 // ═══════════════════════════════════════════════════════════════════════════════
-router.get("/force-seed", async (req, res) => {
+router.post("/force-seed", async (req, res) => {
     try {
         await PlaybookExecution.destroy({ where: {} });
         await Playbook.destroy({ where: {} });
@@ -162,7 +177,10 @@ router.get("/:id", async (req, res) => {
     try {
         const playbook = await Playbook.findByPk(req.params.id);
         if (!playbook) return res.status(404).json({ error: "Playbook not found" });
-        res.json(playbook);
+        
+        const runs = await PlaybookExecution.count({ where: { playbookId: playbook.id } });
+        
+        res.json({ ...playbook.toJSON(), runs });
     } catch (error) {
         res.status(500).json({ error: "Server error" });
     }

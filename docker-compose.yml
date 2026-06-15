@@ -105,7 +105,7 @@ services:
     volumes:
       - ./logs/suricata:/var/log/suricata
       - ./suricata-config:/etc/suricata
-    command: -c /etc/suricata/suricata.yaml -i ens33
+    command: -c /etc/suricata/suricata.yaml -i ${MON_IFACE:-eth0}
     restart: unless-stopped
 
   zeek:
@@ -122,7 +122,7 @@ services:
       - ./logs/zeek:/usr/local/zeek/logs/current
       - /opt/zeek/share/zeek/site:/usr/local/zeek/share/zeek/site
     command: sh -c "mkdir -p /usr/local/zeek/logs/current &&
-                 zeek -i ens33 local -C Log::default_logdir=/usr/local/zeek/logs/current"
+                 zeek -i ${MON_IFACE:-eth0} local -C Log::default_logdir=/usr/local/zeek/logs/current"
     logging:
       driver: "json-file"
       options:
