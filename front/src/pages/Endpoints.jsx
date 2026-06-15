@@ -778,26 +778,13 @@ const Endpoints = () => {
                                                                 </thead>
                                                                 <tbody>
                                                                     {vrConnections.map((conn, i) => {
-                                                                        let laddrStr = '';
-                                                                        let raddrStr = '';
-                                                                        
-                                                                        const laddr = conn.Laddr || conn.LAddr || conn.laddr || conn.LocalAddress || conn.localAddress;
-                                                                        if (laddr) {
-                                                                            if (typeof laddr === 'string') laddrStr = laddr;
-                                                                            else laddrStr = `${laddr.IP || laddr.ip || laddr.Ip || '0.0.0.0'}:${laddr.Port || laddr.port || laddr.port || '0'}`;
-                                                                            if (laddrStr === '0.0.0.0:0') laddrStr = JSON.stringify(laddr);
-                                                                        } else {
-                                                                            laddrStr = Object.keys(conn).join(',');
-                                                                        }
+                                                                        const laddrIp = conn['Laddr.IP'] || conn['laddr.ip'] || conn['Laddr.ip'] || conn.LocalIP || '0.0.0.0';
+                                                                        const laddrPort = conn['Laddr.Port'] || conn['laddr.port'] || conn['Laddr.port'] || conn.LocalPort || '0';
+                                                                        const laddrStr = `${laddrIp}:${laddrPort}`;
 
-                                                                        const raddr = conn.Raddr || conn.RAddr || conn.raddr || conn.RemoteAddress || conn.remoteAddress;
-                                                                        if (raddr) {
-                                                                            if (typeof raddr === 'string') raddrStr = raddr;
-                                                                            else raddrStr = `${raddr.IP || raddr.ip || raddr.Ip || '0.0.0.0'}:${raddr.Port || raddr.port || raddr.port || '0'}`;
-                                                                            if (raddrStr === '0.0.0.0:0') raddrStr = JSON.stringify(raddr);
-                                                                        } else {
-                                                                            raddrStr = Object.keys(conn).join(',');
-                                                                        }
+                                                                        const raddrIp = conn['Raddr.IP'] || conn['raddr.ip'] || conn['Raddr.ip'] || conn.RemoteIP || '0.0.0.0';
+                                                                        const raddrPort = conn['Raddr.Port'] || conn['raddr.port'] || conn['Raddr.port'] || conn.RemotePort || '0';
+                                                                        const raddrStr = `${raddrIp}:${raddrPort}`;
                                                                         
                                                                         return (
                                                                         <tr key={i} className="border-b border-gray-800 hover:bg-white/5">
