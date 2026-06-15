@@ -144,7 +144,7 @@ router.post("/seed", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET /playbooks/force-seed — Forcefully wipe and recreate all playbooks
 // ═══════════════════════════════════════════════════════════════════════════════
-router.get("/force-seed", async (req, res) => {
+router.post("/force-seed", async (req, res) => {
     try {
         await PlaybookExecution.destroy({ where: {} });
         await Playbook.destroy({ where: {} });
