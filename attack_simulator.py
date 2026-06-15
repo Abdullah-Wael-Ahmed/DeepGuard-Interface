@@ -151,7 +151,7 @@ def web_attack(target_ip, target_port=3000):
     except Exception as e:
         print(f"[-] Failed to connect: {e}")
 
-def credential_theft(target_ip, target_port=80):
+def credential_theft(target_ip, target_port=3000):
     print(f"[*] Starting Credential Theft Simulation against {target_ip}:{target_port}...")
     payload = b"GET /admin HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\nAuthorization: NTLM TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==\r\n\r\n"
     try:
@@ -166,7 +166,7 @@ def credential_theft(target_ip, target_port=80):
     except Exception as e:
         print(f"[-] Failed to connect: {e}")
 
-def c2_beacon(target_ip, target_port=80):
+def c2_beacon(target_ip, target_port=3000):
     print(f"[*] Starting C2 Beaconing Simulation against {target_ip}:{target_port}...")
     payload = b"GET /images/logo.png HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\nUser-Agent: PowerShell/1.0\r\n\r\n"
     try:
@@ -221,7 +221,4 @@ if __name__ == "__main__":
         time.sleep(2)
 
     if args.mode in ['exfil', 'all']:
-        print("\n[!] For exfiltration to work, please open a listener on your Kali machine in a new terminal:")
-        print("    nc -lvnp 8080 > /dev/null")
-        input("    Press Enter when the listener is running...")
-        data_exfiltration(args.target, 8080)
+        data_exfiltration(args.target, 3000)
