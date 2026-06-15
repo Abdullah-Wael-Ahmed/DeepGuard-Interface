@@ -43,13 +43,11 @@ services:
       - backend
 
   mdns-publisher:
-    image: flaviostutz/avahi-publish
+    image: ghcr.io/ensody/avahi
     network_mode: host
     restart: unless-stopped
     environment:
-      - HOSTNAME=deepguard
-      - DOMAIN=local
-      - IP_ADDRESS=auto
+      - SERVICES=deepguard.local:80
 
   db:
     image: mysql:8.0
