@@ -1064,10 +1064,68 @@ const Endpoints = () => {
                                     <p className="text-sm">Fetching raw forensic evidence...</p>
                                 </div>
                             ) : resultsData.length > 0 ? (
-                                <div className="absolute inset-0 overflow-auto p-4 custom-scrollbar">
-                                    <pre className="text-xs font-mono text-gray-300 whitespace-pre">
-                                        {JSON.stringify(resultsData, null, 2)}
-                                    </pre>
+                                <div className="absolute inset-0 overflow-auto custom-scrollbar">
+                                    {(() => {
+                                        // Collect all unique keys from up to 50 rows
+                                        let keys = new Set();
+                                        resultsData.slice(0, 50).forEach(row => {
+                                            if (typeof row === 'object' && row !== null) {
+                                                Object.keys(row).forEach(k => keys.add(k));
+                                            }
+                                        });
+                                        const cols = Array.from(keys);
+                                        
+                                        // If data is not array of objects, fallback to basic text
+                                        if (cols.length === 0) {
+                                            return (
+                                                <div className="p-4">
+                                                    <pre className="text-xs font-mono text-gray-300 whitespace-pre">
+                                                        {JSON.stringify(resultsData, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <table className="w-full text-left border-collapse text-xs">
+                                                <thead className="bg-[#121820] sticky top-0 z-10 shadow-md">
+                                                    <tr>
+                                                        {cols.map(col => (
+                                                            <th key={col} className="p-3 border-b border-gray-700 text-text-secondary font-medium whitespace-nowrap">{col}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {resultsData.map((row, i) => (
+                                                        <tr key={i} className="border-b border-gray-800/50 hover:bg-white/[0.02] transition-colors">
+                                                            {cols.map(col => {
+                                                                const val = row[col];
+                                                                let displayVal = '';
+                                                                if (val === null || val === undefined) {
+                                                                    displayVal = '-';
+                                                                } else if (typeof val === 'object') {
+                                                                    try {
+                                                                        const str = JSON.stringify(val);
+                                                                        displayVal = str.length > 150 ? str.substring(0, 150) + '...' : str;
+                                                                    } catch (e) {
+                                                                        displayVal = Array.isArray(val) ? '[Array]' : '{Object}';
+                                                                    }
+                                                                } else {
+                                                                    displayVal = String(val);
+                                                                }
+                                                                
+                                                                return (
+                                                                    <td key={col} className="p-3 text-gray-300 font-mono max-w-[250px] truncate" title={typeof val === 'object' ? '' : displayVal}>
+                                                                        {displayVal}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        );
+                                    })()}
                                 </div>
                             ) : (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-secondary p-8 text-center">
