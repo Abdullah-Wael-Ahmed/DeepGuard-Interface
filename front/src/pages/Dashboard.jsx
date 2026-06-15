@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import useWebSocket from 'react-use-websocket';
-import { toast } from 'react-toastify';
+import { showAlertToast } from '../services/toastService';
 import { TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Activity, RefreshCw } from 'lucide-react';
 import AnimatedCounter, { Sparkline } from '../components/ui/AnimatedCounter';
 import { SkeletonCard, SkeletonChart, SkeletonTableRow } from '../components/ui/Skeleton';
@@ -46,7 +46,7 @@ const Dashboard = () => {
             if (message.type === 'new_alert') {
                 setAlerts((prev) => [message.data, ...prev.slice(0, 9)]);
                 setAlertCount((prev) => prev + 1);
-                toast.info(`New alert: ${message.data.signature?.slice(0, 30)}...`);
+                showAlertToast(`New alert: ${message.data.signature?.slice(0, 30)}...`);
             }
         } catch (error) {
             console.error('Error parsing WebSocket message:', error);
