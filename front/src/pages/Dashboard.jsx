@@ -10,6 +10,10 @@ const Dashboard = () => {
     const [alerts, setAlerts] = useState([]);
     const [alertCount, setAlertCount] = useState(0);
     const [loading, setLoading] = useState(true);
+    
+    // Refs for throttling the counter
+    const totalAlertsRef = useRef(0);
+    const lastUpdateRef = useRef(0);
 
     // Fetch alerts
     const fetchAlerts = async () => {
@@ -19,8 +23,11 @@ const Dashboard = () => {
                 withCredentials: true,
                 params: { page: 1 }
             });
+            const count = res.data.alertCount || 0;
             setAlerts(res.data.alerts || []);
-            setAlertCount(res.data.alertCount || 0);
+            setAlertCount(count);
+            totalAlertsRef.current = count;
+            lastUpdateRef.current = Date.now();
             setLoading(false);
         } catch (error) {
             console.error('Error fetching alerts:', error);
@@ -44,8 +51,15 @@ const Dashboard = () => {
             if (!lastMessage?.data) return;
             const message = JSON.parse(lastMessage.data);
             if (message.type === 'new_alert') {
+                totalAlertsRef.current += 1;
                 setAlerts((prev) => [message.data, ...prev.slice(0, 9)]);
-                setAlertCount((prev) => prev + 1);
+                
+                const now = Date.now();
+                if (now - lastUpdateRef.current >= 10000) {
+                    setAlertCount(totalAlertsRef.current);
+                    lastUpdateRef.current = now;
+                }
+                
                 showAlertToast(`New alert: ${message.data.signature?.slice(0, 30)}...`);
             }
         } catch (error) {
