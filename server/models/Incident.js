@@ -38,7 +38,7 @@ const Incident = db.define("Incident", {
         type: DataTypes.STRING,
         allowNull: true,
         validate: {
-            isIn: [["malware", "phishing", "brute_force", "ddos", "port_scan", "data_exfil", "lateral_movement", "c2", "insider_threat", "policy_violation", "other"]]
+            isIn: [["malware", "ransomware", "phishing", "brute_force", "ddos", "port_scan", "data_exfil", "lateral_movement", "c2", "insider_threat", "policy_violation", "other"]]
         }
     },
     assignee: {

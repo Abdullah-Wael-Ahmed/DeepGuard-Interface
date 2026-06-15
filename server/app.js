@@ -27,7 +27,11 @@ const { restrictWriteToAdminOrOperator } = require("./middleware/authorize");
 
 const app = express()
 
-app.use(cors({ origin: true, credentials: true }))
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost,http://localhost:80,http://localhost:3000").split(",");
+app.use(cors({
+    origin: (origin, cb) => (!origin || ALLOWED_ORIGINS.includes(origin)) ? cb(null, true) : cb(new Error("CORS blocked")),
+    credentials: true
+}))
 app.use(express.json())
 app.use(cookieParser());
 
@@ -44,7 +48,13 @@ async function connectWithRetry(retries = 10, delay = 3000) {
             await correlationEngine.init(); // Init backend correlation
             velociraptorPoller.start(); // Init Velociraptor flow polling
             await seedSuperAdmin();
-            await seedPlaybooks();
+            try {
+                const { seedPlaybooks } = require("./services/soar/playbookTemplates");
+                const seedResult = await seedPlaybooks();
+                console.log(`SOAR playbooks seeded: ${JSON.stringify(seedResult)}`);
+            } catch (e) {
+                console.error("Playbook seeding failed (non-fatal):", e.message);
+            }
             return;
         } catch (e) {
             console.log(`DB connection attempt ${attempt}/${retries} failed: ${e.message}`);

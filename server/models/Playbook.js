@@ -12,7 +12,7 @@ const Playbook = db.define("Playbook", {
     },
     status: {
         type: DataTypes.STRING,
-        defaultValue: "draft",
+        defaultValue: "disabled",
         validate: {
             isIn: [["draft", "active", "disabled"]]
         }

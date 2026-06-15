@@ -101,6 +101,17 @@ alert tcp any any -> $HOME_NET 3389 (msg:"DEEPGUARD: RDP Port Scan Detected"; fl
     threshold:type both, track by_src, count 10, seconds 10; \
     classtype:attempted-recon; sid:1000109; rev:1;)
 
+# --- TCP SYN Flood (DDoS) ---
+alert tcp any any -> $HOME_NET any (msg:"DEEPGUARD: TCP SYN Flood — Possible DDoS"; flags:S,12; \
+    threshold:type both, track by_dst, count 500, seconds 10; \
+    classtype:attempted-dos; sid:1000110; rev:1;)
+
+# --- HTTP GET Flood (DDoS) ---
+alert http any any -> $HOME_NET any (msg:"DEEPGUARD: HTTP GET Flood — Possible Layer 7 DDoS"; \
+    flow:established,to_server; content:"GET"; http_method; \
+    threshold:type both, track by_dst, count 200, seconds 10; \
+    classtype:attempted-dos; sid:1000111; rev:1;)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3. BRUTE FORCE DETECTION
@@ -279,9 +290,14 @@ alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP Empty User-A
     classtype:command-and-control; sid:1000403; rev:1;)
 
 # --- HTTP C2 — PowerShell User-Agent ---
-alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP PowerShell User-Agent — Possible C2"; \
-    flow:established,to_server; content:"PowerShell"; nocase; http_user_agent; \
+alert http any any -> any any (msg:"DEEPGUARD: HTTP PowerShell User-Agent — Possible C2"; \
+    flow:to_server; content:"PowerShell"; nocase; http_user_agent; \
     classtype:command-and-control; sid:1000404; rev:1;)
+
+# --- Credential Theft — NTLM ---
+alert http any any -> any any (msg:"DEEPGUARD: Credential Theft — NTLM Auth Attempt"; \
+    flow:to_server; content:"Authorization|3a| NTLM"; http_header; \
+    classtype:attempted-admin; sid:1000420; rev:1;)
 
 # --- HTTP C2 — curl/wget from internal host to external ---
 alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP wget/curl from Internal — Suspicious Download"; \
@@ -414,11 +430,10 @@ alert tcp any any -> any [80,8080] (msg:"DEEPGUARD: DCERPC over HTTP/8080 — Po
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # --- Large Outbound HTTP Transfer ---
-alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: Large Outbound HTTP POST — Possible Data Exfil"; \
-    flow:established,to_server; content:"POST"; http_method; \
-    http_content_len; content:!"0"; \
-    threshold:type both, track by_src, count 5, seconds 60; \
-    classtype:bad-unknown; sid:1000600; rev:1;)
+# --- Large Outbound HTTP Transfer ---
+alert http any any -> any any (msg:"DEEPGUARD: Large Outbound HTTP POST — Possible Data Exfil"; \
+    flow:to_server; content:"POST"; http_method; content:"/upload"; http_uri; \
+    classtype:bad-unknown; sid:1000600; rev:2;)
 
 # --- DNS Exfiltration (unusually long queries) ---
 alert dns $HOME_NET any -> any any (msg:"DEEPGUARD: DNS Query Exfiltration — Query > 50 chars"; \

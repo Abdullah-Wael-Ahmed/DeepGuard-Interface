@@ -26,6 +26,16 @@ const execPromise = util.promisify(exec);
 
 async function runVelociraptorFlow(targetId, flowName, envParams = {}) {
     try {
+        // Reject anything that isn't a safe client-id / flow token (defense vs shell injection)
+        const SAFE = /^[A-Za-z0-9._:-]+$/;
+        if (!SAFE.test(String(targetId)) || !SAFE.test(String(flowName))) {
+            return { success: false, error: "Unsafe characters in targetId/flowName" };
+        }
+        for (const [k, v] of Object.entries(envParams)) {
+            if (!SAFE.test(String(k)) || !SAFE.test(String(v))) {
+                return { success: false, error: `Unsafe characters in env param ${k}` };
+            }
+        }
         let envString = "";
         if (Object.keys(envParams).length > 0) {
             envString = " " + Object.entries(envParams).map(([k,v]) => `--env ${k}="${v}"`).join(" ");

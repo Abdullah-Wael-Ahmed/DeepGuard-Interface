@@ -322,12 +322,25 @@ class SOAREngine {
                         if (ipTag) src_ip = ipTag;
                     } catch (e) { /* no tags */ }
 
+                    // Pull hostname/username out of tags if present (e.g. "host:WIN-01", "user:jdoe")
+                    let hostname = null, username = null;
+                    try {
+                        const tagArr = typeof incident.tags === "string" ? JSON.parse(incident.tags) : (incident.tags || []);
+                        for (const t of tagArr) {
+                            if (typeof t !== "string") continue;
+                            if (t.startsWith("host:")) hostname = t.slice(5);
+                            else if (t.startsWith("user:")) username = t.slice(5);
+                        }
+                    } catch (e) { /* tags optional */ }
+
                     const payload = {
                         incidentId: incident.id,
                         severity: incident.severity,
                         title: incident.title,
                         category: incident.category,
-                        src_ip: src_ip || incident.sourceRef
+                        src_ip: src_ip || incident.sourceRef,
+                        hostname,
+                        username
                     };
 
                     // Fire-and-forget async execution
