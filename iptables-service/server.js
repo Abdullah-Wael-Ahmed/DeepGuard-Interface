@@ -102,13 +102,14 @@ app.post("/block", async (req, res) => {
 
   // Idempotency check — don't add a duplicate rule
   try {
-    await runIptables(["-C", "FORWARD", "-s", ip, "-j", "DROP"]);
+    await runIptables(["-C", "INPUT", "-s", ip, "-j", "DROP"]);
     return res.json({ ok: true, message: "Rule already exists" });
   } catch {
     // Rule doesn't exist yet — safe to insert
   }
 
   try {
+    await runIptables(["-I", "INPUT", "-s", ip, "-j", "DROP"]);
     await runIptables(["-I", "FORWARD", "-s", ip, "-j", "DROP"]);
     console.log(`[BLOCK] ${ip}`);
     res.json({ ok: true });
@@ -126,7 +127,9 @@ app.post("/unblock", async (req, res) => {
   }
 
   try {
-    await runIptables(["-D", "FORWARD", "-s", ip, "-j", "DROP"]);
+    // Try deleting from both chains, ignore errors if rule didn't exist in one
+    try { await runIptables(["-D", "INPUT", "-s", ip, "-j", "DROP"]); } catch(e) {}
+    try { await runIptables(["-D", "FORWARD", "-s", ip, "-j", "DROP"]); } catch(e) {}
     console.log(`[UNBLOCK] ${ip}`);
     res.json({ ok: true });
   } catch (err) {
