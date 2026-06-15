@@ -14,7 +14,7 @@ const queryVelociraptor = async (vqlQuery) => {
             'deepguard-velociraptor',
             'sh',
             '-c',
-            'if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then $VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; $VR_BIN --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
+            'if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then $VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; $VR_BIN --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format jsonl'
         ];
         
         // Add a 60-second timeout and a large 50MB maxBuffer. 
@@ -35,21 +35,37 @@ const queryVelociraptor = async (vqlQuery) => {
         }
         
         let rows = [];
+        const cleanStdout = stdout.trim();
+        
         try {
-            // First try parsing the whole thing as a single JSON array
-            rows = JSON.parse(stdout);
+            // First try parsing as a single JSON object/array
+            rows = JSON.parse(cleanStdout);
         } catch (e) {
-            // If it fails, try to extract just the JSON array portion (handles docker warnings)
+            // If it fails, it might be multiple JSON arrays concatenated: [...] [...]
+            // or JSON Lines: {...} \n {...}
+            // or preceded by docker warnings
             try {
-                const startIndex = stdout.indexOf('[');
-                const endIndex = stdout.lastIndexOf(']') + 1;
-                if (startIndex !== -1 && endIndex !== 0) {
-                    rows = JSON.parse(stdout.substring(startIndex, endIndex));
-                } else {
-                    // Fallback to line-by-line parsing
-                    const lines = stdout.split('\n').filter(l => l.trim());
+                // Try to extract all JSON arrays using regex and merge them
+                const arrays = cleanStdout.match(/\[[\s\S]*?\]/g);
+                if (arrays && arrays.length > 0) {
+                    for (const arrStr of arrays) {
+                        try {
+                            const parsed = JSON.parse(arrStr);
+                            if (Array.isArray(parsed)) rows.push(...parsed);
+                        } catch(err) {}
+                    }
+                }
+                
+                // If regex didn't find valid arrays, fallback to jsonl parsing
+                if (rows.length === 0) {
+                    const lines = cleanStdout.split('\n');
                     for (const line of lines) {
-                        try { rows.push(JSON.parse(line)); } catch (err) {}
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+                        try {
+                            const parsed = JSON.parse(trimmed);
+                            rows.push(parsed);
+                        } catch (err) {}
                     }
                 }
             } catch (err) {
