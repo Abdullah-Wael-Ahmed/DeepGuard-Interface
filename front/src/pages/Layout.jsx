@@ -72,10 +72,10 @@ const Layout = () => {
                                         <GitPullRequestDraft size={18} />
                                         <p className="text-sm font-medium">Playbooks</p>
                                     </Link>
-                                    <Link className={activeTab("playbooks/history")} to="/playbooks/history">
+                                    {/* <Link className={activeTab("playbooks/history")} to="/playbooks/history">
                                         <History size={18} />
                                         <p className="text-sm font-medium">Executions</p>
-                                    </Link>
+                                    </Link> */}
                                     <Link className={activeTab("firewall")} to={"/firewall"}>
                                         <BrickWallFire size={18} />
                                         <p className="text-sm font-medium">Firewall</p>
