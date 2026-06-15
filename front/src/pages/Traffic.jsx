@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import axios from 'axios';
 import { ChevronFirst, ChevronLast, Inbox, LoaderCircle, Search, SkipBack, SkipForward, X } from 'lucide-react';
 import useWebSocket from "react-use-websocket"
-import { toast } from 'react-toastify';
+import { showAlertToast } from '../services/toastService';
 import ProtocolPieChart from '../components/ProtocolPieChart';
 import { useSearchParams } from 'react-router-dom';
 
@@ -102,7 +102,7 @@ const Traffic = () => {
                         ]
                     }
                 })
-                toast.info(message.data.signature)
+                showAlertToast(message.data.signature)
             }
         } catch (error) {
             console.error("Error parsing message:", error);

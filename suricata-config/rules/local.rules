@@ -561,7 +561,7 @@ alert tls any any -> any any (msg:"DEEPGUARD: TLS SNI to Onion Proxy"; \
     classtype:policy-violation; sid:1000811; rev:1;)
 
 # --- HTTP on Non-Standard Port (application layer) ---
-alert http any any -> any ![80,443,8080,8443,5000] (msg:"DEEPGUARD: HTTP on Non-Standard Port"; \
+alert http any any -> any ![80,443,3000,5000,5001,8000,8001,8080,8443,8889] (msg:"DEEPGUARD: HTTP on Non-Standard Port"; \
     flow:to_server,established; \
     threshold:type limit, track by_src, count 1, seconds 300; \
     classtype:non-standard-protocol; sid:1000812; rev:1;)

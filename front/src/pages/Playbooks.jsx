@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitPullRequestDraft, Settings, Plus, Play, MoreVertical, Layers, CheckCircle2, Zap, Clock, ShieldAlert } from 'lucide-react';
+import { GitPullRequestDraft, Settings, Plus, Play, MoreVertical, Layers, CheckCircle2, Zap, Clock, ShieldAlert, Trash2, History } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -87,6 +87,31 @@ const Playbooks = () => {
         }
     };
 
+    const deletePlaybook = async (id, e) => {
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to delete this playbook?")) return;
+        try {
+            await axios.delete(`${BACK}/playbooks/${id}`, { withCredentials: true });
+            toast.success("Playbook deleted");
+            fetchPlaybooks();
+        } catch (error) {
+            toast.error("Failed to delete playbook");
+        }
+    };
+
+    const executePlaybook = async (id, e) => {
+        e.stopPropagation();
+        const ip = window.prompt("Enter source IP to test against:", "10.0.0.99");
+        if (!ip) return;
+        try {
+            await axios.post(`${BACK}/playbooks/${id}/execute`, { src_ip: ip, severity: 'critical', incidentId: 1001 }, { withCredentials: true });
+            toast.success("Execution started");
+            fetchPlaybooks();
+        } catch (error) {
+            toast.error("Failed to start execution");
+        }
+    };
+
     return (
         <div className="flex-1 bg-background-dark p-8 overflow-y-auto font-display text-text-main">
             <div className="flex justify-between items-center mb-8 max-w-7xl mx-auto">
@@ -97,6 +122,12 @@ const Playbooks = () => {
                     <p className="text-text-secondary mt-2">Security Orchestration, Automation, and Response Workflows</p>
                 </div>
                 <div className="flex gap-3">
+                    <button 
+                        onClick={() => navigate('/playbooks/history')}
+                        className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-gray-700"
+                    >
+                        <History size={18} /> History
+                    </button>
                     <button 
                         onClick={seedTemplates}
                         className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-gray-700"
@@ -230,8 +261,16 @@ const Playbooks = () => {
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={(e) => { e.stopPropagation(); navigate(`/playbooks/${pb.id}`) }} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition">
+                                                {pb.status === 'active' && (
+                                                    <button onClick={(e) => executePlaybook(pb.id, e)} className="p-2 text-green-400 hover:text-white hover:bg-green-500/20 rounded transition" title="Execute">
+                                                        <Play size={18} />
+                                                    </button>
+                                                )}
+                                                <button onClick={(e) => { e.stopPropagation(); navigate(`/playbooks/${pb.id}`) }} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition" title="Edit">
                                                     <Settings size={18} />
+                                                </button>
+                                                <button onClick={(e) => deletePlaybook(pb.id, e)} className="p-2 text-red-400 hover:text-white hover:bg-red-500/20 rounded transition" title="Delete">
+                                                    <Trash2 size={18} />
                                                 </button>
                                             </div>
                                         </td>
