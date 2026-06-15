@@ -61,7 +61,7 @@ const MitreAttack = () => {
     const [techniqueDetail, setTechniqueDetail] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
 
-    const BACK = import.meta.env.VITE_BACK || 'http://localhost:5000';
+    const BACK = import.meta.env.VITE_BACK || '/api';
 
     // ─────────────── Data Fetching ───────────────
 

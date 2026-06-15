@@ -42,6 +42,13 @@ services:
     depends_on:
       - backend
 
+  mdns-publisher:
+    image: ghcr.io/ensody/avahi
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - SERVICES=deepguard.local:80
+
   db:
     image: mysql:8.0
     container_name: deepguard-mysql

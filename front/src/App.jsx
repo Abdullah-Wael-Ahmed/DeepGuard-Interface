@@ -134,6 +134,7 @@ function App() {
             position='top-right'
             autoClose={3000}
             theme='dark'
+            limit={5}
           />
         </AxiosInterceptorSetup>
       </AuthProvider>
