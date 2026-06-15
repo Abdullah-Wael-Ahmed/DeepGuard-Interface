@@ -290,9 +290,14 @@ alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP Empty User-A
     classtype:command-and-control; sid:1000403; rev:1;)
 
 # --- HTTP C2 — PowerShell User-Agent ---
-alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP PowerShell User-Agent — Possible C2"; \
+alert http $HOME_NET any -> any any (msg:"DEEPGUARD: HTTP PowerShell User-Agent — Possible C2"; \
     flow:established,to_server; content:"PowerShell"; nocase; http_user_agent; \
     classtype:command-and-control; sid:1000404; rev:1;)
+
+# --- Credential Theft — NTLM ---
+alert http any any -> any any (msg:"DEEPGUARD: Credential Theft — NTLM Auth Attempt"; \
+    flow:established,to_server; content:"Authorization|3a| NTLM"; http_header; \
+    classtype:attempted-admin; sid:1000420; rev:1;)
 
 # --- HTTP C2 — curl/wget from internal host to external ---
 alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"DEEPGUARD: HTTP wget/curl from Internal — Suspicious Download"; \
