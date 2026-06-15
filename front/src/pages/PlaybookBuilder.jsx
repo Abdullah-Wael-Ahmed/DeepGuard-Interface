@@ -331,6 +331,75 @@ const PlaybookBuilder = () => {
                                                 <option value="on_alert">On Suricata Alert</option>
                                             </select>
                                         </div>
+                                        
+                                        {playbook?.triggerType === 'on_alert' && (
+                                            <div className="pt-4 border-t border-gray-800 space-y-4">
+                                                <h5 className="text-xs uppercase tracking-wider text-gray-500 font-bold">Alert Conditions</h5>
+                                                <div>
+                                                    <label className="block text-sm text-gray-400 mb-1">Alert Category</label>
+                                                    <select 
+                                                        className="w-full bg-[#0f0f13] border border-gray-700 rounded-md p-2 text-white focus:border-primary focus:outline-none text-sm"
+                                                        value={JSON.stringify(playbook.triggerConditions?.signatureContains || [])}
+                                                        onChange={(e) => setPlaybook({...playbook, triggerConditions: {...playbook.triggerConditions, signatureContains: JSON.parse(e.target.value)}})}
+                                                    >
+                                                        <option value="[]">Any Alert</option>
+                                                        <option value='["Exfiltration","Exfil","Large Outbound"]'>Data Exfiltration</option>
+                                                        <option value='["Brute Force","Login Attempt"]'>Brute Force / Logins</option>
+                                                        <option value='["Scan","Recon"]'>Port Scan / Recon</option>
+                                                        <option value='["DDoS","Flood","Amplification"]'>DDoS / Flood</option>
+                                                        <option value='["C2","Command and Control","Beacon"]'>C2 Beaconing</option>
+                                                        <option value='["SQL Injection","XSS","LFI","RFI","Web","Directory Traversal"]'>Web Attacks (SQLi, XSS)</option>
+                                                        <option value='["Kerberos","NTLM","Credential","Pass-the-Hash","LDAP"]'>Credential Theft</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm text-gray-400 mb-1">Minimum Severity</label>
+                                                    <select 
+                                                        className="w-full bg-[#0f0f13] border border-gray-700 rounded-md p-2 text-white focus:border-primary focus:outline-none text-sm"
+                                                        value={playbook.triggerConditions?.minSeverity || ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                                                            setPlaybook({...playbook, triggerConditions: {...playbook.triggerConditions, minSeverity: val}});
+                                                        }}
+                                                    >
+                                                        <option value="">Any Severity</option>
+                                                        <option value="1">Critical (1)</option>
+                                                        <option value="2">High (2) or above</option>
+                                                        <option value="3">Medium/Low (3) or above</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {playbook?.triggerType === 'on_incident_created' && (
+                                            <div className="pt-4 border-t border-gray-800 space-y-4">
+                                                <h5 className="text-xs uppercase tracking-wider text-gray-500 font-bold">Incident Conditions</h5>
+                                                <div>
+                                                    <label className="block text-sm text-gray-400 mb-1">Severity Match</label>
+                                                    <select 
+                                                        className="w-full bg-[#0f0f13] border border-gray-700 rounded-md p-2 text-white focus:border-primary focus:outline-none text-sm"
+                                                        value={playbook.triggerConditions?.severity || ''}
+                                                        onChange={(e) => setPlaybook({...playbook, triggerConditions: {...playbook.triggerConditions, severity: e.target.value}})}
+                                                    >
+                                                        <option value="">Any Severity</option>
+                                                        <option value="critical">Critical</option>
+                                                        <option value="high">High</option>
+                                                        <option value="medium">Medium</option>
+                                                        <option value="low">Low</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm text-gray-400 mb-1">Category</label>
+                                                    <input 
+                                                        type="text"
+                                                        className="w-full bg-[#0f0f13] border border-gray-700 rounded-md p-2 text-white focus:border-primary focus:outline-none text-sm"
+                                                        value={playbook.triggerConditions?.category || ''}
+                                                        onChange={(e) => setPlaybook({...playbook, triggerConditions: {...playbook.triggerConditions, category: e.target.value}})}
+                                                        placeholder="e.g. lateral_movement, ransomware"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

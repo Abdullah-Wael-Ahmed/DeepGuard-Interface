@@ -76,16 +76,18 @@ def data_exfiltration(target_ip, target_port):
     print("[*] This will spike 'total_bytes_sent', 'avg_bytes_sent', and 'avg_duration'")
     
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((target_ip, target_port))
-        
-        # Generate a large 50MB junk payload
-        print("[*] Generating 50MB payload...")
-        payload = b"X" * (50 * 1024 * 1024) 
-        
-        print("[*] Transmitting data...")
-        s.sendall(payload)
-        s.close()
+        # Suricata needs 5 connections to trigger the Large Outbound HTTP POST rule
+        print("[*] Generating payloads and transmitting data...")
+        for i in range(5):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((target_ip, target_port))
+            
+            payload = b"X" * (10 * 1024 * 1024) # 10MB per request
+            headers = f"POST /upload HTTP/1.1\r\nHost: {target_ip}\r\nContent-Length: {len(payload)}\r\n\r\n".encode()
+            
+            s.sendall(headers + payload)
+            s.close()
+            time.sleep(0.5)
         print("[+] Exfiltration complete!")
     except Exception as e:
         print(f"[-] Failed to connect: {e}. Note: You need a listener (like netcat) open on the target port!")
@@ -220,6 +222,6 @@ if __name__ == "__main__":
 
     if args.mode in ['exfil', 'all']:
         print("\n[!] For exfiltration to work, please open a listener on your Kali machine in a new terminal:")
-        print("    nc -lvnp 4444 > /dev/null")
+        print("    nc -lvnp 8080 > /dev/null")
         input("    Press Enter when the listener is running...")
-        data_exfiltration(args.target, 4444)
+        data_exfiltration(args.target, 8080)

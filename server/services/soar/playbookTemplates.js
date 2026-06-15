@@ -142,7 +142,7 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_alert",
         triggerConditions: { signatureContains: ["Exfiltration", "Exfil", "Large Outbound"] },
         mitreTags: ["T1041", "T1048"],
-        defaultStatus: "draft",
+        defaultStatus: "active",
         build() {
             resetCounter();
             const nodes = [
@@ -294,7 +294,7 @@ async function seedPlaybooks() {
         const { nodes, edges } = template.build();
         
         if (exists) {
-            await exists.update({ nodes, edges });
+            await exists.update({ nodes, edges, status: template.defaultStatus || "active" });
             created++;
             continue;
         }
