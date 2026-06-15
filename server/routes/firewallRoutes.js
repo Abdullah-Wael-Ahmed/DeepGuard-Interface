@@ -53,13 +53,20 @@ router.delete("/delete-rule", async (req, res) => {
 });
 
 // ── GET /list ─────────────────────────────────────────────────────────────────
-// Optional ?chain=FORWARD query param — defaults to INPUT
 router.get("/list", async (req, res) => {
-  const { chain } = req.query;
-
   try {
-    const result = await listRules(chain); // chain=undefined → proxy defaults to INPUT
-    res.json(result);
+    const inputRes = await listRules("INPUT");
+    const forwardRes = await listRules("FORWARD");
+    const outputRes = await listRules("OUTPUT");
+    
+    // Combine all rules
+    const combinedRules = [
+      ...(inputRes?.output || []),
+      ...(forwardRes?.output || []),
+      ...(outputRes?.output || [])
+    ];
+    
+    res.json({ message: "Rules listed successfully", output: combinedRules });
   } catch (error) {
     console.error("List rules error:", error);
     res.status(500).json({ error: "Failed to list rules", details: error });
