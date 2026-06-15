@@ -44,7 +44,7 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_alert",
         triggerConditions: { signatureContains: ["Brute Force", "Login Attempt"] },
         mitreTags: ["T1110"],
-        defaultStatus: "active",
+        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
@@ -194,7 +194,7 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_incident_created",
         triggerConditions: { category: "lateral_movement" },
         mitreTags: ["T1021", "T1570"],
-        defaultStatus: "active",
+        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
@@ -218,7 +218,7 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_incident_created",
         triggerConditions: { category: "phishing" },
         mitreTags: ["T1566"],
-        defaultStatus: "active",
+        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
