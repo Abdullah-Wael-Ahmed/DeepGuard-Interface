@@ -58,14 +58,14 @@ router.get("/list", async (req, res) => {
     const inputRes = await listRules("INPUT");
     const forwardRes = await listRules("FORWARD");
     const outputRes = await listRules("OUTPUT");
-    
+
     // Combine all rules
     const combinedRules = [
       ...(inputRes?.output || []),
       ...(forwardRes?.output || []),
       ...(outputRes?.output || [])
     ];
-    
+
     res.json({ message: "Rules listed successfully", output: combinedRules });
   } catch (error) {
     console.error("List rules error:", error);
