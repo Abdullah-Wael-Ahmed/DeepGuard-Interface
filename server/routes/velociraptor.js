@@ -12,7 +12,7 @@ const velociraptorPoller = require('../services/velociraptorPoller');
 // GET /api/velociraptor/clients — fetch all enrolled endpoint agents
 router.get('/clients', async (req, res) => {
     try {
-        const data = await queryVelociraptor('SELECT client_id, os_info, labels, last_seen_at FROM clients()');
+        const data = await queryVelociraptor('SELECT client_id, os_info, labels, last_seen_at, last_ip FROM clients()');
         
         // VQL returns an array of objects in data.Responses[0].Response (usually JSON string or object array)
         let clients = [];
@@ -39,7 +39,7 @@ router.get('/clients', async (req, res) => {
 router.get('/clients/:clientId', async (req, res) => {
     try {
         const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
-        const data = await queryVelociraptor(`SELECT * FROM clients() WHERE client_id = '${clientId}'`);
+        const data = await queryVelociraptor(`SELECT client_id, os_info, labels, last_seen_at, last_ip FROM clients() WHERE client_id = '${clientId}'`);
         
         let client = {};
         if (data.Responses && data.Responses.length > 0) {
@@ -152,6 +152,73 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
     } catch (error) {
         console.error(`Error fetching flow results:`, error.message);
         res.status(500).json({ error: 'Failed to fetch flow results' });
+    }
+});
+
+// GET /api/velociraptor/clients/:clientId/netstat — fetch network connections directly from the endpoint
+router.get('/clients/:clientId/netstat', async (req, res) => {
+    try {
+        const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+        // First determine OS to run correct artifact
+        const clientData = await queryVelociraptor(`SELECT os_info FROM clients() WHERE client_id = '${clientId}'`);
+        let os = 'windows';
+        if (clientData.Responses && clientData.Responses.length > 0) {
+            let clients = clientData.Responses[0].Response || [];
+            if (typeof clients === 'string') {
+                try { clients = JSON.parse(clients); } catch(e) {}
+            }
+            if (clients.length > 0 && clients[0].os_info && clients[0].os_info.system) {
+                os = clients[0].os_info.system.toLowerCase();
+            }
+        }
+
+        const artifactName = os.includes('linux') ? 'Linux.Network.Netstat' : 'Windows.Network.Netstat';
+        
+        // Get the latest netstat flow for this client
+        const flowData = await queryVelociraptor(`SELECT session_id AS flow_id, request.artifacts[0] AS artifact FROM flows(client_id='${clientId}') WHERE request.artifacts[0] =~ 'Network.Netstat' ORDER BY create_time DESC LIMIT 1`);
+        
+        let flowId = '';
+        let flowArtifact = artifactName;
+        if (flowData.Responses && flowData.Responses.length > 0) {
+            let flows = flowData.Responses[0].Response || [];
+            if (typeof flows === 'string') {
+                try { flows = JSON.parse(flows); } catch(e) {}
+            }
+            if (Array.isArray(flows) && flows.length > 0 && flows[0].flow_id) {
+                flowId = flows[0].flow_id;
+                if (flows[0].artifact) flowArtifact = flows[0].artifact;
+            }
+        }
+        
+        if (!flowId) {
+            return res.json({ items: [] });
+        }
+        
+        // Fetch results
+        const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${flowArtifact}') LIMIT 100`);
+        
+        const parseResponse = (resData) => {
+            let res = [];
+            if (resData.Responses && resData.Responses.length > 0) {
+                res = resData.Responses[0].Response || [];
+                if (typeof res === 'string') {
+                    try {
+                        res = JSON.parse(res);
+                    } catch(e) {
+                        res = res.split('\n').filter(l => l.trim()).map(l => {
+                            try { return JSON.parse(l); } catch(err) { return l; }
+                        });
+                    }
+                }
+            }
+            return res;
+        };
+
+        let results = parseResponse(data);
+        res.json({ items: results });
+    } catch (error) {
+        console.error('Error fetching netstat from velociraptor:', error.message);
+        res.status(500).json({ error: 'Failed to fetch network connections from endpoint' });
     }
 });
 

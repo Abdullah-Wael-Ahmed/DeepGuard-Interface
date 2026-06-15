@@ -42,11 +42,48 @@ const riskColor = (score) => {
 
 const timeAgo = (ts) => {
     if (!ts) return 'Unknown';
-    const seconds = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    let dateObj;
+    let ms = typeof ts === 'string' ? Number(ts) : ts;
+    if (isNaN(ms)) {
+        dateObj = new Date(ts);
+    } else {
+        if (ms > 1e16) ms = Math.floor(ms / 1000000);
+        else if (ms > 1e14) ms = Math.floor(ms / 1000);
+        else if (ms < 1e11) ms = ms * 1000;
+        dateObj = new Date(ms);
+    }
+    
+    let seconds = Math.floor((Date.now() - dateObj.getTime()) / 1000);
+    if (seconds < 0) seconds = 0;
+    
     if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
+    if (seconds < 3600) {
+        const mins = Math.floor(seconds / 60);
+        return `${mins}m ago`;
+    }
+    if (seconds < 86400) {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        return `${hrs}h ${mins}m ago`;
+    }
+    const days = Math.floor(seconds / 86400);
+    const hrs = Math.floor((seconds % 86400) / 3600);
+    return `${days}d ${hrs}h ago`;
+};
+
+const formatDateTime = (ts) => {
+    if (!ts) return 'Unknown';
+    let dateObj;
+    let ms = typeof ts === 'string' ? Number(ts) : ts;
+    if (isNaN(ms)) {
+        dateObj = new Date(ts);
+    } else {
+        if (ms > 1e16) ms = Math.floor(ms / 1000000);
+        else if (ms > 1e14) ms = Math.floor(ms / 1000);
+        else if (ms < 1e11) ms = ms * 1000;
+        dateObj = new Date(ms);
+    }
+    return dateObj.toLocaleString();
 };
 
 
@@ -92,6 +129,9 @@ const Endpoints = () => {
     const [loadingResults, setLoadingResults] = useState(false);
     const [selectedFlowInfo, setSelectedFlowInfo] = useState(null);
     const [launchingHunt, setLaunchingHunt] = useState(false);
+    const [vrConnections, setVrConnections] = useState([]);
+    const [loadingVrConnections, setLoadingVrConnections] = useState(false);
+    const [hasFetchedVrConnections, setHasFetchedVrConnections] = useState(false);
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchStatus = async () => {
@@ -172,13 +212,39 @@ const Endpoints = () => {
         fetchOverview();
     }, []);
 
+    useEffect(() => {
+        if (activeTab === 'network' && selectedEndpoint?.client_id && !hasFetchedVrConnections && !loadingVrConnections) {
+            const fetchNetstat = async () => {
+                setLoadingVrConnections(true);
+                try {
+                    const res = await axios.get(`${import.meta.env.VITE_BACK}/api/velociraptor/clients/${selectedEndpoint.client_id}/netstat`, { withCredentials: true });
+                    setVrConnections(res.data.items || []);
+                    setHasFetchedVrConnections(true);
+                } catch (err) {
+                    toast.error('Failed to fetch network connections');
+                } finally {
+                    setLoadingVrConnections(false);
+                }
+            };
+            fetchNetstat();
+        }
+    }, [activeTab, selectedEndpoint, hasFetchedVrConnections, loadingVrConnections]);
+
     // When selecting an endpoint, load its context and collections
     const selectEndpoint = useCallback((client) => {
         setSelectedEndpoint(client);
         setActiveTab('overview');
-        const ip = client.os_info?.ip || client.ip || '';
+        let ip = client.os_info?.ip || client.ip || client.last_ip || '';
+        // If last_ip contains port (e.g. 192.168.2.11:54321), extract just the IP
+        if (ip && ip.includes(':')) {
+            ip = ip.split(':')[0];
+        }
         if (ip) fetchEndpointContext(ip);
-        if (client.client_id) fetchCollections(client.client_id);
+        if (client.client_id) {
+            fetchCollections(client.client_id);
+            setVrConnections([]);
+            setHasFetchedVrConnections(false);
+        }
     }, []);
 
     // ─── Filtering & Sorting ──────────────────────────────────────
@@ -435,6 +501,7 @@ const Endpoints = () => {
                                                 </th>
                                                 {!selectedEndpoint && (
                                                     <>
+                                                        <th className="p-4 text-sm font-medium text-text-secondary">IP Address</th>
                                                         <th className="p-4 text-sm font-medium text-text-secondary">Client ID</th>
                                                         <th onClick={() => toggleSort('os')} className="p-4 text-sm font-medium text-text-secondary cursor-pointer hover:text-primary transition-colors">
                                                             <div className="flex items-center gap-1">OS <ArrowUpDown size={12} /></div>
@@ -467,6 +534,15 @@ const Endpoints = () => {
                                                             </td>
                                                             {!selectedEndpoint && (
                                                                 <>
+                                                                    <td className="p-4 text-sm text-text-secondary">
+                                                                        {(() => {
+                                                                            let ip = client.os_info?.ip || client.ip || client.last_ip || 'Unknown';
+                                                                            if (ip && ip.includes(':') && ip.split(':').length === 2) {
+                                                                                ip = ip.split(':')[0];
+                                                                            }
+                                                                            return ip;
+                                                                        })()}
+                                                                    </td>
                                                                     <td className="p-4 text-sm font-mono text-text-secondary truncate max-w-[120px]">{client.client_id}</td>
                                                                     <td className="p-4 text-sm text-text-secondary">{client.os_info?.system || 'Unknown'}</td>
                                                                 </>
@@ -478,7 +554,7 @@ const Endpoints = () => {
                                                                     }`}>
                                                                         {isOnline ? 'Online' : 'Offline'}
                                                                     </span>
-                                                                    <span className="text-xs text-text-secondary">{timeAgo(new Date(lastSeen * 1000))}</span>
+                                                                    <span className="text-xs text-text-secondary">{timeAgo(client.last_seen_at)}</span>
                                                                 </div>
                                                             </td>
                                                             {!selectedEndpoint && (
@@ -610,25 +686,7 @@ const Endpoints = () => {
                                             {/* ── Overview Tab ── */}
                                             {activeTab === 'overview' && (
                                                 <div className="flex flex-col gap-5">
-                                                    {/* Risk Score Banner */}
-                                                    {endpointContext && (
-                                                        <div className={`p-4 rounded-xl border ${riskColor(endpointContext.riskScore).bg} flex items-center justify-between`}>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`p-2 rounded-lg ${endpointContext.riskScore >= 7 ? 'bg-red-500/20' : endpointContext.riskScore >= 4 ? 'bg-orange-500/20' : 'bg-green-500/20'}`}>
-                                                                    <Shield size={20} className={riskColor(endpointContext.riskScore).text} />
-                                                                </div>
-                                                                <div>
-                                                                    <p className={`text-sm font-bold ${riskColor(endpointContext.riskScore).text}`}>
-                                                                        Risk Level: {riskColor(endpointContext.riskScore).label}
-                                                                    </p>
-                                                                    <p className="text-xs text-text-secondary">Based on correlated alerts, connections, and anomalies (24h)</p>
-                                                                </div>
-                                                            </div>
-                                                            <div className={`text-3xl font-bold ${riskColor(endpointContext.riskScore).text}`}>
-                                                                {endpointContext.riskScore}/10
-                                                            </div>
-                                                        </div>
-                                                    )}
+
 
                                                     {/* Endpoint Info Grid */}
                                                     <div className="grid grid-cols-2 gap-4">
@@ -679,53 +737,81 @@ const Endpoints = () => {
                                             {/* ── Network Tab ── */}
                                             {activeTab === 'network' && (
                                                 <div className="flex flex-col gap-3">
-                                                    {endpointContext && (
-                                                        <div className="grid grid-cols-2 gap-3 mb-3">
-                                                            <div className="p-3 rounded-lg bg-background-dark/50 border border-gray-800">
-                                                                <p className="text-xs text-text-secondary">Unique Dest Ports</p>
-                                                                <p className="text-lg font-bold text-primary">{endpointContext.summary.uniqueDestPorts}</p>
-                                                            </div>
-                                                            <div className="p-3 rounded-lg bg-background-dark/50 border border-gray-800">
-                                                                <p className="text-xs text-text-secondary">Unique Dest IPs</p>
-                                                                <p className="text-lg font-bold text-primary">{endpointContext.summary.uniqueDestIPs}</p>
-                                                            </div>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <p className="text-sm text-text-secondary">Network connections retrieved from the endpoint</p>
+                                                        <button
+                                                            onClick={async () => {
+                                                                setLoadingVrConnections(true);
+                                                                try {
+                                                                    const res = await axios.get(`${import.meta.env.VITE_BACK}/api/velociraptor/clients/${selectedEndpoint.client_id}/netstat`, { withCredentials: true });
+                                                                    setVrConnections(res.data.items || []);
+                                                                    setHasFetchedVrConnections(true);
+                                                                } catch (err) {
+                                                                    toast.error('Failed to fetch network connections');
+                                                                } finally {
+                                                                    setLoadingVrConnections(false);
+                                                                }
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded-lg text-xs font-medium hover:bg-primary/20 transition-all"
+                                                        >
+                                                            {loadingVrConnections ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw size={12} />}
+                                                            Refresh Connections
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {loadingVrConnections ? (
+                                                        <div className="animate-pulse flex flex-col gap-3">
+                                                            {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-gray-800 rounded-lg w-full"></div>)}
                                                         </div>
-                                                    )}
-                                                    {endpointContext?.zeekConnections?.length > 0 ? (
+                                                    ) : vrConnections.length > 0 ? (
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-left text-sm">
                                                                 <thead>
                                                                     <tr className="border-b border-gray-700">
-                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Source</th>
-                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Destination</th>
-                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Protocol</th>
-                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Duration</th>
-                                                                        <th className="p-3 text-xs text-text-secondary font-medium">State</th>
+                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Process ID</th>
+                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Process Name</th>
+                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Local Address</th>
+                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Remote Address</th>
+                                                                        <th className="p-3 text-xs text-text-secondary font-medium">Status</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {endpointContext.zeekConnections.map((conn, i) => (
+                                                                    {vrConnections.map((conn, i) => {
+                                                                        let laddrStr = '0.0.0.0:0';
+                                                                        let raddrStr = '0.0.0.0:0';
+                                                                        
+                                                                        const laddr = conn.Laddr || conn.laddr || conn.LocalAddress || conn.localAddress;
+                                                                        if (typeof laddr === 'string') {
+                                                                            laddrStr = laddr;
+                                                                        } else if (typeof laddr === 'object' && laddr !== null) {
+                                                                            laddrStr = `${laddr.IP || laddr.ip || '0.0.0.0'}:${laddr.Port || laddr.port || '0'}`;
+                                                                        }
+
+                                                                        const raddr = conn.Raddr || conn.raddr || conn.RemoteAddress || conn.remoteAddress;
+                                                                        if (typeof raddr === 'string') {
+                                                                            raddrStr = raddr;
+                                                                        } else if (typeof raddr === 'object' && raddr !== null) {
+                                                                            raddrStr = `${raddr.IP || raddr.ip || '0.0.0.0'}:${raddr.Port || raddr.port || '0'}`;
+                                                                        }
+                                                                        
+                                                                        return (
                                                                         <tr key={i} className="border-b border-gray-800 hover:bg-white/5">
-                                                                            <td className="p-3 font-mono text-xs">{conn.id_orig_h}:{conn.id_orig_p}</td>
-                                                                            <td className="p-3 font-mono text-xs">{conn.id_resp_h}:{conn.id_resp_p}</td>
-                                                                            <td className="p-3 text-xs">{conn.proto || conn.service || '—'}</td>
-                                                                            <td className="p-3 text-xs">{conn.duration ? `${conn.duration.toFixed(2)}s` : '—'}</td>
-                                                                            <td className="p-3">
-                                                                                <span className={`px-1.5 py-0.5 rounded text-xs font-mono ${
-                                                                                    conn.conn_state === 'SF' ? 'bg-green-500/10 text-green-400' :
-                                                                                    conn.conn_state === 'S0' ? 'bg-red-500/10 text-red-400' :
-                                                                                    'bg-gray-500/10 text-gray-400'
-                                                                                }`}>
-                                                                                    {conn.conn_state || '—'}
-                                                                                </span>
-                                                                            </td>
+                                                                            <td className="p-3 font-mono text-xs">{conn.Pid || conn.pid || '—'}</td>
+                                                                            <td className="p-3 text-xs">{conn.Name || conn.name || '—'}</td>
+                                                                            <td className="p-3 font-mono text-xs">{laddrStr}</td>
+                                                                            <td className="p-3 font-mono text-xs">{raddrStr}</td>
+                                                                            <td className="p-3 text-xs">{conn.Status || conn.status || conn.State || conn.state || '—'}</td>
                                                                         </tr>
-                                                                    ))}
+                                                                    )})}
                                                                 </tbody>
                                                             </table>
                                                         </div>
-                                                    ) : (
+                                                    ) : hasFetchedVrConnections ? (
                                                         <EmptyState icon={Network} message="No network connections found for this endpoint." />
+                                                    ) : (
+                                                        <div className="flex justify-center p-8">
+                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
@@ -768,7 +854,10 @@ const Endpoints = () => {
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex justify-between items-end mt-2">
-                                                                        <p className="text-xs text-text-secondary font-mono">Flow: {flowId}</p>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <p className="text-xs text-text-secondary font-mono">Flow: {flowId}</p>
+                                                                            <p className="text-xs text-text-secondary">{col.create_time ? formatDateTime(col.create_time) : 'Unknown Time'}</p>
+                                                                        </div>
                                                                         {isFinished && flowId !== 'N/A' && (
                                                                             <button 
                                                                                 onClick={() => fetchFlowResults(col.client_id || selectedEndpoint.client_id, flowId, artifactName)}

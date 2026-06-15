@@ -1,0 +1,1 @@
+docker exec -e VQL_QUERY="SELECT client_id, os_info, last_ip, labels, last_seen_at FROM clients()" deepguard-velociraptor sh -c "if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; \$VR_BIN --api_config /tmp/api_client.yaml query \"\$VQL_QUERY\" --format jsonl"
