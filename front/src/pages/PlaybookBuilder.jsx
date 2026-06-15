@@ -244,10 +244,10 @@ const PlaybookBuilder = () => {
                             </select>
                         </div>
                     </div>
-                    {playbook?.runCounter > 0 && (
+                    {playbook?.runs > 0 && (
                         <div className="bg-gray-800 border border-gray-700 px-3 py-1 rounded-full text-xs font-mono text-gray-300 ml-4 flex items-center gap-1.5 shadow-inner">
                             <Activity size={12} className="text-primary"/>
-                            {playbook.runCounter} executions
+                            {playbook.runs} executions
                         </div>
                     )}
                 </div>
