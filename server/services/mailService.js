@@ -112,6 +112,9 @@ async function sendAssignmentEmail(toEmail, analystName, incidentRef, incidentTi
                 color: #8892B0;
                 border-top: 1px solid #233554;
             }
+            .class {
+                color: #ffffff;
+            }
         </style>
     </head>
     <body>
@@ -121,7 +124,7 @@ async function sendAssignmentEmail(toEmail, analystName, incidentRef, incidentTi
             </div>
             <div class="content">
                 <div class="greeting">Hello ${analystName},</div>
-                <p>An administrator has assigned you to a new security incident on the DeepGuard SOC platform. Please review the details below and begin your investigation:</p>
+                <p class="white">An administrator has assigned you to a new security incident on the DeepGuard SOC platform. Please review the details below and begin your investigation:</p>
                 
                 <div class="alert-box">
                     <div class="field">
@@ -144,11 +147,7 @@ async function sendAssignmentEmail(toEmail, analystName, incidentRef, incidentTi
                     </div>
                 </div>
 
-                <p>Ensure you update the incident status and keep logs up to date in the timeline as you investigate.</p>
-                
-                <center>
-                    <a href="http://localhost:8080/incidents" class="btn">View Incident Console</a>
-                </center>
+                <p class="white">Ensure you update the incident status and keep logs up to date in the timeline as you investigate.</p>
             </div>
             <div class="footer">
                 This is an automated system notification from your DeepGuard SOC instance.<br>
