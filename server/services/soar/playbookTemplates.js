@@ -44,7 +44,6 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_alert",
         triggerConditions: { signatureContains: ["Brute Force", "Login Attempt"] },
         mitreTags: ["T1110"],
-        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
@@ -142,7 +141,6 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_alert",
         triggerConditions: { signatureContains: ["Exfiltration", "Exfil", "Large Outbound"] },
         mitreTags: ["T1041", "T1048"],
-        defaultStatus: "active",
         build() {
             resetCounter();
             const nodes = [
@@ -194,7 +192,6 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_incident_created",
         triggerConditions: { category: "lateral_movement" },
         mitreTags: ["T1021", "T1570"],
-        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
@@ -218,7 +215,6 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_incident_created",
         triggerConditions: { category: "phishing" },
         mitreTags: ["T1566"],
-        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
@@ -242,7 +238,6 @@ const PLAYBOOK_TEMPLATES = [
         triggerType: "on_incident_created",
         triggerConditions: { category: "ransomware" },
         mitreTags: ["T1486", "T1490"],
-        defaultStatus: "draft",
         build() {
             resetCounter();
             const nodes = [
