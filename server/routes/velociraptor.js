@@ -174,10 +174,11 @@ router.get('/clients/:clientId/netstat', async (req, res) => {
 
         const artifactName = os.includes('linux') ? 'Linux.Network.Netstat' : 'Windows.Network.Netstat';
         
-        // Trigger collection and wait for it
-        const flowData = await queryVelociraptor(`SELECT collect_client(client_id='${clientId}', artifacts=['${artifactName}'], env=dict(wait=TRUE)).flow_id AS flow_id FROM scope()`);
+        // Get the latest netstat flow for this client
+        const flowData = await queryVelociraptor(`SELECT session_id AS flow_id, request.artifacts[0] AS artifact FROM flows(client_id='${clientId}') WHERE request.artifacts[0] =~ 'Network.Netstat' ORDER BY create_time DESC LIMIT 1`);
         
         let flowId = '';
+        let flowArtifact = artifactName;
         if (flowData.Responses && flowData.Responses.length > 0) {
             let flows = flowData.Responses[0].Response || [];
             if (typeof flows === 'string') {
@@ -185,15 +186,16 @@ router.get('/clients/:clientId/netstat', async (req, res) => {
             }
             if (Array.isArray(flows) && flows.length > 0 && flows[0].flow_id) {
                 flowId = flows[0].flow_id;
+                if (flows[0].artifact) flowArtifact = flows[0].artifact;
             }
         }
         
         if (!flowId) {
-            return res.status(404).json({ error: 'Failed to collect network connections' });
+            return res.json({ items: [] });
         }
         
         // Fetch results
-        const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifactName}') LIMIT 100`);
+        const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${flowArtifact}') LIMIT 100`);
         
         const parseResponse = (resData) => {
             let res = [];
