@@ -33,31 +33,14 @@ services:
       context: ./front
       dockerfile: Dockerfile.dev
     container_name: deepguard-frontend-dev
-    # Removed port 3000 mapping to host, nginx-proxy will handle port 80 -> 3000
+    ports:
+      - "3000:3000"
     volumes:
       - ./front:/app
       - /app/node_modules
     restart: unless-stopped
     depends_on:
       - backend
-
-  nginx-proxy:
-    image: nginx:alpine
-    container_name: deepguard-nginx-proxy
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx-proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - frontend
-    restart: unless-stopped
-
-  mdns-publisher:
-    image: ghcr.io/ensody/avahi
-    network_mode: host
-    restart: unless-stopped
-    environment:
-      - SERVICES=deepguard.local:80
 
   iptables-proxy:
     build: ./iptables-service
