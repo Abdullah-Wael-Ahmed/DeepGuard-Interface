@@ -430,11 +430,10 @@ alert tcp any any -> any [80,8080] (msg:"DEEPGUARD: DCERPC over HTTP/8080 — Po
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # --- Large Outbound HTTP Transfer ---
+# --- Large Outbound HTTP Transfer ---
 alert http any any -> any any (msg:"DEEPGUARD: Large Outbound HTTP POST — Possible Data Exfil"; \
-    flow:to_server; content:"POST"; http_method; \
-    http_content_len; content:!"0"; \
-    threshold:type both, track by_src, count 5, seconds 60; \
-    classtype:bad-unknown; sid:1000600; rev:1;)
+    flow:to_server; content:"POST"; http_method; content:"/upload"; http_uri; \
+    classtype:bad-unknown; sid:1000600; rev:2;)
 
 # --- DNS Exfiltration (unusually long queries) ---
 alert dns $HOME_NET any -> any any (msg:"DEEPGUARD: DNS Query Exfiltration — Query > 50 chars"; \
