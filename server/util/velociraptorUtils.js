@@ -39,7 +39,8 @@ const queryVelociraptor = async (vqlQuery) => {
         
         try {
             // First try parsing as a single JSON object/array
-            rows = JSON.parse(cleanStdout);
+            const parsed = JSON.parse(cleanStdout);
+            rows = Array.isArray(parsed) ? parsed : [parsed];
         } catch (e) {
             // If it fails, it might be multiple JSON arrays concatenated: [...] [...]
             // or JSON Lines: {...} \n {...}
