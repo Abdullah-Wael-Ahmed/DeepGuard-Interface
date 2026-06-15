@@ -20,7 +20,7 @@ print(r"""
 DeepGuard Anomaly Traffic Simulator
 """)
 
-def ddos_flood(target_ip, target_port=3000, duration=10):
+def ddos_flood(target_ip, target_port=5000, duration=10):
     print(f"[*] Starting DDoS Simulation against {target_ip}:{target_port} for {duration} seconds...")
     print("[*] This will spike 'conn_count' and 'connections_per_sec'")
     
@@ -132,7 +132,7 @@ def brute_force(target_ip, target_port=22):
     except Exception as e:
         print(f"[-] Failed to connect: {e}")
 
-def web_attack(target_ip, target_port=3000):
+def web_attack(target_ip, target_port=5000):
     print(f"[*] Starting Web Application Attack Simulation against {target_ip}:{target_port}...")
     payloads = [
         b"GET /?id=1' UNION SELECT 1,2,3-- HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n\r\n",
@@ -151,7 +151,7 @@ def web_attack(target_ip, target_port=3000):
     except Exception as e:
         print(f"[-] Failed to connect: {e}")
 
-def credential_theft(target_ip, target_port=3000):
+def credential_theft(target_ip, target_port=5000):
     print(f"[*] Starting Credential Theft Simulation against {target_ip}:{target_port}...")
     payload = b"GET /admin HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\nAuthorization: NTLM TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==\r\n\r\n"
     try:
@@ -166,7 +166,7 @@ def credential_theft(target_ip, target_port=3000):
     except Exception as e:
         print(f"[-] Failed to connect: {e}")
 
-def c2_beacon(target_ip, target_port=3000):
+def c2_beacon(target_ip, target_port=5000):
     print(f"[*] Starting C2 Beaconing Simulation against {target_ip}:{target_port}...")
     payload = b"GET /images/logo.png HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\nUser-Agent: PowerShell/1.0\r\n\r\n"
     try:
@@ -197,7 +197,7 @@ if __name__ == "__main__":
             time.sleep(15)
             
     if args.mode in ['ddos', 'all', 'mix']:
-        ddos_flood(args.target, 3000, duration=10)
+        ddos_flood(args.target, 5000, duration=10)
         time.sleep(2)
         
     if args.mode in ['scan', 'all']:
@@ -221,4 +221,4 @@ if __name__ == "__main__":
         time.sleep(2)
 
     if args.mode in ['exfil', 'all']:
-        data_exfiltration(args.target, 3000)
+        data_exfiltration(args.target, 5000)
