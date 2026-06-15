@@ -155,6 +155,71 @@ router.get('/clients/:clientId/collections/:flowId/results', async (req, res) =>
     }
 });
 
+// GET /api/velociraptor/clients/:clientId/netstat — fetch network connections directly from the endpoint
+router.get('/clients/:clientId/netstat', async (req, res) => {
+    try {
+        const clientId = req.params.clientId.replace(/[^a-zA-Z0-9.-]/g, '');
+        // First determine OS to run correct artifact
+        const clientData = await queryVelociraptor(`SELECT os_info FROM clients() WHERE client_id = '${clientId}'`);
+        let os = 'windows';
+        if (clientData.Responses && clientData.Responses.length > 0) {
+            let clients = clientData.Responses[0].Response || [];
+            if (typeof clients === 'string') {
+                try { clients = JSON.parse(clients); } catch(e) {}
+            }
+            if (clients.length > 0 && clients[0].os_info && clients[0].os_info.system) {
+                os = clients[0].os_info.system.toLowerCase();
+            }
+        }
+
+        const artifactName = os.includes('linux') ? 'Linux.Network.Netstat' : 'Windows.Network.Netstat';
+        
+        // Trigger collection and wait for it
+        const flowData = await queryVelociraptor(`SELECT collect_client(client_id='${clientId}', artifacts=['${artifactName}'], env=dict(wait=TRUE)).flow_id AS flow_id FROM scope()`);
+        
+        let flowId = '';
+        if (flowData.Responses && flowData.Responses.length > 0) {
+            let flows = flowData.Responses[0].Response || [];
+            if (typeof flows === 'string') {
+                try { flows = JSON.parse(flows); } catch(e) {}
+            }
+            if (Array.isArray(flows) && flows.length > 0 && flows[0].flow_id) {
+                flowId = flows[0].flow_id;
+            }
+        }
+        
+        if (!flowId) {
+            return res.status(404).json({ error: 'Failed to collect network connections' });
+        }
+        
+        // Fetch results
+        const data = await queryVelociraptor(`SELECT * FROM source(client_id='${clientId}', flow_id='${flowId}', artifact='${artifactName}') LIMIT 100`);
+        
+        const parseResponse = (resData) => {
+            let res = [];
+            if (resData.Responses && resData.Responses.length > 0) {
+                res = resData.Responses[0].Response || [];
+                if (typeof res === 'string') {
+                    try {
+                        res = JSON.parse(res);
+                    } catch(e) {
+                        res = res.split('\n').filter(l => l.trim()).map(l => {
+                            try { return JSON.parse(l); } catch(err) { return l; }
+                        });
+                    }
+                }
+            }
+            return res;
+        };
+
+        let results = parseResponse(data);
+        res.json({ items: results });
+    } catch (error) {
+        console.error('Error fetching netstat from velociraptor:', error.message);
+        res.status(500).json({ error: 'Failed to fetch network connections from endpoint' });
+    }
+});
+
 // POST /api/velociraptor/hunt — trigger a VQL artifact hunt on a specific client
 router.post('/hunt', async (req, res) => {
     try {
