@@ -37,43 +37,25 @@ const queryVelociraptor = async (vqlQuery) => {
         let rows = [];
         const cleanStdout = stdout.trim();
         
-        try {
-            // First try parsing as a single JSON object/array
-            const parsed = JSON.parse(cleanStdout);
-            rows = Array.isArray(parsed) ? parsed : [parsed];
-        } catch (e) {
-            // If it fails, it might be multiple JSON arrays concatenated: [...] [...]
-            // or JSON Lines: {...} \n {...}
-            // or preceded by docker warnings
+        // We use --format jsonl, so the output is either a single JSON object (if 1 row)
+        // or multiple JSON objects separated by newlines (if > 1 row).
+        // It could also have Docker warnings at the top.
+        
+        const lines = cleanStdout.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
             try {
-                // Try to extract all JSON arrays using regex and merge them
-                const arrays = cleanStdout.match(/\[[\s\S]*?\]/g);
-                if (arrays && arrays.length > 0) {
-                    for (const arrStr of arrays) {
-                        try {
-                            const parsed = JSON.parse(arrStr);
-                            if (Array.isArray(parsed)) rows.push(...parsed);
-                        } catch(err) {}
-                    }
-                }
-                
-                // If regex didn't find valid arrays, fallback to jsonl parsing
-                if (rows.length === 0) {
-                    const lines = cleanStdout.split('\n');
-                    for (const line of lines) {
-                        const trimmed = line.trim();
-                        if (!trimmed) continue;
-                        try {
-                            const parsed = JSON.parse(trimmed);
-                            rows.push(parsed);
-                        } catch (err) {}
-                    }
-                }
+                const parsed = JSON.parse(trimmed);
+                // JSON lines gives us one object per line.
+                // We add it to our array of rows.
+                rows.push(parsed);
             } catch (err) {
-                console.error('[Velociraptor JSON extraction failed]:', err.message);
+                // Ignore lines that aren't valid JSON (like Docker warnings)
             }
         }
         
+        // Return structured like the old JSON array so we don't break existing parsing logic
         return { Responses: [{ Response: rows }] };
     } catch (error) {
         console.error('Docker exec query failed:', error.message);
