@@ -777,15 +777,30 @@ const Endpoints = () => {
                                                                 </thead>
                                                                 <tbody>
                                                                     {vrConnections.map((conn, i) => {
-                                                                        const laddr = conn.Laddr || conn.laddr || {};
-                                                                        const raddr = conn.Raddr || conn.raddr || {};
+                                                                        let laddrStr = '0.0.0.0:0';
+                                                                        let raddrStr = '0.0.0.0:0';
+                                                                        
+                                                                        const laddr = conn.Laddr || conn.laddr || conn.LocalAddress || conn.localAddress;
+                                                                        if (typeof laddr === 'string') {
+                                                                            laddrStr = laddr;
+                                                                        } else if (typeof laddr === 'object' && laddr !== null) {
+                                                                            laddrStr = `${laddr.IP || laddr.ip || '0.0.0.0'}:${laddr.Port || laddr.port || '0'}`;
+                                                                        }
+
+                                                                        const raddr = conn.Raddr || conn.raddr || conn.RemoteAddress || conn.remoteAddress;
+                                                                        if (typeof raddr === 'string') {
+                                                                            raddrStr = raddr;
+                                                                        } else if (typeof raddr === 'object' && raddr !== null) {
+                                                                            raddrStr = `${raddr.IP || raddr.ip || '0.0.0.0'}:${raddr.Port || raddr.port || '0'}`;
+                                                                        }
+                                                                        
                                                                         return (
                                                                         <tr key={i} className="border-b border-gray-800 hover:bg-white/5">
                                                                             <td className="p-3 font-mono text-xs">{conn.Pid || conn.pid || '—'}</td>
                                                                             <td className="p-3 text-xs">{conn.Name || conn.name || '—'}</td>
-                                                                            <td className="p-3 font-mono text-xs">{(laddr.IP || laddr.ip || '0.0.0.0')}:{(laddr.Port || laddr.port || '0')}</td>
-                                                                            <td className="p-3 font-mono text-xs">{(raddr.IP || raddr.ip || '0.0.0.0')}:{(raddr.Port || raddr.port || '0')}</td>
-                                                                            <td className="p-3 text-xs">{conn.Status || conn.status || '—'}</td>
+                                                                            <td className="p-3 font-mono text-xs">{laddrStr}</td>
+                                                                            <td className="p-3 font-mono text-xs">{raddrStr}</td>
+                                                                            <td className="p-3 text-xs">{conn.Status || conn.status || conn.State || conn.state || '—'}</td>
                                                                         </tr>
                                                                     )})}
                                                                 </tbody>
