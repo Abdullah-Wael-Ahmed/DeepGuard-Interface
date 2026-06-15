@@ -12,13 +12,12 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     strictPort: true,
-    allowedHosts: ['deepguard-frontend-dev', 'deepguard-frontend'],
+    allowedHosts: ['deepguard-frontend-dev', 'deepguard-frontend', 'deepguard.local'],
     watch: {
       usePolling: true
     },
     hmr: {
-      clientPort: 3000,
-      host: '127.0.0.1',
+      clientPort: 80,
       overlay: true
     },
     proxy: {
