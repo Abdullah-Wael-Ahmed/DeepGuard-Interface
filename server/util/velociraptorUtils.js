@@ -14,10 +14,17 @@ const queryVelociraptor = async (vqlQuery) => {
             'deepguard-velociraptor',
             'sh',
             '-c',
-            'if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then $VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; $VR_BIN --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format json'
+            'if [ -x /velociraptor/velociraptor ]; then VR_BIN=/velociraptor/velociraptor; elif [ -x /opt/velociraptor ]; then VR_BIN=/opt/velociraptor; else VR_BIN=velociraptor; fi; if [ ! -f /tmp/api_client.yaml ]; then $VR_BIN --config /etc/velociraptor/server.config.yaml config api_client --name admin --role administrator /tmp/api_client.yaml > /dev/null 2>&1; fi; $VR_BIN --api_config /tmp/api_client.yaml query "$VQL_QUERY" --format jsonl'
         ];
         
-        const { stdout, stderr } = await execFilePromise('docker', cmdArgs);
+        // Add a 60-second timeout and a large 50MB maxBuffer. 
+        // If Velociraptor hangs, this prevents infinite overlapping docker execs.
+        // The maxBuffer prevents crashes when querying large artifacts or many clients.
+        const { stdout, stderr } = await execFilePromise('docker', cmdArgs, { 
+            timeout: 60000, 
+            killSignal: 'SIGKILL',
+            maxBuffer: 1024 * 1024 * 50 // 50 MB
+        });
         
         if (stderr && stderr.trim()) {
             console.error('[Velociraptor CLI Stderr]:', stderr);
@@ -28,28 +35,27 @@ const queryVelociraptor = async (vqlQuery) => {
         }
         
         let rows = [];
-        try {
-            // First try parsing the whole thing as a single JSON array
-            rows = JSON.parse(stdout);
-        } catch (e) {
-            // If it fails, try to extract just the JSON array portion (handles docker warnings)
+        const cleanStdout = stdout.trim();
+        
+        // We use --format jsonl, so the output is either a single JSON object (if 1 row)
+        // or multiple JSON objects separated by newlines (if > 1 row).
+        // It could also have Docker warnings at the top.
+        
+        const lines = cleanStdout.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
             try {
-                const startIndex = stdout.indexOf('[');
-                const endIndex = stdout.lastIndexOf(']') + 1;
-                if (startIndex !== -1 && endIndex !== 0) {
-                    rows = JSON.parse(stdout.substring(startIndex, endIndex));
-                } else {
-                    // Fallback to line-by-line parsing
-                    const lines = stdout.split('\n').filter(l => l.trim());
-                    for (const line of lines) {
-                        try { rows.push(JSON.parse(line)); } catch (err) {}
-                    }
-                }
+                const parsed = JSON.parse(trimmed);
+                // JSON lines gives us one object per line.
+                // We add it to our array of rows.
+                rows.push(parsed);
             } catch (err) {
-                console.error('[Velociraptor JSON extraction failed]:', err.message);
+                // Ignore lines that aren't valid JSON (like Docker warnings)
             }
         }
         
+        // Return structured like the old JSON array so we don't break existing parsing logic
         return { Responses: [{ Response: rows }] };
     } catch (error) {
         console.error('Docker exec query failed:', error.message);

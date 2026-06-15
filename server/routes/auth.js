@@ -21,40 +21,7 @@ const generateRefreshToken = (user) => {
         { expiresIn: "30m" }
     );
 };
-const nodemailer = require("nodemailer");
 
-router.get("/smtp-test", async (req, res) => {
-    const user = process.env.EMAIL_USER;
-    const pass = process.env.EMAIL_PASS;
-    
-    const testTransporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: user || "DeepGuard.sec@gmail.com",
-            pass: pass || "DeepGuard@2026",
-        },
-    });
-
-    try {
-        await testTransporter.verify();
-        res.json({
-            status: "success",
-            message: "SMTP authentication succeeded!",
-            loaded_email_user: user ? `${user.substring(0, 4)}...${user.substring(user.indexOf('@'))}` : "not configured",
-            loaded_email_pass_length: pass ? pass.length : 0,
-            loaded_email_pass_masked: pass ? `${pass.substring(0, 3)}...` : "not configured"
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: "error",
-            message: "SMTP authentication failed!",
-            error: error.message,
-            loaded_email_user: user ? `${user.substring(0, 4)}...${user.substring(user.indexOf('@'))}` : "not configured",
-            loaded_email_pass_length: pass ? pass.length : 0,
-            loaded_email_pass_masked: pass ? `${pass.substring(0, 3)}...` : "not configured"
-        });
-    }
-});
 
 
 router.get("/users", verifyJWT, requireAdminOrOperator, async (req, res) => {

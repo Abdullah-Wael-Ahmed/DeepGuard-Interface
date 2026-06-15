@@ -358,6 +358,13 @@ class SOAREngine {
                     if (pb.triggerConditions.minSeverity && alert.severity > pb.triggerConditions.minSeverity) {
                         shouldRun = false; // Suricata: 1=high, 3=low — lower number = higher severity
                     }
+                    if (pb.triggerConditions.signatureContains && shouldRun) {
+                        const sigArray = Array.isArray(pb.triggerConditions.signatureContains) 
+                            ? pb.triggerConditions.signatureContains 
+                            : [pb.triggerConditions.signatureContains];
+                        const matched = sigArray.some(s => alert.signature && alert.signature.toLowerCase().includes(s.toLowerCase()));
+                        if (!matched) shouldRun = false;
+                    }
                 }
 
                 if (shouldRun) {
