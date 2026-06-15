@@ -20,6 +20,7 @@ const cors = require('cors');
 const http = require('http')
 const { initWebSocket } = require('./util/websocket');
 const { seedSuperAdmin } = require('./util/seeder');
+const { seedPlaybooks } = require('./services/soar/playbookTemplates');
 const verifyJWT = require("./middleware/verifyJWT")
 const { restrictWriteToAdminOrOperator } = require("./middleware/authorize");
 
@@ -42,6 +43,7 @@ async function connectWithRetry(retries = 10, delay = 3000) {
             await correlationEngine.init(); // Init backend correlation
             velociraptorPoller.start(); // Init Velociraptor flow polling
             await seedSuperAdmin();
+            await seedPlaybooks();
             return;
         } catch (e) {
             console.log(`DB connection attempt ${attempt}/${retries} failed: ${e.message}`);

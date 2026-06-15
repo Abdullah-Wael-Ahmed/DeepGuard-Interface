@@ -116,11 +116,75 @@ def normal_traffic(target_ip, duration=30):
         
     print(f"[+] Normal traffic simulation complete. Total gentle requests: {requests_sent}")
 
+def brute_force(target_ip, target_port=22):
+    print(f"[*] Starting SSH Brute Force Simulation against {target_ip}:{target_port}...")
+    try:
+        for _ in range(20):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((target_ip, target_port))
+            s.send(b"SSH-2.0-OpenSSH_8.2p1\r\n")
+            s.close()
+            time.sleep(0.1)
+        print("[+] Brute force simulation complete.")
+    except Exception as e:
+        print(f"[-] Failed to connect: {e}")
+
+def web_attack(target_ip, target_port=80):
+    print(f"[*] Starting Web Application Attack Simulation against {target_ip}:{target_port}...")
+    payloads = [
+        b"GET /?id=1' UNION SELECT 1,2,3-- HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n\r\n",
+        b"GET /search?q=<script>alert(1)</script> HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n\r\n",
+        b"GET /../../../../etc/passwd HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n\r\n"
+    ]
+    try:
+        for payload in payloads:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((target_ip, target_port))
+            s.send(payload)
+            s.close()
+            time.sleep(0.5)
+        print("[+] Web attack simulation complete.")
+    except Exception as e:
+        print(f"[-] Failed to connect: {e}")
+
+def credential_theft(target_ip, target_port=80):
+    print(f"[*] Starting Credential Theft Simulation against {target_ip}:{target_port}...")
+    payload = b"GET /admin HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\nAuthorization: NTLM TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==\r\n\r\n"
+    try:
+        for _ in range(5):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((target_ip, target_port))
+            s.send(payload)
+            s.close()
+            time.sleep(0.5)
+        print("[+] Credential theft simulation complete.")
+    except Exception as e:
+        print(f"[-] Failed to connect: {e}")
+
+def c2_beacon(target_ip, target_port=80):
+    print(f"[*] Starting C2 Beaconing Simulation against {target_ip}:{target_port}...")
+    payload = b"GET /images/logo.png HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\nUser-Agent: PowerShell/1.0\r\n\r\n"
+    try:
+        for _ in range(5):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((target_ip, target_port))
+            s.send(payload)
+            s.close()
+            time.sleep(1)
+        print("[+] C2 Beaconing simulation complete.")
+    except Exception as e:
+        print(f"[-] Failed to connect: {e}")
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate network anomalies to trigger DeepGuard Zeek Autoencoder")
     parser.add_argument("--target", required=True, help="Target IP address (e.g. your Kali IP)")
-    parser.add_argument("--mode", choices=['normal', 'ddos', 'scan', 'exfil', 'all', 'mix'], required=True, help="Type of traffic to simulate")
+    parser.add_argument("--mode", choices=['normal', 'ddos', 'scan', 'exfil', 'brute_force', 'web_attack', 'credential_theft', 'c2_beacon', 'all', 'mix'], required=True, help="Type of traffic to simulate")
     
     args = parser.parse_args()
     
@@ -131,16 +195,31 @@ if __name__ == "__main__":
             time.sleep(15)
             
     if args.mode in ['ddos', 'all', 'mix']:
-        ddos_flood(args.target, 80, duration=30)
+        ddos_flood(args.target, 80, duration=10)
         time.sleep(2)
         
     if args.mode in ['scan', 'all']:
         port_scan(args.target, 1, 1000)
         time.sleep(2)
         
+    if args.mode in ['brute_force', 'all']:
+        brute_force(args.target)
+        time.sleep(2)
+
+    if args.mode in ['web_attack', 'all']:
+        web_attack(args.target)
+        time.sleep(2)
+
+    if args.mode in ['credential_theft', 'all']:
+        credential_theft(args.target)
+        time.sleep(2)
+
+    if args.mode in ['c2_beacon', 'all']:
+        c2_beacon(args.target)
+        time.sleep(2)
+
     if args.mode in ['exfil', 'all']:
         print("\n[!] For exfiltration to work, please open a listener on your Kali machine in a new terminal:")
         print("    nc -lvnp 4444 > /dev/null")
         input("    Press Enter when the listener is running...")
         data_exfiltration(args.target, 4444)
-print("test1111")

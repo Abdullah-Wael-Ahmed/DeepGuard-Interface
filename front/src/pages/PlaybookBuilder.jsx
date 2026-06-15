@@ -152,6 +152,17 @@ const PlaybookBuilder = () => {
         }
     };
 
+    const deletePlaybook = async () => {
+        if (!window.confirm("Are you sure you want to delete this playbook?")) return;
+        try {
+            await axios.delete(`${BACK}/playbooks/${id}`, { withCredentials: true });
+            toast.success("Playbook deleted");
+            navigate('/playbooks');
+        } catch (error) {
+            toast.error("Failed to delete playbook");
+        }
+    };
+
     const addActionNode = () => {
         const newNodeId = `action_${Date.now()}`;
         const defaultAction = availableActions[0] || { value: 'block_ip', label: 'Block IP', category: 'response' };
@@ -233,9 +244,18 @@ const PlaybookBuilder = () => {
                             </select>
                         </div>
                     </div>
+                    {playbook?.runCounter > 0 && (
+                        <div className="bg-gray-800 border border-gray-700 px-3 py-1 rounded-full text-xs font-mono text-gray-300 ml-4 flex items-center gap-1.5 shadow-inner">
+                            <Activity size={12} className="text-primary"/>
+                            {playbook.runCounter} executions
+                        </div>
+                    )}
                 </div>
                 
                 <div className="flex items-center gap-3">
+                    <button onClick={deletePlaybook} className="p-2 border border-red-500/30 text-red-400 hover:bg-red-500/20 rounded-lg transition" title="Delete Playbook">
+                        <Trash2 size={16} />
+                    </button>
                     <button onClick={testExecution} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded-lg flex items-center gap-2 transition text-sm">
                         <Play size={16} className="text-green-400" /> Test Run
                     </button>
