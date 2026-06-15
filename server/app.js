@@ -27,9 +27,8 @@ const { restrictWriteToAdminOrOperator } = require("./middleware/authorize");
 
 const app = express()
 
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost,http://localhost:80,http://localhost:3000").split(",");
 app.use(cors({
-    origin: (origin, cb) => (!origin || ALLOWED_ORIGINS.includes(origin)) ? cb(null, true) : cb(new Error("CORS blocked")),
+    origin: true, // Allow any origin in the local deployment
     credentials: true
 }))
 app.use(express.json())
