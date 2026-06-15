@@ -43,13 +43,14 @@ const riskColor = (score) => {
 const timeAgo = (ts) => {
     if (!ts) return 'Unknown';
     let dateObj;
-    if (typeof ts === 'number') {
-        let ms = ts;
-        if (ms > 100000000000000) ms = ms / 1000000;
-        else if (ms > 100000000000) ms = ms / 1000;
-        dateObj = new Date(ms);
-    } else {
+    let ms = typeof ts === 'string' ? Number(ts) : ts;
+    if (isNaN(ms)) {
         dateObj = new Date(ts);
+    } else {
+        if (ms > 1e16) ms = Math.floor(ms / 1000000);
+        else if (ms > 1e14) ms = Math.floor(ms / 1000);
+        else if (ms < 1e11) ms = ms * 1000;
+        dateObj = new Date(ms);
     }
     
     let seconds = Math.floor((Date.now() - dateObj.getTime()) / 1000);
@@ -73,13 +74,14 @@ const timeAgo = (ts) => {
 const formatDateTime = (ts) => {
     if (!ts) return 'Unknown';
     let dateObj;
-    if (typeof ts === 'number') {
-        let ms = ts;
-        if (ms > 100000000000000) ms = ms / 1000000;
-        else if (ms > 100000000000) ms = ms / 1000;
-        dateObj = new Date(ms);
-    } else {
+    let ms = typeof ts === 'string' ? Number(ts) : ts;
+    if (isNaN(ms)) {
         dateObj = new Date(ts);
+    } else {
+        if (ms > 1e16) ms = Math.floor(ms / 1000000);
+        else if (ms > 1e14) ms = Math.floor(ms / 1000);
+        else if (ms < 1e11) ms = ms * 1000;
+        dateObj = new Date(ms);
     }
     return dateObj.toLocaleString();
 };
@@ -129,6 +131,7 @@ const Endpoints = () => {
     const [launchingHunt, setLaunchingHunt] = useState(false);
     const [vrConnections, setVrConnections] = useState([]);
     const [loadingVrConnections, setLoadingVrConnections] = useState(false);
+    const [hasFetchedVrConnections, setHasFetchedVrConnections] = useState(false);
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchStatus = async () => {
@@ -209,6 +212,24 @@ const Endpoints = () => {
         fetchOverview();
     }, []);
 
+    useEffect(() => {
+        if (activeTab === 'network' && selectedEndpoint?.client_id && !hasFetchedVrConnections && !loadingVrConnections) {
+            const fetchNetstat = async () => {
+                setLoadingVrConnections(true);
+                try {
+                    const res = await axios.get(`${import.meta.env.VITE_BACK}/api/velociraptor/clients/${selectedEndpoint.client_id}/netstat`, { withCredentials: true });
+                    setVrConnections(res.data.items || []);
+                    setHasFetchedVrConnections(true);
+                } catch (err) {
+                    toast.error('Failed to fetch network connections');
+                } finally {
+                    setLoadingVrConnections(false);
+                }
+            };
+            fetchNetstat();
+        }
+    }, [activeTab, selectedEndpoint, hasFetchedVrConnections, loadingVrConnections]);
+
     // When selecting an endpoint, load its context and collections
     const selectEndpoint = useCallback((client) => {
         setSelectedEndpoint(client);
@@ -222,6 +243,7 @@ const Endpoints = () => {
         if (client.client_id) {
             fetchCollections(client.client_id);
             setVrConnections([]);
+            setHasFetchedVrConnections(false);
         }
     }, []);
 
@@ -512,7 +534,15 @@ const Endpoints = () => {
                                                             </td>
                                                             {!selectedEndpoint && (
                                                                 <>
-                                                                    <td className="p-4 text-sm text-text-secondary">{client.os_info?.ip || client.ip || client.last_ip || 'Unknown'}</td>
+                                                                    <td className="p-4 text-sm text-text-secondary">
+                                                                        {(() => {
+                                                                            let ip = client.os_info?.ip || client.ip || client.last_ip || 'Unknown';
+                                                                            if (ip && ip.includes(':') && ip.split(':').length === 2) {
+                                                                                ip = ip.split(':')[0];
+                                                                            }
+                                                                            return ip;
+                                                                        })()}
+                                                                    </td>
                                                                     <td className="p-4 text-sm font-mono text-text-secondary truncate max-w-[120px]">{client.client_id}</td>
                                                                     <td className="p-4 text-sm text-text-secondary">{client.os_info?.system || 'Unknown'}</td>
                                                                 </>
@@ -715,6 +745,7 @@ const Endpoints = () => {
                                                                 try {
                                                                     const res = await axios.get(`${import.meta.env.VITE_BACK}/api/velociraptor/clients/${selectedEndpoint.client_id}/netstat`, { withCredentials: true });
                                                                     setVrConnections(res.data.items || []);
+                                                                    setHasFetchedVrConnections(true);
                                                                 } catch (err) {
                                                                     toast.error('Failed to fetch network connections');
                                                                 } finally {
@@ -723,8 +754,8 @@ const Endpoints = () => {
                                                             }}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded-lg text-xs font-medium hover:bg-primary/20 transition-all"
                                                         >
-                                                            {loadingVrConnections ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play size={12} />}
-                                                            Fetch Connections
+                                                            {loadingVrConnections ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw size={12} />}
+                                                            Refresh Connections
                                                         </button>
                                                     </div>
                                                     
@@ -760,8 +791,12 @@ const Endpoints = () => {
                                                                 </tbody>
                                                             </table>
                                                         </div>
+                                                    ) : hasFetchedVrConnections ? (
+                                                        <EmptyState icon={Network} message="No network connections found for this endpoint." />
                                                     ) : (
-                                                        <EmptyState icon={Network} message="Click 'Fetch Connections' to run a live Netstat query on the endpoint." />
+                                                        <div className="flex justify-center p-8">
+                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
