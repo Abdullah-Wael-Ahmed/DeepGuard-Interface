@@ -37,33 +37,6 @@ const edge = (source, target, handle = null) => ({
 });
 
 const PLAYBOOK_TEMPLATES = [
-    // ── 1. Brute Force Lockout ───────────────────────────────────────────────
-    {
-        name: "Brute Force Lockout",
-        description: "T1110: Enrich IP -> check severity -> block IP + disable user -> notify",
-        triggerType: "on_alert",
-        triggerConditions: { signatureContains: ["Brute Force", "Login Attempt"] },
-        mitreTags: ["T1110"],
-        build() {
-            resetCounter();
-            const nodes = [
-                trigger("t1", 50, "Brute Force Alert (T1110)", "on_alert"),
-                action("a1", 180, "enrich_ip"),
-                condition("c1", 310, "severity", "==", "critical"),
-                action("a2", 480, "block_ip", 150),
-                action("a3", 480, "disable_user_account", 450),
-                action("a4", 630, "create_incident", 300),
-                action("a5", 780, "notify_dashboard", 300)
-            ];
-            const edges = [
-                edge("t1", "a1"), edge("a1", "c1"),
-                edge("c1", "a2", "true"), edge("c1", "a3", "true"),
-                edge("a2", "a4"), edge("a3", "a4"), edge("c1", "a4", "false"),
-                edge("a4", "a5")
-            ];
-            return { nodes, edges };
-        }
-    },
     // ── 2. Port Scan Response ───────────────────────────────────────────────
     {
         name: "Port Scan Response",
@@ -154,101 +127,6 @@ const PLAYBOOK_TEMPLATES = [
             ];
             const edges = [
                 edge("t1", "a1"), edge("a1", "a2"), edge("a2", "a3"), edge("a3", "a4"), edge("a4", "a5"), edge("a5", "a6")
-            ];
-            return { nodes, edges };
-        }
-    },
-    // ── 6. Web Application Attack ───────────────────────────────────────────
-    {
-        name: "Web Application Attack",
-        description: "T1190: Enrich IP -> check severity -> block IP + add to watchlist -> notify",
-        triggerType: "on_alert",
-        triggerConditions: { signatureContains: ["SQL Injection", "XSS", "LFI", "RFI", "Web", "Directory Traversal"] },
-        mitreTags: ["T1190", "T1059"],
-        build() {
-            resetCounter();
-            const nodes = [
-                trigger("t1", 50, "Web Attack Alert (T1190)", "on_alert"),
-                action("a1", 180, "enrich_ip"),
-                condition("c1", 310, "severity", "==", "critical"),
-                action("a2", 480, "block_ip", 150),
-                action("a3", 480, "add_to_watchlist", 450),
-                action("a4", 630, "create_incident", 300),
-                action("a5", 780, "notify_dashboard", 300)
-            ];
-            const edges = [
-                edge("t1", "a1"), edge("a1", "c1"),
-                edge("c1", "a2", "true"), edge("c1", "a3", "true"),
-                edge("a2", "a4"), edge("a3", "a4"), edge("c1", "a4", "false"),
-                edge("a4", "a5")
-            ];
-            return { nodes, edges };
-        }
-    },
-    // ── 7. Lateral Movement Detection ───────────────────────────────────────
-    {
-        name: "Lateral Movement Detection",
-        description: "T1021/T1570: Query ELK -> Run Nmap -> Forensic Snapshot -> Notify",
-        triggerType: "on_incident_created",
-        triggerConditions: { category: "lateral_movement" },
-        mitreTags: ["T1021", "T1570"],
-        build() {
-            resetCounter();
-            const nodes = [
-                trigger("t1", 50, "Lateral Movement (T1021/T1570)", "on_incident_created"),
-                action("a1", 180, "query_elk"),
-                action("a2", 330, "run_nmap_scan"),
-                action("a3", 480, "collect_forensic_snapshot"),
-                action("a4", 630, "create_jira_ticket"),
-                action("a5", 780, "notify_dashboard")
-            ];
-            const edges = [
-                edge("t1", "a1"), edge("a1", "a2"), edge("a2", "a3"), edge("a3", "a4"), edge("a4", "a5")
-            ];
-            return { nodes, edges };
-        }
-    },
-    // ── 8. Phishing Response ────────────────────────────────────────────────
-    {
-        name: "Phishing Response",
-        description: "T1566: Disable user -> Enrich IP/Domain -> Block IP -> Ticket -> Notify",
-        triggerType: "on_incident_created",
-        triggerConditions: { category: "phishing" },
-        mitreTags: ["T1566"],
-        build() {
-            resetCounter();
-            const nodes = [
-                trigger("t1", 50, "Phishing Incident (T1566)", "on_incident_created"),
-                action("a1", 180, "disable_user_account"),
-                action("a2", 330, "enrich_domain"),
-                action("a3", 480, "block_ip"),
-                action("a4", 630, "create_jira_ticket"),
-                action("a5", 780, "notify_dashboard")
-            ];
-            const edges = [
-                edge("t1", "a1"), edge("a1", "a2"), edge("a2", "a3"), edge("a3", "a4"), edge("a4", "a5")
-            ];
-            return { nodes, edges };
-        }
-    },
-    // ── 9. Ransomware Containment ───────────────────────────────────────────
-    {
-        name: "Ransomware Containment",
-        description: "T1486/T1490: Isolate host -> Forensic Snapshot -> Ticket -> Notify",
-        triggerType: "on_incident_created",
-        triggerConditions: { category: "ransomware" },
-        mitreTags: ["T1486", "T1490"],
-        build() {
-            resetCounter();
-            const nodes = [
-                trigger("t1", 50, "Ransomware Detected (T1486)", "on_incident_created"),
-                action("a1", 180, "isolate_host"),
-                action("a2", 330, "collect_forensic_snapshot"),
-                action("a3", 480, "create_jira_ticket"),
-                action("a4", 630, "notify_dashboard")
-            ];
-            const edges = [
-                edge("t1", "a1"), edge("a1", "a2"), edge("a2", "a3"), edge("a3", "a4")
             ];
             return { nodes, edges };
         }
