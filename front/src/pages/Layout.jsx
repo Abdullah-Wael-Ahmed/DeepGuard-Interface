@@ -54,10 +54,6 @@ const Layout = () => {
                                         <Share2 size={18} />
                                         <p className="text-sm font-medium">Correlation</p>
                                     </Link>
-                                    <Link className={activeTab("mitre-attack")} to="/mitre-attack">
-                                        <Crosshair size={18} />
-                                        <p className="text-sm font-medium">MITRE ATT&CK</p>
-                                    </Link>
                                 </>
                             )}
 
