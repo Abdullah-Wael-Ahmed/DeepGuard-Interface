@@ -185,7 +185,7 @@ const Settings = () => {
               <div className="p-6 rounded-xl border border-gray-700 bg-card-dark card-lift flex flex-col gap-4">
                 <h3 className="text-lg font-bold">Security Preferences</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="flex justify-between items-center p-4 bg-background-dark rounded-lg">
                     <div>
                       <p className="text-text-main font-medium">Session Timeout</p>
@@ -202,16 +202,6 @@ const Settings = () => {
                       <option value="1 hour">1 hour</option>
                       <option value="Never">Never</option>
                     </select>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-4 bg-background-dark rounded-lg">
-                    <div>
-                      <p className="text-text-main font-medium">Two-Factor Auth</p>
-                      <p className="text-xs text-text-secondary mt-1">Extra security layer</p>
-                    </div>
-                    <button className="px-4 py-2 bg-primary/20 text-primary rounded-lg text-sm font-medium hover:bg-primary/30 transition-colors">
-                      Enable
-                    </button>
                   </div>
                 </div>
               </div>

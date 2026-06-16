@@ -162,7 +162,7 @@ const UserManagement = () => {
         </div>
 
         {/* --- STATS CARDS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-card-dark p-6 rounded-xl border border-gray-800 flex items-center justify-between">
             <div>
                 <p className="text-text-secondary text-sm font-medium">
@@ -174,17 +174,6 @@ const UserManagement = () => {
             </div>
             <div className="p-3 bg-blue-500/10 rounded-lg">
                 <Users className="text-blue-500" size={24} />
-            </div>
-            </div>
-            <div className="bg-card-dark p-6 rounded-xl border border-gray-800 flex items-center justify-between">
-            <div>
-                <p className="text-text-secondary text-sm font-medium">
-                Active Sessions
-                </p>
-                <p className="text-2xl font-bold text-text-main mt-1">--</p>
-            </div>
-            <div className="p-3 bg-green-500/10 rounded-lg">
-                <CheckCircle className="text-green-500" size={24} />
             </div>
             </div>
             <div className="bg-card-dark p-6 rounded-xl border border-gray-800 flex items-center justify-between">
