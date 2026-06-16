@@ -1,10 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, Palette, Check } from "lucide-react";
 import { useTheme, ACCENT_COLORS } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 const Settings = () => {
   const { accentColor, setAccentColor } = useTheme();
+  const { sessionTimeout, setSessionTimeout } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
+  const [selectedTimeout, setSelectedTimeout] = useState(sessionTimeout);
+
+  useEffect(() => {
+    setSelectedTimeout(sessionTimeout);
+  }, [sessionTimeout]);
+
+  const handleSaveChanges = () => {
+    localStorage.setItem('deepguard-session-timeout', selectedTimeout);
+    setSessionTimeout(selectedTimeout);
+    toast.success("Settings saved successfully!");
+  };
+
+  const handleResetToDefault = () => {
+    setSelectedTimeout('15 minutes');
+    setAccentColor('cyan');
+    localStorage.setItem('deepguard-session-timeout', '15 minutes');
+    setSessionTimeout('15 minutes');
+    toast.info("Settings reset to defaults.");
+  };
 
   const tabs = ["Appearance", "Security Preferences"];
 
@@ -169,11 +191,16 @@ const Settings = () => {
                       <p className="text-text-main font-medium">Session Timeout</p>
                       <p className="text-xs text-text-secondary mt-1">Auto-logout after inactivity</p>
                     </div>
-                    <select className="bg-card-dark border border-gray-700 rounded-lg px-3 py-2 text-sm">
-                      <option>15 minutes</option>
-                      <option>30 minutes</option>
-                      <option>1 hour</option>
-                      <option>Never</option>
+                    <select 
+                      value={selectedTimeout}
+                      onChange={(e) => setSelectedTimeout(e.target.value)}
+                      className="bg-card-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-text-main focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                    >
+                      <option value="5 minutes">5 minutes</option>
+                      <option value="15 minutes">15 minutes</option>
+                      <option value="30 minutes">30 minutes</option>
+                      <option value="1 hour">1 hour</option>
+                      <option value="Never">Never</option>
                     </select>
                   </div>
                   
@@ -228,10 +255,16 @@ const Settings = () => {
 
           {/* Footer buttons */}
           <div className="flex justify-end gap-4 mt-8">
-            <button className="text-text-secondary hover:text-text-main font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+            <button 
+              onClick={handleResetToDefault}
+              className="text-text-secondary hover:text-text-main font-bold py-2 px-4 rounded-lg text-sm transition-colors"
+            >
               Reset to Default
             </button>
-            <button className="bg-primary text-background-dark font-bold py-2 px-4 rounded-lg text-sm hover:brightness-110 transition-all shadow-glow-primary glow-pulse">
+            <button 
+              onClick={handleSaveChanges}
+              className="bg-primary text-background-dark font-bold py-2 px-4 rounded-lg text-sm hover:brightness-110 transition-all shadow-glow-primary glow-pulse"
+            >
               Save Changes
             </button>
           </div>
